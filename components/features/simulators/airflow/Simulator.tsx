@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Play, Pause, Power, Info, Menu, Grid as GridIcon, Thermometer, Box, Scan, MousePointer2, MousePointerClick, Ruler, Eye, HelpCircle, Layers } from 'lucide-react';
+import { Play, Pause, Power, Info, Menu, Grid as GridIcon, Thermometer, Box, Scan, MousePointer2, MousePointerClick, Ruler, Eye, HelpCircle, Layers, Maximize, Square, GripHorizontal, Download } from 'lucide-react';
 import { SimulatorLeftPanel } from './SimulatorLeftPanel';
 import { SimulatorRightPanel } from './SimulatorRightPanel';
 import DiffuserCanvas from './DiffuserCanvas';
@@ -156,12 +156,12 @@ const Simulator = ({ onBack, onHome }: any) => {
         }
     }, [params.modelId, params.diameter, params.volume, params.temperature, physics]);
 
-    const addDiffuser = () => {
+    const addDiffuserAt = (x: number, y: number) => {
         const id = `diff-${Date.now()}`;
         const newD: PlacedDiffuser = {
             id, index: placedDiffusers.length + 1,
-            x: params.roomWidth / 2 + (Math.random() - 0.5),
-            y: params.roomLength / 2 + (Math.random() - 0.5),
+            x,
+            y,
             modelId: params.modelId,
             diameter: params.diameter,
             volume: params.volume,
@@ -170,7 +170,13 @@ const Simulator = ({ onBack, onHome }: any) => {
         };
         setPlacedDiffusers([...placedDiffusers, newD]);
         setSelectedDiffuserId(id);
-        
+    };
+
+    const addDiffuser = () => {
+        addDiffuserAt(
+            params.roomWidth / 2 + (Math.random() - 0.5),
+            params.roomLength / 2 + (Math.random() - 0.5)
+        );
         if (viewMode !== 'top') setViewMode('top');
     };
 
@@ -304,6 +310,8 @@ const Simulator = ({ onBack, onHome }: any) => {
                         gridSnapSize={0.5}
                         activeTool={activeTool}
                         setActiveTool={setActiveTool}
+                        placementMode={placementMode}
+                        onAddDiffuserAt={addDiffuserAt}
                         probes={probes}
                         onAddProbe={addProbe}
                         onRemoveProbe={removeProbe}
@@ -314,79 +322,87 @@ const Simulator = ({ onBack, onHome }: any) => {
                         onUpdateObstacle={updateObstacle}
                     />
 
-                    {/* Desktop Toolbar (Floating) */}
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex gap-2 pointer-events-none">
-                        {/* Power & View Group */}
-                        <div className="pointer-events-auto flex items-center p-1.5 rounded-2xl bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-xl border border-black/5 dark:border-white/10 shadow-xl">
-                            <button onClick={() => setIsPowerOn(!isPowerOn)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isPowerOn ? 'bg-green-500 text-white shadow-lg shadow-green-500/30' : 'text-slate-400 hover:bg-black/5 dark:hover:bg-white/10'}`}>
+                    {/* Desktop Toolbar (Floating iOS 26 Style) */}
+                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 p-1.5 rounded-full bg-white/90 dark:bg-[#0a0a0c]/90 backdrop-blur-2xl border border-black/10 dark:border-white/10 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)] pointer-events-auto transition-all duration-500">
+                        
+                        {/* Power & Play */}
+                        <div className="flex items-center gap-1 pr-2 border-r border-black/10 dark:border-white/10">
+                            <button onClick={() => setIsPowerOn(!isPowerOn)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${isPowerOn ? 'bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'text-slate-400 hover:bg-black/5 dark:hover:bg-white/10'}`}>
                                 <Power size={18} />
                             </button>
                             {isPowerOn && (
-                                <>
-                                    <div className="w-px h-6 bg-black/10 dark:bg-white/10 mx-2"></div>
-                                    <button onClick={() => setIsPlaying(!isPlaying)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${!isPlaying ? 'text-amber-400' : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white'}`}>
-                                        {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-                                    </button>
-                                </>
+                                <button onClick={() => setIsPlaying(!isPlaying)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${!isPlaying ? 'text-amber-500 bg-amber-500/10' : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10'}`}>
+                                    {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+                                </button>
                             )}
-                            <div className="w-px h-6 bg-black/10 dark:bg-white/10 mx-2"></div>
-                            <div className="flex bg-black/5 dark:bg-black/20 rounded-xl p-1">
-                                {['side', 'top', '3d'].map((m) => (
-                                    <button 
-                                        key={m}
-                                        onClick={() => setViewMode(m as any)}
-                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${viewMode === m ? 'bg-white dark:bg-white/10 text-black dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                                    >
-                                        {m}
-                                    </button>
-                                ))}
-                            </div>
                         </div>
 
-                        {/* Top View Tools Group */}
-                        {viewMode === 'top' && isPowerOn && (
-                            <div className="pointer-events-auto flex items-center p-1.5 rounded-2xl bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-xl border border-black/5 dark:border-white/10 shadow-xl animate-in fade-in zoom-in slide-in-from-bottom-4">
-                                <button onClick={() => setShowGrid(!showGrid)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${showGrid ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-white/10'}`} title="Сетка">
-                                    <GridIcon size={18} />
-                                </button>
-                                <button onClick={() => setSnapToGrid(!snapToGrid)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${snapToGrid ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-white/10'}`} title="Привязка">
-                                    <Scan size={18} />
-                                </button>
-                                <div className="w-px h-6 bg-white/10 mx-1"></div>
-                                <button onClick={() => setShowHeatmap(!showHeatmap)} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${showHeatmap ? 'bg-orange-500 text-white' : 'text-slate-500 hover:bg-white/10'}`} title="Теплокарта">
-                                    <Layers size={18} />
-                                </button>
-                                {showHeatmap && (
-                                    <button 
-                                        onClick={() => setVisualizationMode(prev => prev === 'velocity' ? 'adpi' : 'velocity')} 
-                                        className="px-3 h-10 rounded-xl flex items-center justify-center text-[10px] font-bold bg-white/5 border border-white/5 ml-1"
-                                    >
-                                        {visualizationMode === 'velocity' ? 'VEL' : 'ADPI'}
-                                    </button>
-                                )}
-                            </div>
-                        )}
+                        {/* View Modes */}
+                        <div className="flex items-center gap-1 px-2">
+                            <button 
+                                onClick={() => setViewMode('side')}
+                                className={`flex items-center gap-2 px-4 h-10 rounded-full text-[11px] font-bold tracking-[0.08em] transition-all duration-300 ${viewMode === 'side' ? 'bg-[#2563eb] text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                            >
+                                <Layers size={16} strokeWidth={2} />
+                                <span>СРЕЗ</span>
+                            </button>
+                            <button 
+                                onClick={() => setViewMode('top')}
+                                className={`flex items-center gap-2 px-4 h-10 rounded-full text-[11px] font-bold tracking-[0.08em] transition-all duration-300 ${viewMode === 'top' ? 'bg-[#2563eb] text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                            >
+                                <Maximize size={16} strokeWidth={2} />
+                                <span>ПЛАН</span>
+                            </button>
+                            <button 
+                                onClick={() => setViewMode('3d')}
+                                className={`flex items-center gap-2 px-4 h-10 rounded-full text-[11px] font-bold tracking-[0.08em] transition-all duration-300 ${viewMode === '3d' ? 'bg-[#2563eb] text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                            >
+                                <Box size={16} strokeWidth={2} />
+                                <span>3D</span>
+                            </button>
+                        </div>
 
-                        {/* Tools Palette (Select, Probe, Obstacle) */}
+                        {/* Tools (Dynamic based on view mode) */}
                         {isPowerOn && (
-                            <div className="pointer-events-auto flex items-center p-1.5 rounded-2xl bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-xl border border-black/5 dark:border-white/10 shadow-xl animate-in fade-in zoom-in slide-in-from-bottom-4">
-                                <button onClick={() => setActiveTool('select')} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${activeTool === 'select' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-white/10'}`} title="Выбор">
+                            <div className="flex items-center gap-1 pl-2 border-l border-black/10 dark:border-white/10 overflow-hidden transition-all duration-500">
+                                <button onClick={() => setActiveTool('select')} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${activeTool === 'select' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} title="Выбор">
                                     <MousePointer2 size={18} />
                                 </button>
-                                <button onClick={() => setActiveTool('probe')} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${activeTool === 'probe' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-white/10'}`} title="Датчик">
+                                <button onClick={() => setActiveTool('probe')} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${activeTool === 'probe' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} title="Датчик">
                                     <Thermometer size={18} />
                                 </button>
+                                
                                 {viewMode === 'top' && (
-                                    <button onClick={() => setActiveTool('obstacle')} className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${activeTool === 'obstacle' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-white/10'}`} title="Препятствие">
-                                        <Box size={18} />
-                                    </button>
+                                    <>
+                                        <button onClick={() => setActiveTool('obstacle')} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${activeTool === 'obstacle' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} title="Препятствие">
+                                            <Box size={18} />
+                                        </button>
+                                        <div className="w-px h-6 bg-black/10 dark:bg-white/10 mx-1"></div>
+                                        <button onClick={() => setShowGrid(!showGrid)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${showGrid ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} title="Сетка">
+                                            <GridIcon size={18} />
+                                        </button>
+                                        <button onClick={() => setSnapToGrid(!snapToGrid)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${snapToGrid ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} title="Привязка">
+                                            <Scan size={18} />
+                                        </button>
+                                        <button onClick={() => setShowHeatmap(!showHeatmap)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${showHeatmap ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} title="Теплокарта">
+                                            <Layers size={18} />
+                                        </button>
+                                        {showHeatmap && (
+                                            <button 
+                                                onClick={() => setVisualizationMode(prev => prev === 'velocity' ? 'adpi' : 'velocity')} 
+                                                className="px-3 h-10 rounded-full flex items-center justify-center text-[10px] font-bold bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors ml-1 text-slate-700 dark:text-slate-300"
+                                            >
+                                                {visualizationMode === 'velocity' ? 'VEL' : 'ADPI'}
+                                            </button>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         )}
 
                         {/* Help Button */}
-                        <div className="pointer-events-auto flex items-center p-1.5 rounded-2xl bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-xl border border-black/5 dark:border-white/10 shadow-xl">
-                            <button onClick={() => setIsHelpMode(true)} className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all">
+                        <div className="flex items-center pl-2 border-l border-black/10 dark:border-white/10">
+                            <button onClick={() => setIsHelpMode(true)} className="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all duration-300">
                                 <HelpCircle size={18} />
                             </button>
                         </div>

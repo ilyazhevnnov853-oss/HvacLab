@@ -29,6 +29,8 @@ interface TopViewCanvasProps {
   // Tool Props
   activeTool?: ToolMode;
   setActiveTool?: (mode: ToolMode) => void;
+  placementMode?: 'single' | 'multi';
+  onAddDiffuserAt?: (x: number, y: number) => void;
   // Probe Props
   probes?: Probe[];
   onAddProbe?: (x: number, y: number) => void;
@@ -536,6 +538,21 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
 
         switch (props.activeTool) {
             case 'select': {
+                if (props.placementMode === 'multi' && props.onAddDiffuserAt) {
+                    let newX = (mouseX - originX) / ppm;
+                    let newY = (mouseY - originY) / ppm;
+                    
+                    if (props.snapToGrid && props.gridSnapSize) {
+                        newX = Math.round(newX / props.gridSnapSize) * props.gridSnapSize;
+                        newY = Math.round(newY / props.gridSnapSize) * props.gridSnapSize;
+                    }
+                    
+                    if (newX >= 0 && newX <= props.roomWidth && newY >= 0 && newY <= props.roomLength) {
+                        props.onAddDiffuserAt(newX, newY);
+                        return;
+                    }
+                }
+
                 const obstacles = props.obstacles || [];
                 for (let i = obstacles.length - 1; i >= 0; i--) {
                     const obs = obstacles[i];

@@ -251,31 +251,29 @@ export const SimulatorLeftPanel = ({
                     </div>
 
                     {/* Footer Controls */}
-                    {viewMode === 'top' && (
-                        <div className="p-5 bg-white/60 dark:bg-[#050508]/60 border-t border-black/5 dark:border-white/5 backdrop-blur-xl absolute bottom-0 left-0 right-0 lg:relative">
-                                {/* Placement Mode Toggle */}
-                                {setPlacementMode && (
-                                    <div className="flex bg-black/5 dark:bg-black/20 p-1 rounded-xl border border-black/5 dark:border-white/5 mb-3">
-                                        <button 
-                                            onClick={() => setPlacementMode('single')}
-                                            className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${placementMode === 'single' ? 'bg-white dark:bg-white/10 text-black dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                                        >
-                                            Одиночный
-                                        </button>
-                                        <button 
-                                            onClick={() => setPlacementMode('multi')}
-                                            className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${placementMode === 'multi' ? 'bg-white dark:bg-white/10 text-black dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                                        >
-                                            Мульти
-                                        </button>
-                                    </div>
-                                )}
-
-                                <div className="grid grid-cols-1 gap-3">
-                                    <GlassButton onClick={() => { onAddDiffuser(); }} icon={<PlusCircle size={18} />} label="Добавить" secondary={true} disabled={!sizeSelected || !!physics.error} customClass="w-full bg-white/50 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-black/5 dark:border-white/5 hover:bg-white dark:hover:bg-white/10" />
+                    <div className="p-5 bg-white/60 dark:bg-[#050508]/60 border-t border-black/5 dark:border-white/5 backdrop-blur-xl absolute bottom-0 left-0 right-0 lg:relative">
+                            {/* Placement Mode Toggle */}
+                            {setPlacementMode && (
+                                <div className="flex bg-black/5 dark:bg-black/20 p-1 rounded-xl border border-black/5 dark:border-white/5 mb-3">
+                                    <button 
+                                        onClick={() => setPlacementMode('single')}
+                                        className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${placementMode === 'single' ? 'bg-white dark:bg-white/10 text-black dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                    >
+                                        Одиночный
+                                    </button>
+                                    <button 
+                                        onClick={() => setPlacementMode('multi')}
+                                        className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${placementMode === 'multi' ? 'bg-white dark:bg-white/10 text-black dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                                    >
+                                        Мульти
+                                    </button>
                                 </div>
-                        </div>
-                    )}
+                            )}
+
+                            <div className="grid grid-cols-1 gap-3">
+                                <GlassButton onClick={() => { onAddDiffuser(); }} icon={<PlusCircle size={18} />} label="Добавить" secondary={true} disabled={!sizeSelected || !!physics.error} customClass="w-full bg-white/50 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-black/5 dark:border-white/5 hover:bg-white dark:hover:bg-white/10" />
+                            </div>
+                    </div>
                 </div>
             </div>
         </>

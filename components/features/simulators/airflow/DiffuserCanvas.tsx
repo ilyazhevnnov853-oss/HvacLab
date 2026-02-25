@@ -40,6 +40,8 @@ interface DiffuserCanvasProps {
   // Tool Props
   activeTool?: ToolMode;
   setActiveTool?: (mode: ToolMode) => void;
+  placementMode?: 'single' | 'multi';
+  onAddDiffuserAt?: (x: number, y: number) => void;
   // Probe Props
   probes?: Probe[];
   onAddProbe?: (x: number, y: number) => void;
@@ -102,6 +104,8 @@ const DiffuserCanvas: React.FC<DiffuserCanvasProps> = (props) => {
                 // Tool Props
                 activeTool={props.activeTool}
                 setActiveTool={props.setActiveTool}
+                placementMode={props.placementMode}
+                onAddDiffuserAt={props.onAddDiffuserAt}
                 // Pass Probe props
                 probes={props.probes}
                 onAddProbe={props.onAddProbe}
