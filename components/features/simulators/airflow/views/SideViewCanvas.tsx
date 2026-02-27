@@ -43,10 +43,13 @@ interface SideViewCanvasProps {
   flowType: string; 
   modelId: string;
   showGrid: boolean;
+  roomWidth: number;
+  roomLength: number;
   roomHeight: number; 
   diffuserHeight: number; 
   workZoneHeight: number;
   placedDiffusers?: PlacedDiffuser[];
+  viewType: 'front' | 'right';
   // Added Props
   activeTool?: ToolMode;
   probes?: Probe[];
@@ -63,8 +66,14 @@ const getGlowColor = (t: number) => {
     return `255, 255, 255`;
 };
 
-const getSideLayout = (w: number, h: number, rh: number) => {
-    return { ppm: h / rh };
+const getSideLayout = (w: number, h: number, rh: number, rw: number) => {
+    const padding = 60;
+    const availW = w - padding * 2;
+    const availH = h - padding * 2;
+    const ppm = Math.min(availW / rw, availH / rh);
+    const offsetX = (w - rw * ppm) / 2;
+    const offsetY = (h - rh * ppm) / 2;
+    return { ppm, offsetX, offsetY };
 };
 
 const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
@@ -101,7 +110,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         simulationRef.current = props;
     }, [props]);
 
-    const spawnParticle = (p: Particle, state: SideViewCanvasProps, ppm: number) => {
+    const spawnParticle = (p: Particle, state: SideViewCanvasProps, ppm: number, offsetX: number, offsetY: number) => {
         // Determine Source
         let activeDiffuser: {
             x: number, // Projected onto Screen X
@@ -112,8 +121,9 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         if (state.placedDiffusers && state.placedDiffusers.length > 0) {
             const idx = Math.floor(Math.random() * state.placedDiffusers.length);
             const d = state.placedDiffusers[idx];
+            const pos = state.viewType === 'front' ? d.x : d.y;
             activeDiffuser = {
-                x: d.x * ppm,
+                x: offsetX + pos * ppm,
                 performance: d.performance,
                 modelId: d.modelId
             };
@@ -134,7 +144,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         const nozzleW = (spec.A / 1000) * ppm;
         const scale = ppm / 1000;
         
-        const diffuserYPos = (roomHeight - diffuserHeight) * ppm;
+        const diffuserYPos = offsetY + (roomHeight - diffuserHeight) * ppm;
         const hD = (spec.D || 0) * scale;
         const startY = diffuserYPos + hD;
 
@@ -154,8 +164,9 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
 
         if (flowType === 'suction') {
             isSuction = true;
-            startX = Math.random() * state.width;
-            const spawnY = Math.random() * state.height;
+            const roomDim = state.viewType === 'front' ? state.roomWidth : state.roomLength;
+            startX = offsetX + Math.random() * roomDim * ppm;
+            const spawnY = offsetY + Math.random() * state.roomHeight * ppm;
             const targetX = centerX;
             const targetY = diffuserYPos;
             const dx = targetX - startX;
@@ -227,6 +238,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         ctx: CanvasRenderingContext2D, 
         cx: number, 
         ppm: number, 
+        offsetY: number,
         state: SideViewCanvasProps,
         overridePerf?: PerformanceResult,
         overrideModelId?: string
@@ -242,10 +254,10 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         const hD = (spec.D || 0) * scale;
         const hC = (spec.C || 0) * scale; 
         const hTotal = hD + hC;
-        const yPos = (state.roomHeight - state.diffuserHeight) * ppm;
+        const yPos = offsetY + (state.roomHeight - state.diffuserHeight) * ppm;
         
         ctx.fillStyle = '#334155';
-        ctx.fillRect(cx - (wA * 0.8)/2, 0, wA * 0.8, yPos);
+        ctx.fillRect(cx - (wA * 0.8)/2, offsetY, wA * 0.8, yPos - offsetY);
         
         ctx.save();
         ctx.translate(0, yPos);
@@ -270,21 +282,23 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         ctx.restore();
     };
 
-    const drawAllDiffusers = (ctx: CanvasRenderingContext2D, ppm: number, state: SideViewCanvasProps) => {
+    const drawAllDiffusers = (ctx: CanvasRenderingContext2D, ppm: number, offsetX: number, offsetY: number, state: SideViewCanvasProps) => {
         if (state.placedDiffusers && state.placedDiffusers.length > 0) {
             state.placedDiffusers.forEach(d => {
-                const screenX = d.x * ppm;
-                drawDiffuserSideProfile(ctx, screenX, ppm, state, d.performance, d.modelId);
+                const pos = state.viewType === 'front' ? d.x : d.y;
+                const screenX = offsetX + pos * ppm;
+                drawDiffuserSideProfile(ctx, screenX, ppm, offsetY, state, d.performance, d.modelId);
             });
         }
     }
 
-    const drawProbes = (ctx: CanvasRenderingContext2D, ppm: number, state: SideViewCanvasProps) => {
+    const drawProbes = (ctx: CanvasRenderingContext2D, ppm: number, offsetX: number, offsetY: number, state: SideViewCanvasProps) => {
         if (!state.probes) return;
 
         state.probes.forEach(p => {
-            const px = p.x * ppm;
-            const py = (state.roomHeight - p.z) * ppm; // Vertical height Z
+            const pos = state.viewType === 'front' ? p.x : p.y;
+            const px = offsetX + pos * ppm;
+            const py = offsetY + (state.roomHeight - p.z) * ppm; // Vertical height Z
             
             ctx.beginPath();
             ctx.arc(px, py, 6, 0, Math.PI * 2);
@@ -301,7 +315,20 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         });
     }
 
-    const drawSideViewGrid = (ctx: CanvasRenderingContext2D, w: number, h: number, ppm: number, state: SideViewCanvasProps) => {
+    const drawSideViewGrid = (ctx: CanvasRenderingContext2D, w: number, h: number, ppm: number, offsetX: number, offsetY: number, state: SideViewCanvasProps) => {
+        const roomDim = state.viewType === 'front' ? state.roomWidth : state.roomLength;
+        const roomPixW = roomDim * ppm;
+        const roomPixH = state.roomHeight * ppm;
+
+        // Draw room outline
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(offsetX, offsetY, roomPixW, roomPixH);
+        
+        // Fill room background slightly lighter
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(offsetX, offsetY, roomPixW, roomPixH);
+
         if (!state.showGrid) return;
         
         ctx.lineWidth = 1;
@@ -309,24 +336,29 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         const step = 0.5 * ppm;
         
         ctx.beginPath();
-        for (let x = w/2; x < w; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
-        for (let x = w/2; x > 0; x -= step) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
-        for (let y = 0; y < h; y += step) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
+        for (let x = 0; x <= roomPixW; x += step) { 
+            ctx.moveTo(offsetX + x, offsetY); 
+            ctx.lineTo(offsetX + x, offsetY + roomPixH); 
+        }
+        for (let y = 0; y <= roomPixH; y += step) { 
+            ctx.moveTo(offsetX, offsetY + y); 
+            ctx.lineTo(offsetX + roomPixW, offsetY + y); 
+        }
         ctx.stroke();
         
         if (state.workZoneHeight > 0) {
-            const wzY = (state.roomHeight - state.workZoneHeight) * ppm;
+            const wzY = offsetY + (state.roomHeight - state.workZoneHeight) * ppm;
             ctx.beginPath();
             ctx.setLineDash([10, 5]);
             ctx.strokeStyle = 'rgba(255, 200, 0, 0.4)';
             ctx.lineWidth = 2;
-            ctx.moveTo(0, wzY);
-            ctx.lineTo(w, wzY);
+            ctx.moveTo(offsetX, wzY);
+            ctx.lineTo(offsetX + roomPixW, wzY);
             ctx.stroke();
             ctx.setLineDash([]);
             ctx.fillStyle = 'rgba(255, 200, 0, 0.6)';
             ctx.font = 'bold 10px Inter';
-            ctx.fillText(`РАБОЧАЯ ЗОНА (${state.workZoneHeight}м)`, 10, wzY - 5);
+            ctx.fillText(`РАБОЧАЯ ЗОНА (${state.workZoneHeight}м)`, offsetX + 10, wzY - 5);
         }
     };
 
@@ -340,23 +372,24 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         const { width, height, isPowerOn, isPlaying, roomHeight } = state;
         
         const dt = CONSTANTS.BASE_TIME_STEP;
-        const { ppm } = getSideLayout(width, height, roomHeight);
+        const roomDim = state.viewType === 'front' ? state.roomWidth : state.roomLength;
+        const { ppm, offsetX, offsetY } = getSideLayout(width, height, roomHeight, roomDim);
 
         if (!isPowerOn) {
                 ctx.clearRect(0, 0, width, height);
                 ctx.fillStyle = '#030304';
                 ctx.fillRect(0, 0, width, height);
-                drawSideViewGrid(ctx, width, height, ppm, state);
-                drawAllDiffusers(ctx, ppm, state);
-                drawProbes(ctx, ppm, state);
+                drawSideViewGrid(ctx, width, height, ppm, offsetX, offsetY, state);
+                drawAllDiffusers(ctx, ppm, offsetX, offsetY, state);
+                drawProbes(ctx, ppm, offsetX, offsetY, state);
                 requestRef.current = requestAnimationFrame(animate);
                 return;
         }
 
-        ctx.fillStyle = 'rgba(5, 5, 5, 0.2)'; 
+        ctx.fillStyle = 'rgba(3, 3, 4, 0.3)'; 
         ctx.fillRect(0, 0, width, height);
         
-        drawSideViewGrid(ctx, width, height, ppm, state);
+        drawSideViewGrid(ctx, width, height, ppm, offsetX, offsetY, state);
 
         const pool = particlePool.current;
         
@@ -373,7 +406,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
             let spawnedCount = 0;
             for (let i = 0; i < pool.length; i++) {
                 if (!pool[i].active) {
-                    spawnParticle(pool[i], state, ppm);
+                    spawnParticle(pool[i], state, ppm, offsetX, offsetY);
                     spawnedCount++;
                     if (spawnedCount >= spawnRate) break;
                 }
@@ -391,7 +424,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
 
             if (isPowerOn && isPlaying) {
                 p.age += dt;
-                if (p.age > p.life || p.y > maxH || p.x < 0 || p.x > width || p.y < -100) {
+                if (p.age > p.life || p.y > offsetY + roomHeight * ppm || p.x < offsetX || p.x > offsetX + roomDim * ppm || p.y < offsetY - 100) {
                     p.active = false;
                     continue;
                 }
@@ -399,12 +432,16 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 if (p.isSuction) {
                     p.x += p.vx * dt; 
                     p.y += p.vy * dt;
-                    const diffY = (state.roomHeight - state.diffuserHeight) * ppm;
+                    const diffY = offsetY + (state.roomHeight - state.diffuserHeight) * ppm;
                     if (p.y > diffY - 10) p.active = false; 
                 } else {
                     if (p.isHorizontal) {
-                        if (p.y < (height * 0.15) && Math.abs(p.vx) > 0.3) { p.vy += (0 - p.y) * 5.0 * dt; } 
-                        else { p.vy += p.buoyancy * dt * 0.5; }
+                        const ceilingY = offsetY + (state.roomHeight - state.diffuserHeight) * ppm;
+                        if (p.y < ceilingY + (height * 0.15) && Math.abs(p.vx) > 0.3) { 
+                            p.vy += (ceilingY - p.y) * 5.0 * dt; 
+                        } else { 
+                            p.vy += p.buoyancy * dt * 0.5; 
+                        }
                     } else {
                         p.vy += p.buoyancy * dt;
                     }
@@ -462,8 +499,8 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         }
 
         ctx.globalCompositeOperation = 'source-over';
-        drawAllDiffusers(ctx, ppm, state);
-        drawProbes(ctx, ppm, state);
+        drawAllDiffusers(ctx, ppm, offsetX, offsetY, state);
+        drawProbes(ctx, ppm, offsetX, offsetY, state);
 
         requestRef.current = requestAnimationFrame(animate);
     }, []);
@@ -497,14 +534,16 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         if (props.activeTool !== 'select' && props.activeTool !== 'probe') return;
 
         const { x: mouseX, y: mouseY } = getMousePos(e);
-        const { ppm } = getSideLayout(props.width, props.height, props.roomHeight);
+        const roomDim = props.viewType === 'front' ? props.roomWidth : props.roomLength;
+        const { ppm, offsetX, offsetY } = getSideLayout(props.width, props.height, props.roomHeight, roomDim);
 
         // Check Probes
         const probes = props.probes || [];
         for (let i = probes.length - 1; i >= 0; i--) {
             const p = probes[i];
-            const px = p.x * ppm;
-            const py = (props.roomHeight - p.z) * ppm;
+            const pos = props.viewType === 'front' ? p.x : p.y;
+            const px = offsetX + pos * ppm;
+            const py = offsetY + (props.roomHeight - p.z) * ppm;
             
             if (Math.hypot(mouseX - px, mouseY - py) < 15) {
                 setIsDragging(true);
@@ -519,21 +558,26 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
     const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
         if (!isDragging || !dragTargetRef.current) return;
         const { x: mouseX, y: mouseY } = getMousePos(e);
-        const { ppm } = getSideLayout(props.width, props.height, props.roomHeight);
+        const roomDim = props.viewType === 'front' ? props.roomWidth : props.roomLength;
+        const { ppm, offsetX, offsetY } = getSideLayout(props.width, props.height, props.roomHeight, roomDim);
 
         // Map mouse to X and Z
-        let newX = (mouseX - dragOffset.x) / ppm;
+        let newPos = (mouseX - dragOffset.x - offsetX) / ppm;
         let newScreenY = (mouseY - dragOffset.z);
         // Convert screen Y back to Z (height from floor)
-        // screenY = (roomH - z) * ppm => z = roomH - screenY/ppm
-        let newZ = props.roomHeight - (newScreenY / ppm);
+        // screenY = offsetY + (roomH - z) * ppm => z = roomH - (screenY - offsetY)/ppm
+        let newZ = props.roomHeight - ((newScreenY - offsetY) / ppm);
 
         // Clamping
-        newX = Math.max(0, Math.min(props.width / ppm, newX)); // Clamp width roughly
+        newPos = Math.max(0, Math.min(roomDim, newPos));
         newZ = Math.max(0, Math.min(props.roomHeight, newZ));
 
         if (dragTargetRef.current.type === 'probe' && props.onUpdateProbePos) {
-            props.onUpdateProbePos(dragTargetRef.current.id, { x: newX, z: newZ });
+            if (props.viewType === 'front') {
+                props.onUpdateProbePos(dragTargetRef.current.id, { x: newPos, z: newZ });
+            } else {
+                props.onUpdateProbePos(dragTargetRef.current.id, { y: newPos, z: newZ });
+            }
         }
     };
 

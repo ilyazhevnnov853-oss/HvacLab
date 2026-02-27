@@ -150,12 +150,13 @@ export const SimulatorLeftPanel = ({
                                         <input 
                                             type="number" 
                                             step="0.5" 
-                                            min={key === 'roomHeight' ? 2 : undefined}
-                                            max={key === 'roomHeight' ? 4 : undefined}
+                                            min={key === 'roomHeight' ? (params.workZoneHeight === 2.0 ? 2.1 : 1.6) : 1}
+                                            max={key === 'roomHeight' ? 4 : 10}
                                             value={(params as any)[key]} 
                                             onChange={(e) => {
                                                 let val = Number(e.target.value);
                                                 if (key === 'roomHeight' && val > 4) val = 4;
+                                                if ((key === 'roomWidth' || key === 'roomLength') && val > 10) val = 10;
                                                 setParams(p => ({
                                                     ...p, 
                                                     [key]: val,
@@ -166,12 +167,20 @@ export const SimulatorLeftPanel = ({
                                             onBlur={(e) => {
                                                 let val = Number(e.target.value);
                                                 if (key === 'roomHeight') {
-                                                    if (val < 2) val = 2;
+                                                    const minH = params.workZoneHeight === 2.0 ? 2.1 : 1.6;
+                                                    if (val < minH) val = minH;
                                                     if (val > 4) val = 4;
                                                     setParams(p => ({
                                                         ...p, 
                                                         [key]: val,
                                                         ...(key === 'roomHeight' ? { diffuserHeight: val } : {})
+                                                    }));
+                                                } else if (key === 'roomWidth' || key === 'roomLength') {
+                                                    if (val < 1) val = 1;
+                                                    if (val > 10) val = 10;
+                                                    setParams(p => ({
+                                                        ...p, 
+                                                        [key]: val
                                                     }));
                                                 }
                                             }}
@@ -183,10 +192,17 @@ export const SimulatorLeftPanel = ({
                                 <div className="bg-black/5 dark:bg-black/20 p-3 rounded-2xl border border-black/5 dark:border-white/5 hover:border-black/10 dark:hover:border-white/20 transition-colors">
                                     <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1.5">Раб. Зона (м)</label>
                                     <div className="flex bg-white/40 dark:bg-black/40 rounded-lg p-1 gap-1 h-[26px]">
-                                        {[1.5, 2.0].map(val => (
+                                        {[1.6, 2.0].map(val => (
                                             <button
                                                 key={val}
-                                                onClick={() => setParams((p: any) => ({ ...p, workZoneHeight: val }))}
+                                                onClick={() => {
+                                                    const minH = val === 2.0 ? 2.1 : 1.6;
+                                                    setParams((p: any) => ({ 
+                                                        ...p, 
+                                                        workZoneHeight: val,
+                                                        ...(p.roomHeight < minH ? { roomHeight: minH, diffuserHeight: minH } : {})
+                                                    }));
+                                                }}
                                                 className={`flex-1 rounded-md text-[10px] font-bold font-mono transition-all ${params.workZoneHeight === val ? 'bg-white dark:bg-slate-600 text-black dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                                             >
                                                 {val.toFixed(1)}

@@ -21,12 +21,12 @@ const Simulator = ({ onBack, onHome }: any) => {
         roomLength: 6,
         roomHeight: 3.5,
         diffuserHeight: 3.5,
-        workZoneHeight: 1.8,
+        workZoneHeight: 1.6,
         modeIdx: 0,
         isCeilingMounted: true
     });
 
-    const [viewMode, setViewMode] = useState<'side' | 'top' | '3d'>('side');
+    const [viewMode, setViewMode] = useState<'front' | 'right' | 'top' | '3d'>('front');
     const [isPowerOn, setIsPowerOn] = useState(true);
     const [isPlaying, setIsPlaying] = useState(true);
     const [showGrid, setShowGrid] = useState(true);
@@ -306,11 +306,18 @@ const Simulator = ({ onBack, onHome }: any) => {
                         {/* View Modes */}
                         <div className="flex items-center gap-1 px-2">
                             <button 
-                                onClick={() => setViewMode('side')}
-                                className={`flex items-center gap-2 px-4 h-10 rounded-full text-[11px] font-bold tracking-[0.08em] transition-all duration-300 ${viewMode === 'side' ? 'bg-[#2563eb] text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                                onClick={() => setViewMode('front')}
+                                className={`flex items-center gap-2 px-4 h-10 rounded-full text-[11px] font-bold tracking-[0.08em] transition-all duration-300 ${viewMode === 'front' ? 'bg-[#2563eb] text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5'}`}
                             >
                                 <Layers size={16} strokeWidth={2} />
-                                <span>СРЕЗ</span>
+                                <span>СПЕРЕДИ</span>
+                            </button>
+                            <button 
+                                onClick={() => setViewMode('right')}
+                                className={`flex items-center gap-2 px-4 h-10 rounded-full text-[11px] font-bold tracking-[0.08em] transition-all duration-300 ${viewMode === 'right' ? 'bg-[#2563eb] text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                            >
+                                <Layers size={16} strokeWidth={2} className="rotate-90" />
+                                <span>СПРАВА</span>
                             </button>
                             <button 
                                 onClick={() => setViewMode('top')}

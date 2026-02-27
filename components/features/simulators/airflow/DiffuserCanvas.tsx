@@ -22,7 +22,7 @@ interface DiffuserCanvasProps {
   workZoneHeight: number;
   roomWidth?: number;
   roomLength?: number;
-  viewMode?: 'side' | 'top' | '3d';
+  viewMode?: 'front' | 'right' | 'top' | '3d';
   placedDiffusers?: PlacedDiffuser[];
   onUpdateDiffuserPos?: (id: string, x: number, y: number) => void;
   onSelectDiffuser?: (id: string) => void;
@@ -142,10 +142,13 @@ const DiffuserCanvas: React.FC<DiffuserCanvasProps> = (props) => {
                 flowType={props.flowType}
                 modelId={props.modelId}
                 showGrid={props.showGrid}
+                roomWidth={props.roomWidth || 6}
+                roomLength={props.roomLength || 6}
                 roomHeight={props.roomHeight}
                 diffuserHeight={props.diffuserHeight}
                 workZoneHeight={props.workZoneHeight}
                 placedDiffusers={props.placedDiffusers}
+                viewType={props.viewMode === 'right' ? 'right' : 'front'}
                 // Pass Side Props
                 activeTool={props.activeTool}
                 probes={props.probes}
