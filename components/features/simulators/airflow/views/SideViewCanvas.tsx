@@ -53,6 +53,7 @@ interface SideViewCanvasProps {
   // Added Props
   activeTool?: ToolMode;
   probes?: Probe[];
+  onAddProbe?: (x: number, y: number) => void;
   onUpdateProbePos?: (id: string, pos: {x?: number, y?: number, z?: number}) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
@@ -107,6 +108,20 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
 
     // Sync Props
     useEffect(() => {
+        if (simulationRef.current.viewType !== props.viewType) {
+            // Clear particles when view type changes
+            particlePool.current.forEach(p => p.active = false);
+            // Also clear the canvas immediately
+            const canvas = canvasRef.current;
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.clearRect(0, 0, props.width, props.height);
+                    ctx.fillStyle = '#030304';
+                    ctx.fillRect(0, 0, props.width, props.height);
+                }
+            }
+        }
         simulationRef.current = props;
     }, [props]);
 
@@ -311,7 +326,8 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
             // Height label
             ctx.fillStyle = '#fff';
             ctx.font = '10px Inter';
-            ctx.fillText(`${p.z.toFixed(2)}m`, px + 10, py);
+            const depthLabel = state.viewType === 'front' ? `y: ${p.y.toFixed(1)}m` : `x: ${p.x.toFixed(1)}m`;
+            ctx.fillText(`z: ${p.z.toFixed(1)}m | ${depthLabel}`, px + 10, py);
         });
     }
 
@@ -552,6 +568,16 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 props.onDragStart && props.onDragStart();
                 return;
             }
+        }
+
+        if (props.activeTool === 'probe' && props.onAddProbe) {
+            let newPos = (mouseX - offsetX) / ppm;
+            let newZ = props.roomHeight - ((mouseY - offsetY) / ppm);
+            
+            newPos = Math.max(0, Math.min(roomDim, newPos));
+            newZ = Math.max(0, Math.min(props.roomHeight, newZ));
+            
+            props.onAddProbe(newPos, newZ);
         }
     };
 

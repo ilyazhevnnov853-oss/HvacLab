@@ -213,6 +213,16 @@ export const SimulatorLeftPanel = ({
                             </div>
                             
                             <GlassSlider label="Т° Помещения" icon={<Home size={14}/>} val={params.roomTemp} min={15} max={35} step={1} unit="°C" onChange={(v: number) => setParams(p => ({...p, roomTemp: v}))} color="temp"/>
+                            
+                            <div className="mt-4 flex items-center justify-between p-3 rounded-2xl bg-black/5 dark:bg-black/20 border border-black/5 dark:border-white/5 cursor-pointer hover:bg-black/10 dark:hover:bg-white/5 transition-colors" onClick={() => setParams(p => ({...p, isCeilingMounted: !p.isCeilingMounted}))}>
+                                <div className="flex items-center gap-2">
+                                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${params.isCeilingMounted ? 'bg-blue-500 border-blue-500' : 'border-slate-400 dark:border-slate-600'}`}>
+                                        {params.isCeilingMounted && <CheckCircle2 size={12} className="text-white" />}
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Монтаж в потолок</span>
+                                </div>
+                                <div className="text-[9px] text-slate-400">Эффект Коанда</div>
+                            </div>
                         </AccordionItem>
                     </div>
 

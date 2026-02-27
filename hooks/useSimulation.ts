@@ -234,12 +234,13 @@ export const useScientificSimulation = (
 // Updated to use same Logic as calculateSimulationField where possible
 // For single point probe, we can simulate vector addition from all diffusers
 export const calculateProbeData = (
-    x: number, 
-    y: number, 
+    probe: { x: number, y: number, z: number }, 
     diffusers: PlacedDiffuser[], 
-    roomTemp: number, 
-    supplyTemp: number,
-    probeZ: number = 1.8 
+    roomTemp: number = 24, 
+    supplyTemp: number = 20,
+    roomWidth: number,
+    roomLength: number,
+    roomHeight: number
 ): ProbeData => {
     
     // Vectors accumulator
@@ -251,12 +252,14 @@ export const calculateProbeData = (
     // Used for vector damping logic
     const vectors: {vx: number, vy: number, mag: number}[] = [];
 
-    diffusers.forEach(d => {
-        const diffZ = 3.5; // Assume consistent for now or pass via d.z if variable
+    const safeDiffusers = Array.isArray(diffusers) ? diffusers : [];
+
+    safeDiffusers.forEach(d => {
+        const diffZ = d.performance.diffuserHeight || roomHeight; 
         
         const shadowFactor = 1.0;
 
-        const dist2D = Math.sqrt(Math.pow(d.x - x, 2) + Math.pow(d.y - y, 2));
+        const dist2D = Math.sqrt(Math.pow(d.x - probe.x, 2) + Math.pow(d.y - probe.y, 2));
         
         const model = DIFFUSER_CATALOG.find(m => m.id === d.modelId);
         const flowType = model?.modes[0].flowType || 'vertical';
@@ -272,7 +275,7 @@ export const calculateProbeData = (
             const dy = calculateVerticalDeflection(dist2D, d.performance.v0, dt, roomTemp);
             
             const jetZ = diffZ + dy;
-            const distZ = Math.abs(probeZ - jetZ);
+            const distZ = Math.abs(probe.z - jetZ);
             
             const jetThickness = 0.15 * (dist2D + 0.5); 
             const vertFactor = Math.exp(-Math.pow(distZ, 2) / (2 * Math.pow(jetThickness, 2)));
@@ -296,8 +299,8 @@ export const calculateProbeData = (
             // Direction unit vector (from diffuser TO point)
             let ux = 0, uy = 0;
             if (dist2D > 0.001) {
-                ux = (x - d.x) / dist2D;
-                uy = (y - d.y) / dist2D;
+                ux = (probe.x - d.x) / dist2D;
+                uy = (probe.y - d.y) / dist2D;
             }
             
             const vx = vPoint * ux;
@@ -359,7 +362,8 @@ export const calculateSimulationField = (
     roomWidth: number, roomLength: number, placedDiffusers: PlacedDiffuser[], 
     diffuserHeight: number, workZoneHeight: number, gridStep: number = 0.5,
     supplyTemp: number = 20,
-    roomTemp: number = 24
+    roomTemp: number = 24,
+    isCeilingMounted: boolean = true
 ): GridPoint[][] => {
     const cols = Math.ceil(roomWidth / gridStep);
     const rows = Math.ceil(roomLength / gridStep);
@@ -377,7 +381,7 @@ export const calculateSimulationField = (
         for (let c = 0; c < cols; c++) {
             const x = c * gridStep + gridStep / 2;
             const y = r * gridStep + gridStep / 2;
-            const z = 1.1; // Default slice Z
+            const z = workZoneHeight; // Use workZoneHeight instead of hardcoded 1.1
             
             let vxSum = 0;
             let vySum = 0;
@@ -403,7 +407,11 @@ export const calculateSimulationField = (
                     const distZ = Math.abs(z - jetZ);
                     const jetThickness = 0.15 * (dist2D + 0.5);
                     const vertFactor = Math.exp(-Math.pow(distZ, 2) / (2 * Math.pow(jetThickness, 2)));
-                    const decay = Math.min(1, (2.0 * d.Ak_m) / (dist2D + 0.1));
+                    
+                    // Coanda effect: if ceiling mounted, jet decays slower
+                    const coandaFactor = isCeilingMounted ? 1.4 : 1.0;
+                    const decay = Math.min(1, (coandaFactor * 2.0 * d.Ak_m) / (dist2D + 0.1));
+                    
                     vPoint = d.performance.v0 * decay * vertFactor;
                 } else {
                     const radius = d.performance.coverageRadius;

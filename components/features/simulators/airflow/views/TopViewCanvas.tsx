@@ -163,11 +163,13 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         const cy = originY + probe.y * ppm;
         
         const data = calculateProbeData(
-            probe.x, probe.y, 
+            probe, 
             state.placedDiffusers || [], 
             state.roomTemp || 24, 
             state.supplyTemp || 20,
-            probe.z
+            state.roomWidth,
+            state.roomLength,
+            state.roomHeight
         );
         
         let color = '#34d399'; 
@@ -205,9 +207,13 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         ctx.stroke();
 
         const badgeW = 96;
-        const badgeH = 50;
+        const badgeH = 64; // Increased height for Z
         const bx = cx + 12;
-        const by = cy - 50;
+        const by = cy - 64;
+        
+        // Make probe semi-transparent if it's far from the current work zone height slice
+        const zDiff = Math.abs(probe.z - (state.workZoneHeight || 1.6));
+        ctx.globalAlpha = zDiff > 0.5 ? 0.5 : 1.0;
         
         ctx.fillStyle = 'rgba(15, 23, 42, 0.95)'; 
         ctx.beginPath();
@@ -220,19 +226,26 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         ctx.font = 'bold 10px Inter, sans-serif';
         
         ctx.fillStyle = '#94a3b8';
-        ctx.fillText("V:", bx + 8, by + 14);
+        ctx.fillText("Z:", bx + 8, by + 14);
         ctx.fillStyle = '#fff';
-        ctx.fillText(`${data.v.toFixed(2)} м/с`, bx + 28, by + 14);
+        ctx.fillText(`${probe.z.toFixed(1)} м`, bx + 28, by + 14);
 
         ctx.fillStyle = '#94a3b8';
-        ctx.fillText("T:", bx + 8, by + 28);
+        ctx.fillText("V:", bx + 8, by + 28);
         ctx.fillStyle = '#fff';
-        ctx.fillText(`${data.t.toFixed(1)}°C`, bx + 28, by + 28);
+        ctx.fillText(`${data.v.toFixed(2)} м/с`, bx + 28, by + 28);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText("T:", bx + 8, by + 42);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(`${data.t.toFixed(1)}°C`, bx + 28, by + 42);
         
         ctx.fillStyle = '#94a3b8';
-        ctx.fillText("DR:", bx + 8, by + 42);
+        ctx.fillText("DR:", bx + 8, by + 56);
         ctx.fillStyle = color;
-        ctx.fillText(`${data.dr.toFixed(0)}%`, bx + 28, by + 42);
+        ctx.fillText(`${data.dr.toFixed(0)}%`, bx + 28, by + 56);
+        
+        ctx.globalAlpha = 1.0; // Reset alpha
     };
 
     const animate = useCallback(() => {
@@ -394,8 +407,9 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         const { ppm, originX, originY } = getTopLayout(props.width, props.height, props.roomWidth, props.roomLength);
 
         switch (props.activeTool) {
-            case 'select': {
-                if (props.placementMode === 'multi' && props.onAddDiffuserAt) {
+            case 'select':
+            case 'probe': {
+                if (props.activeTool === 'select' && props.placementMode === 'multi' && props.onAddDiffuserAt) {
                     let newX = (mouseX - originX) / ppm;
                     let newY = (mouseY - originY) / ppm;
                     
@@ -421,6 +435,17 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
                         setDragOffset({ x: mouseX - cx, y: mouseY - cy });
                         return;
                     }
+                }
+
+                if (props.activeTool === 'probe') {
+                    if (props.onAddProbe) {
+                        const newX = (mouseX - originX) / ppm;
+                        const newY = (mouseY - originY) / ppm;
+                        if (newX >= 0 && newX <= props.roomWidth && newY >= 0 && newY <= props.roomLength) {
+                            props.onAddProbe(newX, newY);
+                        }
+                    }
+                    return;
                 }
 
                 let hitId = null;
@@ -451,17 +476,6 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
                     }
                 } else {
                     props.onSelectDiffuser && props.onSelectDiffuser(''); 
-                }
-                break;
-            }
-
-            case 'probe': {
-                if (props.onAddProbe) {
-                    const newX = (mouseX - originX) / ppm;
-                    const newY = (mouseY - originY) / ppm;
-                    if (newX >= 0 && newX <= props.roomWidth && newY >= 0 && newY <= props.roomLength) {
-                        props.onAddProbe(newX, newY);
-                    }
                 }
                 break;
             }

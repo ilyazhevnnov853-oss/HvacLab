@@ -40,7 +40,21 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
         }
     }, []);
 
-    useEffect(() => { simulationRef.current = props; }, [props]);
+    useEffect(() => {
+        if (simulationRef.current.viewMode !== props.viewMode) {
+             particlesRef.current.forEach(p => p.active = false);
+             const canvas = canvasRef.current;
+             if (canvas) {
+                 const ctx = canvas.getContext('2d');
+                 if (ctx) {
+                     ctx.clearRect(0, 0, props.width, props.height);
+                     ctx.fillStyle = '#030304';
+                     ctx.fillRect(0, 0, props.width, props.height);
+                 }
+             }
+        }
+        simulationRef.current = props;
+    }, [props]);
 
     const handleWheel = useCallback((e: React.WheelEvent) => {
         e.stopPropagation();

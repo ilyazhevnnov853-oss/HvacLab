@@ -113,12 +113,13 @@ export const SimulatorRightPanel = ({
                                 {probes.map((probe: any, idx: number) => {
                                     // Calculate realtime data for list view
                                     const data = calculateProbeData(
-                                        probe.x, 
-                                        probe.y, 
+                                        probe, 
                                         placedDiffusers, 
                                         params.roomTemp,
                                         params.temperature,
-                                        probe.z
+                                        params.roomWidth,
+                                        params.roomLength,
+                                        params.roomHeight
                                     );
                                     
                                     return (

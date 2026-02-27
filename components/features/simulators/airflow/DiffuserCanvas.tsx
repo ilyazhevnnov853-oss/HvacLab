@@ -152,6 +152,7 @@ const DiffuserCanvas: React.FC<DiffuserCanvasProps> = (props) => {
                 // Pass Side Props
                 activeTool={props.activeTool}
                 probes={props.probes}
+                onAddProbe={props.onAddProbe}
                 onUpdateProbePos={props.onUpdateProbePos}
                 onDragStart={props.onDragStart}
                 onDragEnd={props.onDragEnd}

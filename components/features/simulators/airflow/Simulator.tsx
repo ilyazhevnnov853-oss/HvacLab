@@ -76,11 +76,12 @@ const Simulator = ({ onBack, onHome }: any) => {
                 params.workZoneHeight, 
                 0.5, // Grid step
                 params.temperature,
-                params.roomTemp
+                params.roomTemp,
+                params.isCeilingMounted
             );
         }
         return [];
-    }, [viewMode, params.roomWidth, params.roomLength, placedDiffusers, params.diffuserHeight, params.workZoneHeight, params.temperature, params.roomTemp]);
+    }, [viewMode, params.roomWidth, params.roomLength, placedDiffusers, params.diffuserHeight, params.workZoneHeight, params.temperature, params.roomTemp, params.isCeilingMounted]);
 
     // 3. Global Stats
     const topViewStats = useMemo(() => {
@@ -150,6 +151,26 @@ const Simulator = ({ onBack, onHome }: any) => {
         }
     }, [params.modelId, params.diameter, params.volume, params.temperature, physics]);
 
+    // Ограничение координат диффузоров и датчиков при изменении габаритов комнаты
+    useEffect(() => {
+        // Отступ от стены, чтобы диффузор не врезался в нее текстурой
+        const margin = 0.5; 
+
+        setPlacedDiffusers(prev => prev.map(d => ({
+            ...d,
+            // Ограничиваем X между margin и (ширина - margin)
+            x: Math.min(Math.max(d.x, margin), params.roomWidth - margin),
+            // Ограничиваем Y (в 2D это длина)
+            y: Math.min(Math.max(d.y, margin), params.roomLength - margin)
+        })));
+
+        setProbes(prev => prev.map(p => ({
+            ...p,
+            x: Math.min(Math.max(p.x, 0.1), params.roomWidth - 0.1),
+            y: Math.min(Math.max(p.y, 0.1), params.roomLength - 0.1)
+        })));
+    }, [params.roomWidth, params.roomLength]);
+
     const addDiffuserAt = (x: number, y: number) => {
         const id = `diff-${Date.now()}`;
         const newD: PlacedDiffuser = {
@@ -199,9 +220,24 @@ const Simulator = ({ onBack, onHome }: any) => {
     };
 
     // Probes
-    const addProbe = (x: number, y: number) => {
-        const z = params.workZoneHeight; // Default to workzone
-        setProbes([...probes, { id: `p-${Date.now()}`, x, y, z }]);
+    const addProbeAtScreenClick = (clickX: number, clickY: number) => {
+        let startX = params.roomWidth / 2;
+        let startY = params.roomLength / 2;
+        let startZ = params.workZoneHeight; // Default to workzone
+
+        if (viewMode === 'top') {
+            startX = clickX;
+            startY = clickY;
+        } else if (viewMode === 'front') {
+            startX = clickX;
+            startZ = clickY; 
+        } else if (viewMode === 'right') {
+            startY = clickX;
+            startZ = clickY;
+        }
+
+        setProbes([...probes, { id: `p-${Date.now()}`, x: startX, y: startY, z: startZ }]);
+        setActiveTool('select');
     };
     
     const updateProbePos = (id: string, pos: {x?: number, y?: number, z?: number}) => {
@@ -283,7 +319,7 @@ const Simulator = ({ onBack, onHome }: any) => {
                         placementMode={placementMode}
                         onAddDiffuserAt={addDiffuserAt}
                         probes={probes}
-                        onAddProbe={addProbe}
+                        onAddProbe={addProbeAtScreenClick}
                         onRemoveProbe={removeProbe}
                         onUpdateProbePos={updateProbePos}
                     />
@@ -335,27 +371,44 @@ const Simulator = ({ onBack, onHome }: any) => {
                             </button>
                         </div>
 
-                        {/* Tools (Dynamic based on view mode) */}
+                        {/* Tools (Always present, conditionally disabled) */}
                         {isPowerOn && (
                             <div className="flex items-center gap-1 pl-2 border-l border-black/10 dark:border-white/10 overflow-hidden transition-all duration-500">
-                                <button onClick={() => setActiveTool('select')} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${activeTool === 'select' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} title="Выбор">
+                                <button 
+                                    onClick={() => setActiveTool('select')} 
+                                    disabled={viewMode === '3d'}
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${viewMode === '3d' ? 'opacity-30 cursor-not-allowed' : ''} ${activeTool === 'select' && viewMode !== '3d' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
+                                    title="Выбор"
+                                >
                                     <MousePointer2 size={18} />
                                 </button>
-                                <button onClick={() => setActiveTool('probe')} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${activeTool === 'probe' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} title="Датчик">
+                                <button 
+                                    onClick={() => setActiveTool('probe')} 
+                                    disabled={viewMode === '3d'}
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${viewMode === '3d' ? 'opacity-30 cursor-not-allowed' : ''} ${activeTool === 'probe' && viewMode !== '3d' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
+                                    title="Датчик"
+                                >
                                     <Thermometer size={18} />
                                 </button>
                                 
-                                {viewMode === 'top' && (
-                                    <>
-                                        <div className="w-px h-6 bg-black/10 dark:bg-white/10 mx-1"></div>
-                                        <button onClick={() => setShowGrid(!showGrid)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${showGrid ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} title="Сетка">
-                                            <GridIcon size={18} />
-                                        </button>
-                                        <button onClick={() => setSnapToGrid(!snapToGrid)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${snapToGrid ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} title="Привязка">
-                                            <Scan size={18} />
-                                        </button>
-                                    </>
-                                )}
+                                <div className="w-px h-6 bg-black/10 dark:bg-white/10 mx-1"></div>
+                                
+                                <button 
+                                    onClick={() => setShowGrid(!showGrid)} 
+                                    disabled={viewMode === '3d'}
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${viewMode === '3d' ? 'opacity-30 cursor-not-allowed' : ''} ${showGrid && viewMode !== '3d' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
+                                    title="Сетка"
+                                >
+                                    <GridIcon size={18} />
+                                </button>
+                                <button 
+                                    onClick={() => setSnapToGrid(!snapToGrid)} 
+                                    disabled={viewMode !== 'top'}
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${viewMode !== 'top' ? 'opacity-30 cursor-not-allowed' : ''} ${snapToGrid && viewMode === 'top' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
+                                    title="Привязка"
+                                >
+                                    <Scan size={18} />
+                                </button>
                             </div>
                         )}
 
