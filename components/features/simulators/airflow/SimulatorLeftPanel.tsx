@@ -150,9 +150,12 @@ export const SimulatorLeftPanel = ({
                                         <input 
                                             type="number" 
                                             step="0.5" 
+                                            min={key === 'roomHeight' ? 2 : undefined}
+                                            max={key === 'roomHeight' ? 4 : undefined}
                                             value={(params as any)[key]} 
                                             onChange={(e) => {
-                                                const val = Number(e.target.value);
+                                                let val = Number(e.target.value);
+                                                if (key === 'roomHeight' && val > 4) val = 4;
                                                 setParams(p => ({
                                                     ...p, 
                                                     [key]: val,
@@ -160,6 +163,18 @@ export const SimulatorLeftPanel = ({
                                                     ...(key === 'roomHeight' ? { diffuserHeight: val } : {})
                                                 }));
                                             }} 
+                                            onBlur={(e) => {
+                                                let val = Number(e.target.value);
+                                                if (key === 'roomHeight') {
+                                                    if (val < 2) val = 2;
+                                                    if (val > 4) val = 4;
+                                                    setParams(p => ({
+                                                        ...p, 
+                                                        [key]: val,
+                                                        ...(key === 'roomHeight' ? { diffuserHeight: val } : {})
+                                                    }));
+                                                }
+                                            }}
                                             className="bg-transparent w-full text-sm font-bold font-mono text-slate-900 dark:text-white outline-none" 
                                         />
                                     </div>
