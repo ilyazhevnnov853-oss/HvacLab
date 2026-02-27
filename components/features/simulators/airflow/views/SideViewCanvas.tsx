@@ -440,7 +440,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
 
             if (isPowerOn && isPlaying) {
                 p.age += dt;
-                if (p.age > p.life || p.y > offsetY + roomHeight * ppm || p.x < offsetX || p.x > offsetX + roomDim * ppm || p.y < offsetY - 100) {
+                if (p.age > p.life) {
                     p.active = false;
                     continue;
                 }
@@ -464,6 +464,32 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                     p.vx *= p.drag;
                     p.vy *= p.drag;
                     p.x += p.vx * dt; p.y += p.vy * dt;
+                }
+
+                // Collisions
+                // Floor
+                if (p.y > offsetY + roomHeight * ppm) {
+                    p.y = offsetY + roomHeight * ppm;
+                    p.vy *= -0.5;
+                    p.vx *= 0.8;
+                }
+                // Ceiling
+                if (p.y < offsetY) {
+                    p.y = offsetY;
+                    p.vy *= -0.5;
+                    p.vx *= 0.8;
+                }
+                // Left Wall
+                if (p.x < offsetX) {
+                    p.x = offsetX;
+                    p.vx *= -0.5;
+                    p.vy *= 0.8;
+                }
+                // Right Wall
+                if (p.x > offsetX + roomDim * ppm) {
+                    p.x = offsetX + roomDim * ppm;
+                    p.vx *= -0.5;
+                    p.vy *= 0.8;
                 }
 
                 if (p.age - p.lastHistoryTime >= CONSTANTS.HISTORY_RECORD_INTERVAL) {

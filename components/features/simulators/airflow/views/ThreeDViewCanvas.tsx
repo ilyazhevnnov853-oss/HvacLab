@@ -118,7 +118,7 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
             ctx.fillStyle = '#030304';
             ctx.fillRect(0, 0, width, height);
         } else {
-            ctx.fillStyle = 'rgba(5, 5, 5, 0.25)';
+            ctx.fillStyle = 'rgba(3, 3, 4, 0.3)';
             ctx.fillRect(0, 0, width, height);
         }
 
@@ -137,84 +137,87 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
             project(x, -(y + yOffset), z, width, height, camera.rotX, camera.rotY, finalScale, camera.panX, camera.panY);
 
         // --- DRAW ROOM ---
-        if (isPowerOn) {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-            ctx.lineWidth = 1;
-            const corners = [
-                {x: -rw/2, y: 0, z: -rl/2}, {x: rw/2, y: 0, z: -rl/2}, {x: rw/2, y: 0, z: rl/2}, {x: -rw/2, y: 0, z: rl/2},
-                {x: -rw/2, y: rh, z: -rl/2}, {x: rw/2, y: rh, z: -rl/2}, {x: rw/2, y: rh, z: rl/2}, {x: -rw/2, y: rh, z: rl/2}
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        const corners = [
+            {x: -rw/2, y: 0, z: -rl/2}, {x: rw/2, y: 0, z: -rl/2}, {x: rw/2, y: 0, z: rl/2}, {x: -rw/2, y: 0, z: rl/2},
+            {x: -rw/2, y: rh, z: -rl/2}, {x: rw/2, y: rh, z: -rl/2}, {x: rw/2, y: rh, z: rl/2}, {x: -rw/2, y: rh, z: rl/2}
+        ].map(v => p3d(v.x, v.y, v.z));
+
+        ctx.beginPath();
+        [0,4].forEach(start => {
+            ctx.moveTo(corners[start].x, corners[start].y);
+            ctx.lineTo(corners[start+1].x, corners[start+1].y);
+            ctx.lineTo(corners[start+2].x, corners[start+2].y);
+            ctx.lineTo(corners[start+3].x, corners[start+3].y);
+            ctx.closePath();
+        });
+        [0,1,2,3].forEach(i => {
+            ctx.moveTo(corners[i].x, corners[i].y);
+            ctx.lineTo(corners[i+4].x, corners[i+4].y);
+        });
+        ctx.stroke();
+
+        // Draw Workzone
+        if (workZoneHeight > 0) {
+            const wy = workZoneHeight * PPM;
+            const wc = [
+                {x: -rw/2, y: wy, z: -rl/2}, {x: rw/2, y: wy, z: -rl/2},
+                {x: rw/2, y: wy, z: rl/2}, {x: -rw/2, y: wy, z: rl/2}
             ].map(v => p3d(v.x, v.y, v.z));
-
+            
+            ctx.fillStyle = 'rgba(255, 200, 0, 0.05)';
+            ctx.strokeStyle = 'rgba(255, 200, 0, 0.3)';
             ctx.beginPath();
-            [0,4].forEach(start => {
-                ctx.moveTo(corners[start].x, corners[start].y);
-                ctx.lineTo(corners[start+1].x, corners[start+1].y);
-                ctx.lineTo(corners[start+2].x, corners[start+2].y);
-                ctx.lineTo(corners[start+3].x, corners[start+3].y);
-                ctx.closePath();
-            });
-            [0,1,2,3].forEach(i => {
-                ctx.moveTo(corners[i].x, corners[i].y);
-                ctx.lineTo(corners[i+4].x, corners[i+4].y);
-            });
-            ctx.stroke();
+            ctx.moveTo(wc[0].x, wc[0].y); ctx.lineTo(wc[1].x, wc[1].y); ctx.lineTo(wc[2].x, wc[2].y); ctx.lineTo(wc[3].x, wc[3].y);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+        }
 
-            // Draw Workzone
-            if (workZoneHeight > 0) {
-                const wy = workZoneHeight * PPM;
-                const wc = [
-                    {x: -rw/2, y: wy, z: -rl/2}, {x: rw/2, y: wy, z: -rl/2},
-                    {x: rw/2, y: wy, z: rl/2}, {x: -rw/2, y: wy, z: rl/2}
-                ].map(v => p3d(v.x, v.y, v.z));
+        // Draw Probes
+        if (probes) {
+            probes.forEach(p => {
+                const cx = (p.x - roomWidth/2) * PPM;
+                const cz = (p.y - roomLength/2) * PPM;
+                const cy = p.z * PPM;
                 
-                ctx.fillStyle = 'rgba(255, 200, 0, 0.05)';
-                ctx.strokeStyle = 'rgba(255, 200, 0, 0.3)';
-                ctx.beginPath();
-                ctx.moveTo(wc[0].x, wc[0].y); ctx.lineTo(wc[1].x, wc[1].y); ctx.lineTo(wc[2].x, wc[2].y); ctx.lineTo(wc[3].x, wc[3].y);
-                ctx.closePath(); ctx.fill(); ctx.stroke();
-            }
-
-            // Draw Probes
-            if (probes) {
-                probes.forEach(p => {
-                    const cx = (p.x - roomWidth/2) * PPM;
-                    const cz = (p.y - roomLength/2) * PPM;
-                    const cy = p.z * PPM;
-                    
-                    const pt = p3d(cx, cy, cz);
-                    if (pt.s > 0) {
-                        ctx.beginPath();
-                        ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
-                        ctx.fillStyle = '#34d399';
-                        ctx.fill();
-                        
-                        // Text Label
-                        ctx.fillStyle = '#fff';
-                        ctx.font = '10px Inter';
-                        ctx.fillText(`P: ${p.z.toFixed(1)}m`, pt.x + 8, pt.y);
-                    }
-                });
-            }
-
-            // Draw Diffuser Bodies in 3D
-            const diffY = (state.diffuserHeight) * PPM;
-            const sources = (placedDiffusers && placedDiffusers.length > 0) ? placedDiffusers : [{
-                x: state.roomWidth / 2, y: state.roomLength / 2, performance: state.physics, modelId: state.modelId
-            }];
-
-            sources.forEach(d => {
-                const cx = (d.x - state.roomWidth / 2) * PPM;
-                const cz = (d.y - state.roomLength / 2) * PPM;
-                const p = p3d(cx, diffY, cz);
-                
-                if (p.s > 0) {
-                    const r = (d.performance.spec.A ? Math.sqrt(d.performance.spec.A)/50 : 0.15) * PPM * finalScale * 0.5;
+                const pt = p3d(cx, cy, cz);
+                if (pt.s > 0) {
                     ctx.beginPath();
-                    ctx.fillStyle = '#cbd5e1';
-                    ctx.arc(p.x, p.y, Math.max(2, r), 0, Math.PI*2);
+                    ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = '#34d399';
                     ctx.fill();
+                    
+                    // Text Label
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '10px Inter';
+                    ctx.fillText(`P: ${p.z.toFixed(1)}m`, pt.x + 8, pt.y);
                 }
             });
+        }
+
+        // Draw Diffuser Bodies in 3D
+        const diffY = (state.diffuserHeight) * PPM;
+        const sources = (placedDiffusers && placedDiffusers.length > 0) ? placedDiffusers : [{
+            x: state.roomWidth / 2, y: state.roomLength / 2, performance: state.physics, modelId: state.modelId
+        }];
+
+        sources.forEach(d => {
+            const cx = (d.x - state.roomWidth / 2) * PPM;
+            const cz = (d.y - state.roomLength / 2) * PPM;
+            const p = p3d(cx, diffY, cz);
+            
+            if (p.s > 0) {
+                const r = (d.performance.spec.A ? Math.sqrt(d.performance.spec.A)/50 : 0.15) * PPM * finalScale * 0.5;
+                ctx.beginPath();
+                ctx.fillStyle = '#cbd5e1';
+                ctx.arc(p.x, p.y, Math.max(2, r), 0, Math.PI*2);
+                ctx.fill();
+            }
+        });
+
+        if (!isPowerOn) {
+            requestRef.current = requestAnimationFrame(animate);
+            return;
         }
 
         const pool = particlesRef.current;
@@ -251,7 +254,10 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
             if (isPowerOn && isPlaying) {
                 p.age += dt;
                 updateParticlePhysics(p, dt, state, PPM);
-                if (p.age > p.life) p.active = false;
+                
+                if (p.age > p.life) {
+                    p.active = false;
+                }
 
                 if (p.age - p.lastHistoryTime >= CONSTANTS.HISTORY_RECORD_INTERVAL) {
                     if (p.history.length > 20) p.history.shift();
@@ -276,22 +282,21 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
         for (const key in batches) {
             const [color, alphaStr] = key.split('|');
             ctx.strokeStyle = `rgba(${color}, ${alphaStr})`;
-            ctx.lineWidth = 1.5; 
+            ctx.lineWidth = 1; 
             ctx.beginPath();
 
             const group = batches[key];
             for (let k = 0; k < group.length; k++) {
                 const p = group[k];
-                const waveVal = Math.sin(p.age * p.waveFreq + p.wavePhase) * p.waveAmp * Math.min(p.age, 1.0);
+                const waveVal = (Math.sin(p.age * p.waveFreq + p.wavePhase) * p.waveAmp * Math.min(p.age, 1.0)) / finalScale;
                 
                 let wx = 0, wy = 0, wz = 0;
-                if (Math.abs(p.vy) > Math.abs(p.vx) + Math.abs(p.vz)) {
-                    wx = waveVal * Math.cos(p.wavePhase); 
-                    wz = waveVal * Math.sin(p.wavePhase);
-                } else {
+                if (p.isHorizontal && !p.isSuction) {
                     wy = waveVal;
+                } else if (!p.isSuction) {
+                    wx = waveVal * Math.cos(p.waveAngle); 
+                    wz = waveVal * Math.sin(p.waveAngle);
                 }
-                if (p.isSuction) { wx=0; wy=0; wz=0; }
 
                 const cur = p3d(p.x + wx, p.y + wy, p.z + wz);
                 if (cur.s <= 0) continue;
@@ -300,15 +305,14 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
 
                 for (let j = p.history.length - 1; j >= 0; j--) {
                     const h = p.history[j];
-                    const hWave = Math.sin(h.age * p.waveFreq + p.wavePhase) * p.waveAmp * Math.min(h.age, 1.0);
+                    const hWave = (Math.sin(h.age * p.waveFreq + p.wavePhase) * p.waveAmp * Math.min(h.age, 1.0)) / finalScale;
                     let hwx = 0, hwy = 0, hwz = 0;
-                    if (Math.abs(p.vy) > Math.abs(p.vx) + Math.abs(p.vz)) {
-                        hwx = hWave * Math.cos(p.wavePhase);
-                        hwz = hWave * Math.sin(p.wavePhase);
-                    } else {
+                    if (p.isHorizontal && !p.isSuction) {
                         hwy = hWave;
+                    } else if (!p.isSuction) {
+                        hwx = hWave * Math.cos(p.waveAngle);
+                        hwz = hWave * Math.sin(p.waveAngle);
                     }
-                    if (p.isSuction) { hwx=0; hwy=0; hwz=0; }
 
                     const prev = p3d(h.x + hwx, h.y + hwy, h.z + hwz);
                     ctx.lineTo(prev.x, prev.y);
