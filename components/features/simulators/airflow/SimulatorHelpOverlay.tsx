@@ -113,7 +113,7 @@ const SimulatorHelpOverlay: React.FC<SimulatorHelpOverlayProps> = ({ onClose, vi
                     className="top-32 left-4 lg:left-96"
                     icon={<Settings2 size={24} />}
                     title="Настройка"
-                    description="Здесь вы выбираете модели диффузоров, задаете размеры помещения, температуры и расход воздуха. Добавление устройств происходит внизу этой панели."
+                    description="Здесь вы выбираете модели диффузоров, задаете размеры помещения, температуры и расход воздуха. Внизу панели — выбор режима размещения (Одиночный/Мульти) и кнопка Добавить."
                 />
 
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center text-center animate-in fade-in zoom-in duration-700 delay-100 opacity-60">
@@ -131,7 +131,7 @@ const SimulatorHelpOverlay: React.FC<SimulatorHelpOverlayProps> = ({ onClose, vi
                     align="right"
                     icon={<BarChart3 size={24} />}
                     title="Результаты"
-                    description="Анализ эффективности в реальном времени. Здесь отображаются скорости в рабочей зоне (V0), уровень шума, дальнобойность струи и процент комфортного покрытия."
+                    description="Анализ эффективности в реальном времени. Здесь отображаются скорости в рабочей зоне (V0), уровень шума, дальнобойность струи и список датчиков."
                 />
 
                 {/* --- BUTTON POINTERS (Specific & Staggered) --- */}
@@ -158,82 +158,62 @@ const SimulatorHelpOverlay: React.FC<SimulatorHelpOverlayProps> = ({ onClose, vi
                 {/* 2. VIEW GROUP (Center) */}
                 <ButtonPointer 
                     title="Срез (Side)" 
-                    description="Вид сбоку. Показывает профиль струи."
+                    description="Вид сбоку. Профиль струи."
                     xOffset={-90} 
                     height={60} 
                     delay="200ms" 
                 />
                 <ButtonPointer 
                     title="План (Top)" 
-                    description="Вид сверху. Редактирование расположения."
+                    description="Вид сверху. Редактирование."
                     xOffset={0} 
                     height={90} 
                     delay="250ms" 
                 />
                 <ButtonPointer 
                     title="3D Вид" 
-                    description="Изометрия. Визуализация в объеме."
+                    description="Изометрия. Объем."
                     xOffset={90} 
                     height={60} 
                     delay="300ms" 
                 />
 
-                {/* 3. PLACEMENT GROUP (If Top View) */}
-                {viewMode === 'top' && (
-                    <>
-                        <ButtonPointer 
-                            title="Одиночный" 
-                            description="Один диффузор в центре."
-                            xOffset={170} 
-                            height={110} 
-                            delay="350ms" 
-                        />
-                        <ButtonPointer 
-                            title="Мульти" 
-                            description="Несколько устройств."
-                            xOffset={210} 
-                            height={80} 
-                            delay="400ms" 
-                        />
-                    </>
-                )}
-
-                {/* 4. TOOLS GROUP (Right) */}
-                {/* Adjust offsets based on whether placement buttons are visible */}
+                {/* 3. TOOLS GROUP (Right) */}
                 {isPowerOn && (
                     <>
                         <ButtonPointer 
-                            title="Сетка" 
-                            description="Линейки и направляющие."
-                            xOffset={viewMode === 'top' ? 260 : 160} 
-                            height={50} 
-                            delay="450ms" 
+                            title="Выбор" 
+                            description="Перемещение объектов."
+                            xOffset={170} 
+                            height={100} 
+                            delay="350ms" 
                         />
+                        <ButtonPointer 
+                            title="Датчик" 
+                            description="Измерение в точке."
+                            xOffset={220} 
+                            height={70} 
+                            delay="400ms" 
+                        />
+                        
                         {viewMode === 'top' && (
                             <>
                                 <ButtonPointer 
-                                    title="Привязка" 
-                                    description="Магнитное выравнивание по сетке."
-                                    xOffset={310} 
-                                    height={100} 
-                                    delay="500ms" 
+                                    title="Сетка" 
+                                    description="Вкл/Выкл сетку."
+                                    xOffset={270} 
+                                    height={50} 
+                                    delay="450ms" 
                                 />
                                 <ButtonPointer 
-                                    title="Теплокарта" 
-                                    description="Зоны комфорта и сквозняков."
-                                    xOffset={360} 
-                                    height={140} 
-                                    delay="550ms" 
+                                    title="Привязка" 
+                                    description="Магнит к сетке."
+                                    xOffset={320} 
+                                    height={80} 
+                                    delay="500ms" 
                                 />
                             </>
                         )}
-                        <ButtonPointer 
-                            title="Экспорт" 
-                            description="Сохранить скриншот расчета."
-                            xOffset={viewMode === 'top' ? 410 : 210} 
-                            height={70} 
-                            delay="600ms" 
-                        />
                     </>
                 )}
 

@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { PerformanceResult, PlacedDiffuser, Probe, ToolMode, Obstacle } from '../../../../../types';
+import { PerformanceResult, PlacedDiffuser, Probe, ToolMode } from '../../../../../types';
 import { DIFFUSER_CATALOG } from '../../../../../constants';
 
 const CONSTANTS = {
@@ -49,7 +49,6 @@ interface SideViewCanvasProps {
   placedDiffusers?: PlacedDiffuser[];
   // Added Props
   activeTool?: ToolMode;
-  obstacles?: Obstacle[];
   probes?: Probe[];
   onUpdateProbePos?: (id: string, pos: {x?: number, y?: number, z?: number}) => void;
   onDragStart?: () => void;
@@ -280,45 +279,6 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         }
     }
 
-    const drawObstacles = (ctx: CanvasRenderingContext2D, ppm: number, state: SideViewCanvasProps) => {
-        if (!state.obstacles) return;
-        
-        state.obstacles.forEach(obs => {
-            // Calculate Box dimensions in pixels
-            const w = obs.width * ppm;
-            const h = obs.height * ppm; // vertical thickness
-            
-            // X position (projected)
-            const screenX = (obs.x - obs.width/2) * ppm;
-            
-            // Y position (vertical elevation)
-            // Canvas Y=0 is Ceiling. Floor Y = roomHeight * ppm.
-            // Obstacle Top Y = (RoomHeight - (z + height)) * ppm
-            const screenY = (state.roomHeight - (obs.z + obs.height)) * ppm;
-
-            ctx.save();
-            ctx.fillStyle = obs.type === 'wall_block' ? '#0f172a' : '#475569';
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 1;
-            
-            // Draw rectangle
-            ctx.fillRect(screenX, screenY, w, h);
-            ctx.strokeRect(screenX, screenY, w, h);
-            
-            // Hatched pattern
-            ctx.beginPath();
-            ctx.rect(screenX, screenY, w, h);
-            ctx.clip();
-            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-            for (let i = -w; i < w + h; i += 10) {
-                ctx.moveTo(screenX + i, screenY);
-                ctx.lineTo(screenX + i - h, screenY + h);
-            }
-            ctx.stroke();
-            ctx.restore();
-        });
-    }
-
     const drawProbes = (ctx: CanvasRenderingContext2D, ppm: number, state: SideViewCanvasProps) => {
         if (!state.probes) return;
 
@@ -387,7 +347,6 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 ctx.fillStyle = '#030304';
                 ctx.fillRect(0, 0, width, height);
                 drawSideViewGrid(ctx, width, height, ppm, state);
-                drawObstacles(ctx, ppm, state);
                 drawAllDiffusers(ctx, ppm, state);
                 drawProbes(ctx, ppm, state);
                 requestRef.current = requestAnimationFrame(animate);
@@ -398,7 +357,6 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         ctx.fillRect(0, 0, width, height);
         
         drawSideViewGrid(ctx, width, height, ppm, state);
-        drawObstacles(ctx, ppm, state);
 
         const pool = particlePool.current;
         

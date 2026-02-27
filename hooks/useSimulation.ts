@@ -1,7 +1,7 @@
 
 import { useMemo } from 'react';
 import { SPECS, ENGINEERING_DATA, DIFFUSER_CATALOG } from '../constants';
-import { PerformanceResult, Spec, PlacedDiffuser, ProbeData, Obstacle, GridPoint } from '../types';
+import { PerformanceResult, Spec, PlacedDiffuser, ProbeData, GridPoint } from '../types';
 
 // ==========================================
 // 4. PHYSICS & SIMULATION LOGIC
@@ -239,7 +239,6 @@ export const calculateProbeData = (
     diffusers: PlacedDiffuser[], 
     roomTemp: number, 
     supplyTemp: number,
-    obstacles: Obstacle[] = [],
     probeZ: number = 1.8 
 ): ProbeData => {
     
@@ -255,19 +254,7 @@ export const calculateProbeData = (
     diffusers.forEach(d => {
         const diffZ = 3.5; // Assume consistent for now or pass via d.z if variable
         
-        // Obstacle Check
-        let isBlocked = false;
-        for (const obs of obstacles) {
-            const box = {
-                minX: obs.x - obs.width / 2, maxX: obs.x + obs.width / 2,
-                minY: obs.y - obs.length / 2, maxY: obs.y + obs.length / 2,
-                minZ: obs.z, maxZ: obs.z + obs.height
-            };
-            if (intersectRayBox({x: d.x, y: d.y, z: diffZ}, {x, y, z: probeZ}, box)) {
-                isBlocked = true; break;
-            }
-        }
-        const shadowFactor = isBlocked ? 0.15 : 1.0;
+        const shadowFactor = 1.0;
 
         const dist2D = Math.sqrt(Math.pow(d.x - x, 2) + Math.pow(d.y - y, 2));
         
@@ -371,8 +358,6 @@ export const calculateProbeData = (
 export const calculateSimulationField = (
     roomWidth: number, roomLength: number, placedDiffusers: PlacedDiffuser[], 
     diffuserHeight: number, workZoneHeight: number, gridStep: number = 0.5,
-    obstacles: Obstacle[] = [],
-    sliceZ: number = 1.1,
     supplyTemp: number = 20,
     roomTemp: number = 24
 ): GridPoint[][] => {
@@ -392,7 +377,7 @@ export const calculateSimulationField = (
         for (let c = 0; c < cols; c++) {
             const x = c * gridStep + gridStep / 2;
             const y = r * gridStep + gridStep / 2;
-            const z = sliceZ;
+            const z = 1.1; // Default slice Z
             
             let vxSum = 0;
             let vySum = 0;
@@ -401,25 +386,6 @@ export const calculateSimulationField = (
             const vectors: {vx: number, vy: number, mag: number}[] = [];
             
             diffusersWithProps.forEach((d) => {
-                let isBlocked = false;
-                for (const obs of obstacles) {
-                    if (x >= obs.x - obs.width/2 && x <= obs.x + obs.width/2 && 
-                        y >= obs.y - obs.length/2 && y <= obs.y + obs.length/2 && 
-                        z >= obs.z && z <= obs.z + obs.height) {
-                        isBlocked = true; break; 
-                    }
-                    const box = {
-                        minX: obs.x - obs.width / 2, maxX: obs.x + obs.width / 2,
-                        minY: obs.y - obs.length / 2, maxY: obs.y + obs.length / 2,
-                        minZ: obs.z, maxZ: obs.z + obs.height
-                    };
-                    if (intersectRayBox({x: d.x, y: d.y, z: diffuserHeight}, {x, y, z}, box)) {
-                        isBlocked = true; break;
-                    }
-                }
-                
-                if (isBlocked) return; 
-
                 const dist2D = Math.sqrt(Math.pow(x - d.x, 2) + Math.pow(y - d.y, 2));
                 let vPoint = 0;
                 

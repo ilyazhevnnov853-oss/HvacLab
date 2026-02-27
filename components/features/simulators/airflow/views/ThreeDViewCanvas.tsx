@@ -97,7 +97,7 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
         if (!ctx) return;
 
         const state = simulationRef.current;
-        const { width, height, isPowerOn, isPlaying, roomHeight, roomWidth, roomLength, workZoneHeight, placedDiffusers, obstacles, probes } = state;
+        const { width, height, isPowerOn, isPlaying, roomHeight, roomWidth, roomLength, workZoneHeight, placedDiffusers, probes } = state;
 
         if (!isPowerOn) {
             ctx.clearRect(0, 0, width, height);
@@ -158,47 +158,6 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
                 ctx.beginPath();
                 ctx.moveTo(wc[0].x, wc[0].y); ctx.lineTo(wc[1].x, wc[1].y); ctx.lineTo(wc[2].x, wc[2].y); ctx.lineTo(wc[3].x, wc[3].y);
                 ctx.closePath(); ctx.fill(); ctx.stroke();
-            }
-
-            // Draw Obstacles (3D Box)
-            if (obstacles) {
-                obstacles.forEach(obs => {
-                    const cx = (obs.x - roomWidth/2) * PPM;
-                    const cz = (obs.y - roomLength/2) * PPM;
-                    const w = obs.width * PPM;
-                    const l = obs.length * PPM; // Map height (plan) to length Z
-                    const h = (obs.type === 'wall_block' ? roomHeight : 1.0) * PPM;
-                    
-                    const minX = cx - w/2;
-                    const maxX = cx + w/2;
-                    const minZ = cz - l/2;
-                    const maxZ = cz + l/2;
-                    
-                    const c = [
-                        {x: minX, y: 0, z: minZ}, {x: maxX, y: 0, z: minZ}, {x: maxX, y: 0, z: maxZ}, {x: minX, y: 0, z: maxZ}, // Bottom
-                        {x: minX, y: h, z: minZ}, {x: maxX, y: h, z: minZ}, {x: maxX, y: h, z: maxZ}, {x: minX, y: h, z: maxZ}  // Top
-                    ].map(v => p3d(v.x, v.y, v.z));
-
-                    // Simple Wireframe + Fill for obstacles
-                    ctx.fillStyle = obs.type === 'wall_block' ? 'rgba(15, 23, 42, 0.95)' : 'rgba(71, 85, 105, 0.5)';
-                    ctx.strokeStyle = '#64748b';
-                    
-                    // Draw faces (simplified for performance)
-                    const drawFace = (indices: number[]) => {
-                        ctx.beginPath();
-                        ctx.moveTo(c[indices[0]].x, c[indices[0]].y);
-                        indices.slice(1).forEach(i => ctx.lineTo(c[i].x, c[i].y));
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.stroke();
-                    };
-                    
-                    drawFace([0, 1, 5, 4]); // Front/Back depending on view? Just draw all
-                    drawFace([1, 2, 6, 5]);
-                    drawFace([2, 3, 7, 6]);
-                    drawFace([3, 0, 4, 7]);
-                    drawFace([4, 5, 6, 7]); // Top
-                });
             }
 
             // Draw Probes

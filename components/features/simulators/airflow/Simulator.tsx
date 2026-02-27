@@ -6,7 +6,7 @@ import { SimulatorRightPanel } from './SimulatorRightPanel';
 import DiffuserCanvas from './DiffuserCanvas';
 import SimulatorHelpOverlay from './SimulatorHelpOverlay';
 import { useScientificSimulation, calculateSimulationField, analyzeField } from '../../../../hooks/useSimulation';
-import { PlacedDiffuser, Probe, Obstacle, ToolMode, VisualizationMode } from '../../../../types';
+import { PlacedDiffuser, Probe, ToolMode } from '../../../../types';
 import { GlassButton } from '../../../ui/Shared';
 
 const Simulator = ({ onBack, onHome }: any) => {
@@ -30,10 +30,7 @@ const Simulator = ({ onBack, onHome }: any) => {
     const [isPowerOn, setIsPowerOn] = useState(true);
     const [isPlaying, setIsPlaying] = useState(true);
     const [showGrid, setShowGrid] = useState(true);
-    const [showHeatmap, setShowHeatmap] = useState(false);
-    const [heatmapZ, setHeatmapZ] = useState(1.1); // Height slice for heatmap
     const [snapToGrid, setSnapToGrid] = useState(true);
-    const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>('velocity');
     
     // Tools
     const [activeTool, setActiveTool] = useState<ToolMode>('select');
@@ -43,7 +40,6 @@ const Simulator = ({ onBack, onHome }: any) => {
     const [placedDiffusers, setPlacedDiffusers] = useState<PlacedDiffuser[]>([]);
     const [selectedDiffuserId, setSelectedDiffuserId] = useState<string | null>(null);
     const [probes, setProbes] = useState<Probe[]>([]);
-    const [obstacles, setObstacles] = useState<Obstacle[]>([]);
 
     // UI State
     const [openSection, setOpenSection] = useState<string | null>('distributor');
@@ -79,14 +75,12 @@ const Simulator = ({ onBack, onHome }: any) => {
                 params.diffuserHeight, 
                 params.workZoneHeight, 
                 0.5, // Grid step
-                obstacles,
-                heatmapZ,
                 params.temperature,
                 params.roomTemp
             );
         }
         return [];
-    }, [viewMode, params.roomWidth, params.roomLength, placedDiffusers, params.diffuserHeight, params.workZoneHeight, obstacles, heatmapZ, params.temperature, params.roomTemp]);
+    }, [viewMode, params.roomWidth, params.roomLength, placedDiffusers, params.diffuserHeight, params.workZoneHeight, params.temperature, params.roomTemp]);
 
     // 3. Global Stats
     const topViewStats = useMemo(() => {
@@ -218,25 +212,6 @@ const Simulator = ({ onBack, onHome }: any) => {
         setProbes(prev => prev.filter(p => p.id !== id));
     };
 
-    // Obstacles
-    const addObstacle = (x: number, y: number, w: number = 1, l: number = 1, type: 'furniture' | 'wall_block' = 'furniture') => {
-        const h = type === 'wall_block' ? params.roomHeight : 1.0;
-        setObstacles([...obstacles, {
-            id: `obs-${Date.now()}`,
-            x, y, width: w, length: l,
-            z: 0, height: h, rotation: 0,
-            type
-        }]);
-    };
-
-    const removeObstacle = (id: string) => {
-        setObstacles(prev => prev.filter(o => o.id !== id));
-    };
-
-    const updateObstacle = (id: string, updates: Partial<Obstacle>) => {
-        setObstacles(prev => prev.map(o => o.id === id ? { ...o, ...updates } : o));
-    };
-
     // UI Helpers
     const toggleSection = (id: string) => setOpenSection(openSection === id ? null : id);
     
@@ -260,11 +235,8 @@ const Simulator = ({ onBack, onHome }: any) => {
                 isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen}
                 onAddDiffuser={addDiffuser}
                 isHelpMode={isHelpMode}
-                setObstacles={setObstacles}
                 placementMode={placementMode}
                 setPlacementMode={setPlacementMode}
-                heatmapZ={heatmapZ}
-                setHeatmapZ={setHeatmapZ}
             />
 
             {/* Center Content */}
@@ -290,8 +262,6 @@ const Simulator = ({ onBack, onHome }: any) => {
                         flowType={currentMode.flowType} 
                         modelId={params.modelId}
                         showGrid={showGrid} 
-                        showHeatmap={showHeatmap}
-                        visualizationMode={visualizationMode}
                         roomHeight={params.roomHeight} 
                         roomWidth={params.roomWidth} 
                         roomLength={params.roomLength}
@@ -316,10 +286,6 @@ const Simulator = ({ onBack, onHome }: any) => {
                         onAddProbe={addProbe}
                         onRemoveProbe={removeProbe}
                         onUpdateProbePos={updateProbePos}
-                        obstacles={obstacles}
-                        onAddObstacle={addObstacle}
-                        onRemoveObstacle={removeObstacle}
-                        onUpdateObstacle={updateObstacle}
                     />
 
                     {/* Desktop Toolbar (Floating iOS 26 Style) */}
@@ -374,9 +340,6 @@ const Simulator = ({ onBack, onHome }: any) => {
                                 
                                 {viewMode === 'top' && (
                                     <>
-                                        <button onClick={() => setActiveTool('obstacle')} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${activeTool === 'obstacle' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} title="Препятствие">
-                                            <Box size={18} />
-                                        </button>
                                         <div className="w-px h-6 bg-black/10 dark:bg-white/10 mx-1"></div>
                                         <button onClick={() => setShowGrid(!showGrid)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${showGrid ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} title="Сетка">
                                             <GridIcon size={18} />
@@ -384,17 +347,6 @@ const Simulator = ({ onBack, onHome }: any) => {
                                         <button onClick={() => setSnapToGrid(!snapToGrid)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${snapToGrid ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} title="Привязка">
                                             <Scan size={18} />
                                         </button>
-                                        <button onClick={() => setShowHeatmap(!showHeatmap)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${showHeatmap ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} title="Теплокарта">
-                                            <Layers size={18} />
-                                        </button>
-                                        {showHeatmap && (
-                                            <button 
-                                                onClick={() => setVisualizationMode(prev => prev === 'velocity' ? 'adpi' : 'velocity')} 
-                                                className="px-3 h-10 rounded-full flex items-center justify-center text-[10px] font-bold bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors ml-1 text-slate-700 dark:text-slate-300"
-                                            >
-                                                {visualizationMode === 'velocity' ? 'VEL' : 'ADPI'}
-                                            </button>
-                                        )}
                                     </>
                                 )}
                             </div>
@@ -422,7 +374,6 @@ const Simulator = ({ onBack, onHome }: any) => {
                 isHelpMode={isHelpMode}
                 probes={probes}
                 onRemoveProbe={removeProbe}
-                obstacles={obstacles}
             />
         </div>
     );

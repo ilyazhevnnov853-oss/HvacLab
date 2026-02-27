@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { PerformanceResult, PlacedDiffuser, Probe, ToolMode, Obstacle, GridPoint, VisualizationMode } from '../../../../../types';
+import { PerformanceResult, PlacedDiffuser, Probe, ToolMode, GridPoint } from '../../../../../types';
 import { Trash2, Move, Copy, X } from 'lucide-react';
 import { calculateProbeData } from '../../../../../hooks/useSimulation';
 import { DIFFUSER_CATALOG } from '../../../../../constants';
@@ -14,7 +14,6 @@ interface TopViewCanvasProps {
   placedDiffusers?: PlacedDiffuser[];
   selectedDiffuserId?: string | null;
   showGrid: boolean;
-  showHeatmap: boolean;
   simulationField?: GridPoint[][];
   snapToGrid?: boolean;
   gridSnapSize?: number;
@@ -36,15 +35,9 @@ interface TopViewCanvasProps {
   onAddProbe?: (x: number, y: number) => void;
   onRemoveProbe?: (id: string) => void;
   onUpdateProbePos?: (id: string, pos: {x?: number, y?: number, z?: number}) => void;
-  // Obstacle Props
-  obstacles?: Obstacle[];
-  onAddObstacle?: (x: number, y: number, w?: number, length?: number, type?: 'furniture' | 'wall_block') => void;
-  onRemoveObstacle?: (id: string) => void;
-  onUpdateObstacle?: (id: string, updates: Partial<Obstacle>) => void;
   
   roomTemp?: number;
   supplyTemp?: number;
-  visualizationMode?: VisualizationMode;
 }
 
 const getTopLayout = (w: number, h: number, rw: number, rl: number) => {
@@ -73,7 +66,7 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string } | null>(null);
     
     // Drag Target Type
-    const dragTargetRef = useRef<{ type: 'diffuser' | 'probe' | 'obstacle', id: string } | null>(null);
+    const dragTargetRef = useRef<{ type: 'diffuser' | 'probe', id: string } | null>(null);
 
     // Sync Props
     useEffect(() => {
@@ -85,11 +78,8 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             prevProps.height !== props.height ||
             prevProps.roomWidth !== props.roomWidth ||
             prevProps.roomLength !== props.roomLength ||
-            prevProps.showHeatmap !== props.showHeatmap ||
-            prevProps.visualizationMode !== props.visualizationMode ||
             prevProps.showGrid !== props.showGrid ||
             prevProps.simulationField !== props.simulationField ||
-            prevProps.obstacles !== props.obstacles ||
             prevProps.probes !== props.probes
         ) {
             isOffscreenDirty.current = true;
@@ -118,77 +108,6 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         
         ctx.fillStyle = '#0f172a';
         ctx.fillRect(originX, originY, roomPixW, roomPixL);
-
-        // Heatmap Logic
-        if (state.showHeatmap && state.simulationField && state.simulationField.length > 0 && state.gridStep) {
-            const stepPx = state.gridStep * ppm;
-            
-            // Re-drawing using pixel manipulation or paths. Paths are easier for layers.
-            // ADPI Mode layers
-            // 1. Stagnant (Gray)
-            // 2. Draft (Blue)
-            // 3. Comfort (Green)
-            
-            const comfortPath = new Path2D();
-            const warningPath = new Path2D();
-            const draftPath = new Path2D();
-            const stagnantPath = new Path2D();
-
-            for (let r = 0; r < state.simulationField.length; r++) {
-                for (let c = 0; c < state.simulationField[r].length; c++) {
-                    const pt = state.simulationField[r][c];
-                    if (!pt) continue;
-                    
-                    const x = originX + c * stepPx;
-                    const y = originY + r * stepPx;
-                    const drawSize = stepPx + 0.5;
-
-                    if (state.visualizationMode === 'adpi') {
-                        // ADPI Rules:
-                        // Stagnant: v < 0.1
-                        // Draft: EDT < -3 OR v > 0.35
-                        // Comfort: -3 < EDT < 2 AND 0.15 < v < 0.35
-                        
-                        if (pt.v < 0.1) {
-                            stagnantPath.rect(x, y, drawSize, drawSize);
-                        } else if (pt.edt < -3 || pt.v > 0.35) {
-                            draftPath.rect(x, y, drawSize, drawSize);
-                        } else if (pt.edt < 2 && pt.v > 0.15) {
-                            comfortPath.rect(x, y, drawSize, drawSize);
-                        } else {
-                            // Fallback for transition zones (e.g. 0.1 <= v <= 0.15 with good EDT)
-                            // Treat as semi-comfort or just leave dark
-                            // Let's group them into warning or just leave transparent
-                        }
-
-                    } else {
-                        // Velocity Mode (Standard)
-                        const v = pt.v;
-                        if (v < 0.1) continue;
-                        
-                        if (v <= 0.25) comfortPath.rect(x, y, drawSize, drawSize);
-                        else if (v <= 0.5) warningPath.rect(x, y, drawSize, drawSize);
-                        else draftPath.rect(x, y, drawSize, drawSize);
-                    }
-                }
-            }
-
-            if (state.visualizationMode === 'adpi') {
-                ctx.fillStyle = 'rgba(100, 100, 100, 0.15)'; // Stagnant Gray
-                ctx.fill(stagnantPath);
-                ctx.fillStyle = 'rgba(59, 130, 246, 0.4)'; // Draft Blue
-                ctx.fill(draftPath);
-                ctx.fillStyle = 'rgba(34, 197, 94, 0.4)'; // Comfort Green
-                ctx.fill(comfortPath);
-            } else {
-                ctx.fillStyle = 'rgba(16, 185, 129, 0.25)'; // Comfort
-                ctx.fill(comfortPath);
-                ctx.fillStyle = 'rgba(245, 158, 11, 0.3)'; // Warning
-                ctx.fill(warningPath);
-                ctx.fillStyle = 'rgba(239, 68, 68, 0.35)'; // Draft
-                ctx.fill(draftPath);
-            }
-        }
 
         ctx.strokeStyle = '#334155';
         ctx.lineWidth = 2;
@@ -236,37 +155,6 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             ctx.stroke();
         }
         
-        // Draw Obstacles - Wall Blocks (Negative Space)
-        if (state.obstacles) {
-            state.obstacles.forEach(obs => {
-                if (obs.type === 'wall_block') {
-                    const ox = originX + (obs.x - obs.width/2) * ppm;
-                    const oy = originY + (obs.y - obs.length/2) * ppm; // Use LENGTH for Y
-                    const ow = obs.width * ppm;
-                    const ol = obs.length * ppm; // Use LENGTH for Y
-                    
-                    ctx.fillStyle = '#030304'; 
-                    ctx.fillRect(ox, oy, ow, ol);
-                    ctx.strokeStyle = '#334155';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(ox, oy, ow, ol);
-                    
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.rect(ox, oy, ow, ol);
-                    ctx.clip();
-                    ctx.strokeStyle = '#1e293b';
-                    ctx.lineWidth = 1;
-                    for (let i = -ow; i < ow + ol; i += 10) {
-                        ctx.moveTo(ox + i, oy);
-                        ctx.lineTo(ox + i - ol, oy + ol);
-                    }
-                    ctx.stroke();
-                    ctx.restore();
-                }
-            });
-        }
-        
         isOffscreenDirty.current = false;
     };
 
@@ -279,7 +167,6 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             state.placedDiffusers || [], 
             state.roomTemp || 24, 
             state.supplyTemp || 20,
-            state.obstacles || [],
             probe.z
         );
         
@@ -369,36 +256,6 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         }
 
         const { ppm, originX, originY } = getTopLayout(width, height, state.roomWidth, state.roomLength);
-
-        // Draw Obstacles - Furniture (On top of floor)
-        if (state.obstacles) {
-            state.obstacles.forEach(obs => {
-                if (obs.type === 'furniture') {
-                    const ox = originX + (obs.x - obs.width/2) * ppm;
-                    const oy = originY + (obs.y - obs.length/2) * ppm; // Use LENGTH for Y
-                    const ow = obs.width * ppm;
-                    const ol = obs.length * ppm; // Use LENGTH for Y
-                    
-                    ctx.fillStyle = '#475569';
-                    ctx.fillRect(ox, oy, ow, ol);
-                    ctx.strokeStyle = '#94a3b8';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(ox, oy, ow, ol);
-                    
-                    // Cross / X for center
-                    ctx.beginPath();
-                    ctx.moveTo(ox, oy); ctx.lineTo(ox + ow, oy + ol);
-                    ctx.moveTo(ox + ow, oy); ctx.lineTo(ox, oy + ol);
-                    ctx.lineWidth = 1;
-                    ctx.stroke();
-                    
-                    // Label elevation
-                    ctx.fillStyle = '#fff';
-                    ctx.font = '10px Inter';
-                    ctx.fillText(`h=${obs.z.toFixed(1)}m`, ox + 4, oy + 12);
-                }
-            });
-        }
 
         state.placedDiffusers?.forEach(d => {
             const cx = originX + d.x * ppm;
@@ -553,24 +410,6 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
                     }
                 }
 
-                const obstacles = props.obstacles || [];
-                for (let i = obstacles.length - 1; i >= 0; i--) {
-                    const obs = obstacles[i];
-                    if (obs.type !== 'furniture') continue;
-                    
-                    const ox = originX + (obs.x - obs.width/2) * ppm;
-                    const oy = originY + (obs.y - obs.length/2) * ppm;
-                    const ow = obs.width * ppm;
-                    const oh = obs.length * ppm;
-                    
-                    if (mouseX >= ox && mouseX <= ox + ow && mouseY >= oy && mouseY <= oy + oh) {
-                        dragTargetRef.current = { type: 'obstacle', id: obs.id };
-                        setIsDragging(true);
-                        setDragOffset({ x: mouseX - (originX + obs.x * ppm), y: mouseY - (originY + obs.y * ppm) });
-                        return;
-                    }
-                }
-
                 const probes = props.probes || [];
                 for (let i = probes.length - 1; i >= 0; i--) {
                     const p = probes[i];
@@ -627,17 +466,6 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
                 break;
             }
 
-            case 'obstacle': {
-                if (props.onAddObstacle) {
-                    const newX = (mouseX - originX) / ppm;
-                    const newY = (mouseY - originY) / ppm;
-                    if (newX >= 0 && newX <= props.roomWidth && newY >= 0 && newY <= props.roomLength) {
-                        props.onAddObstacle(newX, newY, 1.0, 1.0, 'furniture');
-                    }
-                }
-                break;
-            }
-
             case 'measure': {
                 console.log('Measure tool clicked at', mouseX, mouseY);
                 break;
@@ -676,8 +504,6 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             props.onUpdateDiffuserPos(dragTargetRef.current.id, newX, newY);
         } else if (dragTargetRef.current.type === 'probe' && props.onUpdateProbePos) {
             props.onUpdateProbePos(dragTargetRef.current.id, { x: newX, y: newY });
-        } else if (dragTargetRef.current.type === 'obstacle' && props.onUpdateObstacle) {
-            props.onUpdateObstacle(dragTargetRef.current.id, { x: newX, y: newY });
         }
     };
 
@@ -715,7 +541,6 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         switch (props.activeTool) {
             case 'probe': return 'cursor-crosshair';
             case 'measure': return 'cursor-text'; 
-            case 'obstacle': return 'cursor-nwse-resize';
             case 'pipette': return 'cursor-help';
             case 'select': return isDragging ? 'cursor-grabbing' : 'cursor-default';
             default: return 'cursor-default';

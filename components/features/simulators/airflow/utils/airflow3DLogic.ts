@@ -1,5 +1,5 @@
 import { DIFFUSER_CATALOG } from '../../../../../constants';
-import { PerformanceResult, PlacedDiffuser, Probe, Obstacle } from '../../../../../types';
+import { PerformanceResult, PlacedDiffuser, Probe } from '../../../../../types';
 
 export const CONSTANTS = {
   BASE_TIME_STEP: 1/60, 
@@ -37,7 +37,6 @@ export interface ThreeDViewCanvasProps {
   diffuserHeight: number; 
   workZoneHeight: number;
   placedDiffusers?: PlacedDiffuser[];
-  obstacles?: Obstacle[];
   probes?: Probe[];
 }
 

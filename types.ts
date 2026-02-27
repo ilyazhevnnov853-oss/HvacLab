@@ -1,20 +1,7 @@
 
 import { ReactNode } from 'react';
 
-export type ToolMode = 'select' | 'probe' | 'measure' | 'obstacle' | 'pipette';
-export type VisualizationMode = 'velocity' | 'adpi';
-
-export interface Obstacle {
-  id: string;
-  x: number; // Center X (meters)
-  y: number; // Center Y (meters)
-  width: number; // Dimension X (meters)
-  length: number; // Dimension Y (meters) - Replaces 2D height
-  z: number; // Elevation from floor (meters)
-  height: number; // Thickness/Vertical Height (meters)
-  type: 'furniture' | 'wall_block';
-  rotation: number; // Degrees
-}
+export type ToolMode = 'select' | 'probe' | 'measure' | 'pipette';
 
 export interface GridPoint {
   v: number;   // Velocity Magnitude

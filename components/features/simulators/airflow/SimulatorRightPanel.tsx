@@ -6,19 +6,17 @@ import { InfoRow, AccordionItem } from './SimulatorUI';
 import { calculateProbeData } from '../../../../hooks/useSimulation';
 
 export const SimulatorRightPanel = ({ 
-    viewMode, physics, params, placedDiffusers, topViewStats, coverageAnalysis, 
+    viewMode, physics, params, placedDiffusers, topViewStats, 
     isMobileStatsOpen, setIsMobileStatsOpen,
     isHelpMode,
-    probes, onRemoveProbe,
-    obstacles = [] // Receiving obstacles with default empty array
+    probes, onRemoveProbe
 }: any) => {
 
     const [sections, setSections] = useState({
         results: true,
         params: true,
         summary: true,
-        probes: true,
-        coverage: true
+        probes: true
     });
 
     const toggle = (key: string) => setSections((prev: any) => ({ ...prev, [key]: !prev[key] }));
@@ -120,7 +118,6 @@ export const SimulatorRightPanel = ({
                                         placedDiffusers, 
                                         params.roomTemp,
                                         params.temperature,
-                                        obstacles,
                                         probe.z
                                     );
                                     

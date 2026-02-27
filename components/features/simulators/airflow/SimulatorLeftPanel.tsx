@@ -5,7 +5,6 @@ import { SPECS, DIFFUSER_CATALOG } from '../../../../constants';
 import { calculatePerformance } from '../../../../hooks/useSimulation';
 import { GlassButton, GlassSlider } from '../../../ui/Shared';
 import { AccordionItem } from './SimulatorUI';
-import { Obstacle } from '../../../../types';
 
 export const SimulatorLeftPanel = ({ 
     openSection, toggleSection, 
@@ -17,11 +16,8 @@ export const SimulatorLeftPanel = ({
     onHome, onBack, isMobileMenuOpen, setIsMobileMenuOpen,
     onAddDiffuser,
     isHelpMode,
-    setObstacles,
     placementMode,
-    setPlacementMode,
-    heatmapZ,
-    setHeatmapZ
+    setPlacementMode
 }: any) => {
 
     const handleModelChange = (id: string) => {
@@ -52,41 +48,6 @@ export const SimulatorLeftPanel = ({
         }
         setParams(p => ({ ...p, diameter: d, volume: newVol }));
         setSizeSelected(true);
-    };
-
-    const handleShapePreset = (preset: string) => {
-        if (!setObstacles) return;
-        
-        const rw = params.roomWidth;
-        const rl = params.roomLength;
-
-        if (preset === 'rect') {
-            // Clear wall blocks, keep furniture
-            setObstacles((prev: Obstacle[]) => prev.filter(o => o.type !== 'wall_block'));
-        } else if (preset === 'l-shape-left') {
-            // Cut out bottom-left corner
-            const blockW = rw * 0.4;
-            const blockL = rl * 0.4;
-            // Obstacle center pos (from top-left origin)
-            const cx = blockW / 2;
-            const cy = rl - blockL / 2;
-            
-            setObstacles((prev: Obstacle[]) => [
-                ...prev.filter(o => o.type !== 'wall_block'),
-                { id: `wall-${Date.now()}`, x: cx, y: cy, width: blockW, length: blockL, z: 0, height: params.roomHeight, rotation: 0, type: 'wall_block' }
-            ]);
-        } else if (preset === 'l-shape-right') {
-            // Cut out bottom-right corner
-            const blockW = rw * 0.4;
-            const blockL = rl * 0.4;
-            const cx = rw - blockW / 2;
-            const cy = rl - blockL / 2;
-            
-            setObstacles((prev: Obstacle[]) => [
-                ...prev.filter(o => o.type !== 'wall_block'),
-                { id: `wall-${Date.now()}`, x: cx, y: cy, width: blockW, length: blockL, z: 0, height: params.roomHeight, rotation: 0, type: 'wall_block' }
-            ]);
-        }
     };
 
     return (
@@ -178,18 +139,6 @@ export const SimulatorLeftPanel = ({
                         </AccordionItem>
 
                         <AccordionItem title="Помещение" icon={<ScanLine size={18}/>} isOpen={openSection === 'room'} onClick={() => toggleSection('room')}>
-                            {/* Shape Selector */}
-                            <div className="bg-black/5 dark:bg-black/20 p-3 rounded-2xl border border-black/5 dark:border-white/5 mb-4">
-                                <label className="text-[9px] font-bold text-slate-500 uppercase block mb-2 flex items-center gap-2">
-                                    <Shapes size={12}/> Форма комнаты
-                                </label>
-                                <div className="flex gap-2">
-                                    <button onClick={() => handleShapePreset('rect')} className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-bold text-slate-300 border border-white/5">Прямоуг.</button>
-                                    <button onClick={() => handleShapePreset('l-shape-left')} className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-bold text-slate-300 border border-white/5">L-Лево</button>
-                                    <button onClick={() => handleShapePreset('l-shape-right')} className="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-[10px] font-bold text-slate-300 border border-white/5">L-Право</button>
-                                </div>
-                            </div>
-
                             <div className="grid grid-cols-2 gap-3 mb-6">
                                 {['roomWidth', 'roomLength', 'roomHeight'].map(key => (
                                     <div key={key} className="bg-black/5 dark:bg-black/20 p-3 rounded-2xl border border-black/5 dark:border-white/5 hover:border-black/10 dark:hover:border-white/20 transition-colors focus-within:border-blue-500/50 group">
@@ -232,20 +181,6 @@ export const SimulatorLeftPanel = ({
                                 </div>
                             </div>
                             
-                            {/* Heatmap Slice Z */}
-                            {heatmapZ !== undefined && setHeatmapZ && (
-                                <div className="mb-6">
-                                    <GlassSlider 
-                                        label="Срез теплокарты (Z)" 
-                                        icon={<Layers size={14}/>} 
-                                        val={heatmapZ} 
-                                        min={0.1} max={params.roomHeight} step={0.1} 
-                                        onChange={(v: number) => setHeatmapZ(v)} 
-                                        unit=" м"
-                                    />
-                                </div>
-                            )}
-
                             <GlassSlider label="Т° Помещения" icon={<Home size={14}/>} val={params.roomTemp} min={15} max={35} step={1} unit="°C" onChange={(v: number) => setParams(p => ({...p, roomTemp: v}))} color="temp"/>
                         </AccordionItem>
                     </div>
