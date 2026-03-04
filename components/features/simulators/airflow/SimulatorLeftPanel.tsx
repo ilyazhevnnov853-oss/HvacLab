@@ -25,7 +25,9 @@ export const SimulatorLeftPanel = ({
             const val = !isNaN(Number(d)) ? Number(d) : d;
             const model = DIFFUSER_CATALOG.find(m => m.id === id);
             if (!model) return false;
-            return calculatePerformance(id, model.modes[0].flowType, val, 100) !== null;
+            // Use a volume that is within the spec's min/max to ensure it's valid
+            const testVol = SPECS[d].min || 100;
+            return calculatePerformance(id, model.modes[0].flowType, val, testVol) !== null;
         });
         const newDiameter = validDiameter ? (!isNaN(Number(validDiameter)) ? Number(validDiameter) : validDiameter) : '';
         
@@ -127,7 +129,8 @@ export const SimulatorLeftPanel = ({
                                 <div className="flex flex-wrap gap-2">
                                     {Object.keys(SPECS).map(d => {
                                         const val = !isNaN(Number(d)) ? Number(d) : d;
-                                        if (calculatePerformance(params.modelId, currentMode.flowType, val, 100) === null) return null;
+                                        const testVol = SPECS[d].min || 100;
+                                        if (calculatePerformance(params.modelId, currentMode.flowType, val, testVol) === null) return null;
                                         return <button key={d} onClick={() => handleSizeSelect(val)} className={`px-4 py-2.5 rounded-xl text-[10px] font-bold font-mono transition-all border ${params.diameter === val ? 'bg-slate-900 dark:bg-white text-white dark:text-black border-transparent shadow-[0_0_15px_rgba(0,0,0,0.2)] dark:shadow-[0_0_15px_rgba(255,255,255,0.4)] scale-105' : 'bg-white dark:bg-white/5 text-slate-500 border-black/5 dark:border-transparent hover:bg-black/5 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'}`}>{d}</button>;
                                     })}
                                 </div>

@@ -8,6 +8,7 @@ import SimulatorHelpOverlay from './SimulatorHelpOverlay';
 import { useScientificSimulation, calculateSimulationField, analyzeField } from '../../../../hooks/useSimulation';
 import { PlacedDiffuser, Probe, ToolMode } from '../../../../types';
 import { GlassButton } from '../../../ui/Shared';
+import { DIFFUSER_CATALOG } from '../../../../constants';
 
 const Simulator = ({ onBack, onHome }: any) => {
     // --- STATE ---
@@ -53,9 +54,14 @@ const Simulator = ({ onBack, onHome }: any) => {
 
     // --- PHYSICS CALCULATION ---
     // 1. Single Diffuser Physics (Base Performance)
+    const flowType = useMemo(() => {
+        const catalogItem = DIFFUSER_CATALOG.find(c => c.id === params.modelId);
+        return catalogItem ? catalogItem.modes[0].flowType : 'vertical-conical';
+    }, [params.modelId]);
+
     const physics = useScientificSimulation(
         params.modelId,
-        'vertical-conical', // Simplification: we might want to get this from catalog based on modelId
+        flowType,
         params.diameter,
         params.volume,
         params.temperature,
