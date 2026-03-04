@@ -1,7 +1,5 @@
-
 import React, { useState } from 'react';
-import { Maximize, LayoutList, ScanLine, Ruler, Wind, X, Target, Trash2, AlertTriangle } from 'lucide-react';
-import { SectionHeader } from '../../../ui/Shared';
+import { Target, Trash2, ScanLine, X } from 'lucide-react';
 import { InfoRow, AccordionItem } from './SimulatorUI';
 import { calculateProbeData } from '../../../../hooks/useSimulation';
 
@@ -13,147 +11,126 @@ export const SimulatorRightPanel = ({
 }: any) => {
 
     const [sections, setSections] = useState({
-        results: true,
-        params: true,
-        summary: true,
+        main: true,
         probes: true
     });
 
     const toggle = (key: string) => setSections((prev: any) => ({ ...prev, [key]: !prev[key] }));
 
-    // Safety Check for Cold Air Dumping
-    // If Archimedes Number is significantly negative (Cooling) and Velocity is low
-    // We infer risk.
-    const isCooling = params.temperature < params.roomTemp;
-    const isDumpingRisk = isCooling && physics.Ar < -0.05; // -0.05 is a threshold where drop is significant
+    // Логика выбора активного диффузора. 
+    // Берем последний из списка добавленных. Если в будущем добавится пропс selectedId, 
+    // можно будет искать конкретный: placedDiffusers.find(d => d.id === selectedId)
+    const hasDiffusers = placedDiffusers && placedDiffusers.length > 0;
+    const activeDiffuser = hasDiffusers ? placedDiffusers[placedDiffusers.length - 1] : null;
 
     const Content = () => (
-        <>
-            {viewMode !== 'top' ? (
-                <div className="space-y-4 animate-in slide-in-from-right-8 duration-500 relative z-10">
-                    <AccordionItem 
-                        title="Результаты" 
-                        icon={<Maximize size={16}/>} 
-                        isOpen={sections.results} 
-                        onClick={() => toggle('results')}
-                    >
-                        <div className="mt-0 bg-gradient-to-br from-white/5 to-transparent rounded-[24px] p-6 border border-white/5 shadow-inner relative overflow-hidden group">
-                            <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/20 rounded-full blur-[40px] group-hover:bg-blue-500/30 transition-colors"></div>
-                            
-                            <div className="text-center pb-6 mb-4 border-b border-white/5 relative z-10">
-                                <div className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400 tracking-tighter">{physics.v0.toFixed(2)}</div>
-                                <div className="text-[10px] font-bold text-blue-400 uppercase tracking-[0.2em] mt-2">Скорость V0 (м/с)</div>
-                            </div>
-                            <div className="space-y-1 relative z-10">
-                                <InfoRow label="Дальнобойность" value={physics.throwDist.toFixed(1)} unit="м" highlight />
-                                <InfoRow label="Шум (LwA)" value={physics.noise.toFixed(0)} unit="дБ" alert={physics.noise > 45} />
-                                <InfoRow label="В Рабочей Зоне" value={physics.workzoneVelocity.toFixed(2)} unit="м/с" subValue="Максимальная" />
-                            </div>
+        <div className="space-y-4 animate-in slide-in-from-right-8 duration-500 relative z-10">
+            
+            <AccordionItem 
+                title="Показатели системы" 
+                icon={<ScanLine size={16}/>} 
+                isOpen={sections.main} 
+                onClick={() => toggle('main')}
+            >
+                <div className="mt-0 bg-[#13141c] rounded-[24px] p-6 border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] relative overflow-hidden">
+                    <div className="absolute -top-20 -right-20 w-48 h-48 bg-blue-500/10 rounded-full blur-[60px] pointer-events-none"></div>
+                    
+                    <div className="space-y-1 relative z-10">
+                        {/* 1. Общие показатели среды и помещения */}
+                        <div className="mb-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                            Общие данные
+                        </div>
+                        <InfoRow 
+                            label="Т° Помещения" 
+                            value={params?.roomTemp || '0'} 
+                            unit="°C" 
+                        />
+                        <InfoRow 
+                            label="Общий шум диффузоров" 
+                            value={hasDiffusers ? topViewStats?.maxNoise?.toFixed(0) : '-'} 
+                            unit={hasDiffusers ? "дБ" : ""} 
+                            alert={hasDiffusers && (topViewStats?.maxNoise || 0) > 45} 
+                        />
+                        
+                        <div className="my-5 border-t border-white/5" />
+
+                        {/* 2. Показатели конкретного (последнего/выбранного) диффузора */}
+                        <div className="mb-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest flex justify-between items-center">
+                            <span>{hasDiffusers ? 'Текущий диффузор' : 'Диффузоры не добавлены'}</span>
+                            {hasDiffusers && (
+                                <span className="text-[9px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">
+                                    Активный
+                                </span>
+                            )}
                         </div>
                         
-                        {/* DUMPING WARNING */}
-                        {isDumpingRisk && (
-                            <div className="mt-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
-                                <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
-                                <div>
-                                    <div className="text-[10px] font-bold text-amber-500 uppercase mb-1">Риск сваливания струи</div>
-                                    <p className="text-[10px] text-amber-200/80 leading-snug">
-                                        Холодный воздух падает в рабочую зону слишком быстро. Увеличьте скорость или температуру.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                    </AccordionItem>
-                    
-                    <AccordionItem 
-                        title="Параметры" 
-                        icon={<LayoutList size={16}/>} 
-                        isOpen={sections.params} 
-                        onClick={() => toggle('params')}
-                    >
-                        <div className="mt-0 bg-black/20 rounded-[24px] p-2 border border-white/5">
-                            <InfoRow label="Т° Помещения" value={params.roomTemp} unit="°C" />
-                            <InfoRow label="Т° Притока" value={params.temperature} unit="°C" highlight />
-                            <InfoRow label="Объем Воздуха" value={params.volume} unit="м³/ч" />
-                        </div>
-                    </AccordionItem>
+                        <InfoRow 
+                            label="Температура притока" 
+                            value={activeDiffuser ? activeDiffuser.temperature : '-'} 
+                            unit={activeDiffuser ? "°C" : ""} 
+                            highlight={!!activeDiffuser}
+                        />
+                        <InfoRow 
+                            label="Скорость в рабочей зоне" 
+                            value={activeDiffuser && activeDiffuser.performance?.workzoneVelocity 
+                                ? activeDiffuser.performance.workzoneVelocity.toFixed(2) 
+                                : '-'} 
+                            unit={activeDiffuser ? "м/с" : ""} 
+                        />
+                    </div>
                 </div>
-            ) : (
-                <div className="space-y-4 animate-in slide-in-from-right-8 duration-500 relative z-10">
-                    <AccordionItem 
-                        title="Сводка по плану" 
-                        icon={<ScanLine size={16}/>} 
-                        isOpen={sections.summary} 
-                        onClick={() => toggle('summary')}
-                    >
-                        <div className="mt-0 bg-[#13141c] rounded-[24px] p-6 border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] relative overflow-hidden">
-                            <div className="absolute -top-20 -right-20 w-48 h-48 bg-purple-500/10 rounded-full blur-[60px]"></div>
-                            
-                            <div className="flex flex-col items-end mb-6 relative z-10">
-                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Всего устройств</span>
-                                <span className="text-7xl font-black text-white leading-none tracking-tighter drop-shadow-xl">{placedDiffusers.length}</span>
-                            </div>
-                            
-                            <div className="space-y-1 relative z-10 border-t border-white/5 pt-2">
-                                <InfoRow label="Макс. Шум" value={topViewStats.maxNoise.toFixed(0)} unit="дБ" alert={topViewStats.maxNoise > 45} />
-                                <InfoRow label="Т° Смешения" value={topViewStats.calcTemp.toFixed(1)} unit="°C" highlight />
-                            </div>
-                        </div>
-                    </AccordionItem>
+            </AccordionItem>
 
-                    {/* PROBES LIST SECTION */}
-                    {probes && probes.length > 0 && (
-                        <AccordionItem 
-                            title="Точки измерения" 
-                            icon={<Target size={16}/>} 
-                            isOpen={sections.probes} 
-                            onClick={() => toggle('probes')}
-                        >
-                            <div className="mt-0 space-y-3">
-                                {probes.map((probe: any, idx: number) => {
-                                    // Calculate realtime data for list view
-                                    const data = calculateProbeData(
-                                        probe, 
-                                        placedDiffusers, 
-                                        params.roomTemp,
-                                        params.temperature,
-                                        params.roomWidth,
-                                        params.roomLength,
-                                        params.roomHeight
-                                    );
-                                    
-                                    return (
-                                        <div key={probe.id} className="bg-black/20 rounded-xl p-3 border border-white/5 hover:bg-white/5 transition-colors group">
-                                            <div className="flex justify-between items-center mb-2">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold text-slate-400">
-                                                        {idx + 1}
-                                                    </div>
-                                                    <span className="text-[10px] font-bold text-slate-500 uppercase">H={probe.z.toFixed(1)}m</span>
-                                                </div>
-                                                <button onClick={() => onRemoveProbe(probe.id)} className="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
-                                                    <Trash2 size={12} />
-                                                </button>
+            {/* ТОЧКИ ИЗМЕРЕНИЯ (Датчики) */}
+            {probes && probes.length > 0 && (
+                <AccordionItem 
+                    title="Точки измерения" 
+                    icon={<Target size={16}/>} 
+                    isOpen={sections.probes} 
+                    onClick={() => toggle('probes')}
+                >
+                    <div className="mt-0 space-y-3">
+                        {probes.map((probe: any, idx: number) => {
+                            const data = calculateProbeData(
+                                probe, 
+                                placedDiffusers || [], 
+                                params?.roomTemp || 20,
+                                params?.temperature || 20,
+                                params?.roomWidth || 10,
+                                params?.roomLength || 10,
+                                params?.roomHeight || 3
+                            );
+                            
+                            return (
+                                <div key={probe.id} className="bg-black/20 rounded-xl p-3 border border-white/5 hover:bg-white/5 transition-colors group">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold text-slate-400">
+                                                {idx + 1}
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <div className="text-center bg-white/5 rounded-lg p-1.5">
-                                                    <div className="text-[9px] text-slate-500 mb-0.5">V (м/с)</div>
-                                                    <div className="font-mono font-bold text-xs text-white">{data.v.toFixed(2)}</div>
-                                                </div>
-                                                <div className="text-center bg-white/5 rounded-lg p-1.5">
-                                                    <div className="text-[9px] text-slate-500 mb-0.5">T (°C)</div>
-                                                    <div className="font-mono font-bold text-xs text-white">{data.t.toFixed(1)}</div>
-                                                </div>
-                                            </div>
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase">H={probe.z.toFixed(1)}m</span>
                                         </div>
-                                    );
-                                })}
-                            </div>
-                        </AccordionItem>
-                    )}
-                </div>
+                                        <button onClick={() => onRemoveProbe(probe.id)} className="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
+                                            <Trash2 size={12} />
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="text-center bg-white/5 rounded-lg p-1.5">
+                                            <div className="text-[9px] text-slate-500 mb-0.5">V (м/с)</div>
+                                            <div className="font-mono font-bold text-xs text-white">{data.v.toFixed(2)}</div>
+                                        </div>
+                                        <div className="text-center bg-white/5 rounded-lg p-1.5">
+                                            <div className="text-[9px] text-slate-500 mb-0.5">T (°C)</div>
+                                            <div className="font-mono font-bold text-xs text-white">{data.t.toFixed(1)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </AccordionItem>
             )}
-        </>
+        </div>
     );
 
     return (
