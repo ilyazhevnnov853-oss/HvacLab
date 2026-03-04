@@ -330,98 +330,94 @@ const Simulator = ({ onBack, onHome }: any) => {
                         onUpdateProbePos={updateProbePos}
                     />
 
-                    {/* Desktop Toolbar (Floating iOS 26 Style) */}
-                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 p-1.5 rounded-full bg-white/90 dark:bg-[#0a0a0c]/90 backdrop-blur-2xl border border-black/10 dark:border-white/10 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)] pointer-events-auto transition-all duration-500">
+                   {/* Desktop Toolbar (AutoCAD-like layout with Native App Style) */}
+                    <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 p-1.5 rounded-2xl bg-white/90 dark:bg-[#0a0a0c]/90 backdrop-blur-2xl border border-black/10 dark:border-white/10 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)] pointer-events-auto transition-all duration-500">
                         
                         {/* Power & Play */}
                         <div className="flex items-center gap-1 pr-2 border-r border-black/10 dark:border-white/10">
-                            <button onClick={() => setIsPowerOn(!isPowerOn)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${isPowerOn ? 'bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'text-slate-400 hover:bg-black/5 dark:hover:bg-white/10'}`}>
+                            <button 
+                                onClick={() => setIsPowerOn(!isPowerOn)} 
+                                className={`w-16 h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${isPowerOn ? 'bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'text-slate-400 hover:bg-black/5 dark:hover:bg-white/10'}`}
+                            >
                                 <Power size={18} />
+                                <span className="text-[9px] font-bold uppercase tracking-wider">Питание</span>
                             </button>
                             {isPowerOn && (
-                                <button onClick={() => setIsPlaying(!isPlaying)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${!isPlaying ? 'text-amber-500 bg-amber-500/10' : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10'}`}>
+                                <button 
+                                    onClick={() => setIsPlaying(!isPlaying)} 
+                                    className={`w-16 h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${!isPlaying ? 'text-amber-500 bg-amber-500/10' : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10'}`}
+                                >
                                     {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+                                    <span className="text-[9px] font-bold uppercase tracking-wider">{isPlaying ? 'Пауза' : 'Пуск'}</span>
                                 </button>
                             )}
                         </div>
 
                         {/* View Modes */}
                         <div className="flex items-center gap-1 px-2">
-                            <button 
-                                onClick={() => setViewMode('front')}
-                                className={`flex items-center gap-2 px-4 h-10 rounded-full text-[11px] font-bold tracking-[0.08em] transition-all duration-300 ${viewMode === 'front' ? 'bg-[#2563eb] text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5'}`}
-                            >
-                                <Layers size={16} strokeWidth={2} />
-                                <span>СПЕРЕДИ</span>
-                            </button>
-                            <button 
-                                onClick={() => setViewMode('right')}
-                                className={`flex items-center gap-2 px-4 h-10 rounded-full text-[11px] font-bold tracking-[0.08em] transition-all duration-300 ${viewMode === 'right' ? 'bg-[#2563eb] text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5'}`}
-                            >
-                                <Layers size={16} strokeWidth={2} className="rotate-90" />
-                                <span>СПРАВА</span>
-                            </button>
-                            <button 
-                                onClick={() => setViewMode('top')}
-                                className={`flex items-center gap-2 px-4 h-10 rounded-full text-[11px] font-bold tracking-[0.08em] transition-all duration-300 ${viewMode === 'top' ? 'bg-[#2563eb] text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5'}`}
-                            >
-                                <Maximize size={16} strokeWidth={2} />
-                                <span>ПЛАН</span>
-                            </button>
-                            <button 
-                                onClick={() => setViewMode('3d')}
-                                className={`flex items-center gap-2 px-4 h-10 rounded-full text-[11px] font-bold tracking-[0.08em] transition-all duration-300 ${viewMode === '3d' ? 'bg-[#2563eb] text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5'}`}
-                            >
-                                <Box size={16} strokeWidth={2} />
-                                <span>3D</span>
-                            </button>
+                            {[
+                                { id: 'front', label: 'Спереди', icon: <Layers size={18} strokeWidth={2} /> },
+                                { id: 'right', label: 'Справа', icon: <Layers size={18} strokeWidth={2} className="rotate-90" /> },
+                                { id: 'top', label: 'План', icon: <Maximize size={18} strokeWidth={2} /> },
+                                { id: '3d', label: '3D Вид', icon: <Box size={18} strokeWidth={2} /> },
+                            ].map(view => (
+                                <button 
+                                    key={view.id}
+                                    onClick={() => setViewMode(view.id as any)}
+                                    className={`w-[68px] h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${viewMode === view.id ? 'bg-[#2563eb] text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                                >
+                                    {view.icon}
+                                    <span className={`text-[9px] font-bold uppercase tracking-wider ${viewMode === view.id ? 'text-white' : ''}`}>{view.label}</span>
+                                </button>
+                            ))}
                         </div>
 
-                        {/* Tools (Always present, conditionally disabled) */}
+                        {/* Tools */}
                         {isPowerOn && (
                             <div className="flex items-center gap-1 pl-2 border-l border-black/10 dark:border-white/10 overflow-hidden transition-all duration-500">
                                 <button 
                                     onClick={() => setActiveTool('select')} 
                                     disabled={viewMode === '3d'}
-                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${viewMode === '3d' ? 'opacity-30 cursor-not-allowed' : ''} ${activeTool === 'select' && viewMode !== '3d' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
-                                    title="Выбор"
+                                    className={`w-[68px] h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${viewMode === '3d' ? 'opacity-30 cursor-not-allowed' : ''} ${activeTool === 'select' && viewMode !== '3d' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
                                 >
                                     <MousePointer2 size={18} />
+                                    <span className="text-[9px] font-bold uppercase tracking-wider">Выбор</span>
                                 </button>
                                 <button 
                                     onClick={() => setActiveTool('probe')} 
                                     disabled={viewMode === '3d'}
-                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${viewMode === '3d' ? 'opacity-30 cursor-not-allowed' : ''} ${activeTool === 'probe' && viewMode !== '3d' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
-                                    title="Датчик"
+                                    className={`w-[68px] h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${viewMode === '3d' ? 'opacity-30 cursor-not-allowed' : ''} ${activeTool === 'probe' && viewMode !== '3d' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
                                 >
                                     <Thermometer size={18} />
+                                    <span className="text-[9px] font-bold uppercase tracking-wider">Датчик</span>
                                 </button>
                                 
-                                <div className="w-px h-6 bg-black/10 dark:bg-white/10 mx-1"></div>
+                                <div className="w-px h-8 bg-black/10 dark:bg-white/10 mx-1"></div>
                                 
                                 <button 
                                     onClick={() => setShowGrid(!showGrid)} 
                                     disabled={viewMode === '3d'}
-                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${viewMode === '3d' ? 'opacity-30 cursor-not-allowed' : ''} ${showGrid && viewMode !== '3d' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
-                                    title="Сетка"
+                                    className={`w-[68px] h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${viewMode === '3d' ? 'opacity-30 cursor-not-allowed' : ''} ${showGrid && viewMode !== '3d' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
                                 >
                                     <GridIcon size={18} />
+                                    <span className="text-[9px] font-bold uppercase tracking-wider">Сетка</span>
                                 </button>
                                 <button 
                                     onClick={() => setSnapToGrid(!snapToGrid)} 
                                     disabled={viewMode !== 'top'}
-                                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${viewMode !== 'top' ? 'opacity-30 cursor-not-allowed' : ''} ${snapToGrid && viewMode === 'top' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
-                                    title="Привязка"
+                                    className={`w-[68px] h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${viewMode !== 'top' ? 'opacity-30 cursor-not-allowed' : ''} ${snapToGrid && viewMode === 'top' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
                                 >
                                     <Scan size={18} />
+                                    <span className="text-[9px] font-bold uppercase tracking-wider">Привязка</span>
                                 </button>
                             </div>
                         )}
 
                         {/* Help Button */}
                         <div className="flex items-center pl-2 border-l border-black/10 dark:border-white/10">
-                            <button onClick={() => setIsHelpMode(true)} className="w-10 h-10 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all duration-300">
+                            <button onClick={() => setIsHelpMode(true)} className="w-16 h-14 rounded-xl flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all duration-300">
                                 <HelpCircle size={18} />
+                                <span className="text-[9px] font-bold uppercase tracking-wider">Справка</span>
                             </button>
                         </div>
                     </div>
