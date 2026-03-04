@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlignVerticalJustifyCenter, MoveVertical, ArrowDown, Grid, Box, RotateCcw } from 'lucide-react';
+import { Grid, Box } from 'lucide-react';
 import { SpecMap, EngineeringData, DiffuserModel, WikiItem, NormItem, SymbolItem } from './types';
 
 export const CONSTANTS = {
@@ -7,6 +7,40 @@ export const CONSTANTS = {
   BASE_TIME_STEP: 1/60, 
   HISTORY_RECORD_INTERVAL: 0.015,
 };
+
+// Custom Icons for DPU series
+const IconDpuM = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <circle cx="12" cy="12" r="5" />
+    <circle cx="12" cy="12" r="2" />
+    <line x1="12" y1="7" x2="12" y2="2" />
+    <line x1="7.67" y1="14.5" x2="3.34" y2="17" />
+    <line x1="16.33" y1="14.5" x2="20.66" y2="17" />
+  </svg>
+);
+
+const IconDpuV = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <circle cx="12" cy="12" r="4" fill="currentColor" />
+    {Array.from({ length: 8 }).map((_, i) => {
+      const angle = (i * Math.PI) / 4;
+      const x1 = 12 + Math.cos(angle) * 4;
+      const y1 = 12 + Math.sin(angle) * 4;
+      const x2 = 12 + Math.cos(angle + 0.5) * 10;
+      const y2 = 12 + Math.sin(angle + 0.5) * 10;
+      return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />;
+    })}
+  </svg>
+);
+
+const IconDpuS = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <circle cx="12" cy="12" r="3" strokeWidth="4" />
+  </svg>
+);
 
 // ==========================================
 // 1. ENGINEERING DATABASE (EQUIPMENT)
@@ -90,37 +124,25 @@ export const DIFFUSER_CATALOG: DiffuserModel[] = [
     { 
         id: 'dpu-m', series: 'ДПУ-М', name: 'Универсальный',
         modes: [
-            { id: 'm-vert', name: 'Коническая', subtitle: 'Вертикальная', b_text: 'b = 0.2A', flowType: 'vertical-conical', icon: <AlignVerticalJustifyCenter size={16}/> }
+            { id: 'm-vert', name: 'Коническая', subtitle: 'Вертикальная', b_text: 'b = 0.2A', flowType: 'vertical-conical', icon: <IconDpuM size={16}/> }
         ]
     },
     { 
         id: 'dpu-k', series: 'ДПУ-К', name: 'Веерный',
         modes: [
-            { id: 'k-vert', name: 'Коническая', subtitle: 'Вертикальная', b_text: 'b = 0.1A', flowType: 'vertical-conical', icon: <AlignVerticalJustifyCenter size={16}/> }
+            { id: 'k-vert', name: 'Коническая', subtitle: 'Вертикальная', b_text: 'b = 0.1A', flowType: 'vertical-conical', icon: <IconDpuM size={16}/> }
         ]
     },
     { 
         id: 'dpu-v', series: 'ДПУ-В', name: 'Вихревой',
         modes: [
-            { id: 'v-vert', name: 'Вихревая', subtitle: 'Вертикальная', b_text: 'b = 0 мм', flowType: 'vertical-swirl', icon: <MoveVertical size={16}/> }
+            { id: 'v-vert', name: 'Вихревая', subtitle: 'Вертикальная', b_text: 'b = 0 мм', flowType: 'vertical-swirl', icon: <IconDpuV size={16}/> }
         ]
     },
     { 
         id: 'dpu-s', series: 'ДПУ-С', name: 'Сопловой',
         modes: [
-            { id: 's-vert', name: 'Компактная', subtitle: 'Вертикальная', b_text: 'b = const', flowType: 'vertical-compact', icon: <ArrowDown size={16}/> }
-        ]
-    },
-    {
-        id: 'amn-adn', series: 'АДН/АМН', name: 'Решетка',
-        modes: [
-            { id: 'adn-horiz', name: 'Компактная', subtitle: 'Настенная', b_text: 'прямая', flowType: 'horizontal-compact', icon: <Grid size={16}/> }
-        ]
-    },
-    {
-        id: '4ap', series: '4АП', name: 'Потолочный',
-        modes: [
-            { id: '4ap-4way', name: '4-сторонняя', subtitle: 'Веерная', b_text: '360°', flowType: '4-way', icon: <Box size={16}/> }
+            { id: 's-vert', name: 'Компактная', subtitle: 'Вертикальная', b_text: 'b = const', flowType: 'vertical-compact', icon: <IconDpuS size={16}/> }
         ]
     }
 ];

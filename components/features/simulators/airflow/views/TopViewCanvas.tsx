@@ -40,6 +40,90 @@ interface TopViewCanvasProps {
   supplyTemp?: number;
 }
 
+const drawRealisticDiffuser2D = (ctx: CanvasRenderingContext2D, cx: number, cy: number, radiusPx: number, modelId: string) => {
+    ctx.save();
+    ctx.translate(cx, cy);
+    
+    const strokeColor = ctx.strokeStyle;
+    
+    ctx.lineWidth = 1.5;
+    
+    switch (modelId) {
+        case 'dpu-m':
+        case 'dpu-k':
+            ctx.beginPath();
+            ctx.arc(0, 0, radiusPx, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(0, 0, radiusPx * 0.5, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(0, 0, radiusPx * 0.2, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            for (let i = 0; i < 3; i++) {
+                const angle = (i * 120 * Math.PI) / 180 - Math.PI / 2;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(angle) * (radiusPx * 0.2), Math.sin(angle) * (radiusPx * 0.2));
+                ctx.lineTo(Math.cos(angle) * radiusPx, Math.sin(angle) * radiusPx);
+                ctx.stroke();
+            }
+            break;
+            
+        case 'dpu-v':
+            ctx.beginPath();
+            ctx.arc(0, 0, radiusPx, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(0, 0, radiusPx * 0.4, 0, Math.PI * 2);
+            ctx.fillStyle = strokeColor;
+            ctx.fill();
+            
+            const numSlots = 10;
+            for (let i = 0; i < numSlots; i++) {
+                const angle = (i * Math.PI * 2) / numSlots;
+                const startR = radiusPx * 0.4;
+                const endR = radiusPx * 0.9;
+                const x1 = Math.cos(angle) * startR;
+                const y1 = Math.sin(angle) * startR;
+                const x2 = Math.cos(angle + 0.4) * endR;
+                const y2 = Math.sin(angle + 0.4) * endR;
+                
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+            break;
+            
+        case 'dpu-s':
+            ctx.beginPath();
+            ctx.arc(0, 0, radiusPx, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(0, 0, radiusPx * 0.3, 0, Math.PI * 2);
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            break;
+            
+        default:
+            ctx.beginPath();
+            ctx.rect(-radiusPx, -radiusPx, radiusPx * 2, radiusPx * 2);
+            ctx.fill();
+            ctx.stroke();
+            break;
+    }
+    
+    ctx.restore();
+};
+
 const getTopLayout = (w: number, h: number, rw: number, rl: number) => {
     const padding = 60; 
     const availW = w - padding * 2;
@@ -207,9 +291,9 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         ctx.stroke();
 
         const badgeW = 96;
-        const badgeH = 64; // Increased height for Z
+        const badgeH = 36;
         const bx = cx + 12;
-        const by = cy - 64;
+        const by = cy - 36;
         
         // Make probe semi-transparent if it's far from the current work zone height slice
         const zDiff = Math.abs(probe.z - (state.workZoneHeight || 1.6));
@@ -226,24 +310,14 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         ctx.font = 'bold 10px Inter, sans-serif';
         
         ctx.fillStyle = '#94a3b8';
-        ctx.fillText("Z:", bx + 8, by + 14);
+        ctx.fillText("V:", bx + 8, by + 14);
         ctx.fillStyle = '#fff';
-        ctx.fillText(`${probe.z.toFixed(1)} м`, bx + 28, by + 14);
+        ctx.fillText(`${data.v.toFixed(2)} м/с`, bx + 28, by + 14);
 
         ctx.fillStyle = '#94a3b8';
-        ctx.fillText("V:", bx + 8, by + 28);
+        ctx.fillText("T:", bx + 8, by + 28);
         ctx.fillStyle = '#fff';
-        ctx.fillText(`${data.v.toFixed(2)} м/с`, bx + 28, by + 28);
-
-        ctx.fillStyle = '#94a3b8';
-        ctx.fillText("T:", bx + 8, by + 42);
-        ctx.fillStyle = '#fff';
-        ctx.fillText(`${data.t.toFixed(1)}°C`, bx + 28, by + 42);
-        
-        ctx.fillStyle = '#94a3b8';
-        ctx.fillText("DR:", bx + 8, by + 56);
-        ctx.fillStyle = color;
-        ctx.fillText(`${data.dr.toFixed(0)}%`, bx + 28, by + 56);
+        ctx.fillText(`${data.t.toFixed(1)}°C`, bx + 28, by + 28);
         
         ctx.globalAlpha = 1.0; // Reset alpha
     };
@@ -299,21 +373,16 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             }
 
             const dSize = (d.performance.spec.A / 1000 * ppm) || 20;
-            ctx.beginPath();
-            ctx.rect(cx - dSize/2, cy - dSize/2, dSize, dSize);
             
             if (state.selectedDiffuserId === d.id) {
                 ctx.fillStyle = '#3b82f6'; 
                 ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
             } else {
                 ctx.fillStyle = '#475569'; 
                 ctx.strokeStyle = '#94a3b8';
-                ctx.lineWidth = 1;
             }
             
-            ctx.fill();
-            ctx.stroke();
+            drawRealisticDiffuser2D(ctx, cx, cy, dSize / 2, d.modelId);
         });
 
         state.probes?.forEach(p => {

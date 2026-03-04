@@ -211,17 +211,31 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 vy = pxSpeed * 0.1;
             } else if (modelId === 'dpu-m' && flowType.includes('vertical')) {
                 const side = Math.random() > 0.5 ? 1 : -1;
-                startX = centerX + side * (nozzleW * 0.45);
+                startX = centerX + side * nozzleW * (0.4 + Math.random() * 0.4);
                 const coneAngle = (35 + Math.random() * 10) * (Math.PI / 180);
                 vx = side * Math.sin(coneAngle) * pxSpeed;
                 vy = Math.cos(coneAngle) * pxSpeed;
                 waveAmp = 5; drag = 0.95;
             } else if (modelId === 'dpu-k' && flowType.includes('vertical')) {
-                startX = centerX + (Math.random() - 0.5) * nozzleW * 0.95;
+                const side = Math.random() > 0.5 ? 1 : -1;
+                startX = centerX + side * nozzleW * (0.4 + Math.random() * 0.4);
                 const spreadAngle = (Math.random() - 0.5) * 60 * (Math.PI / 180); 
                 vx = Math.sin(spreadAngle) * pxSpeed * 0.8;
                 vy = Math.cos(spreadAngle) * pxSpeed;
                 waveAmp = 8; drag = 0.96;
+            } else if (modelId === 'dpu-v' && flowType === 'vertical-swirl') {
+                const side = Math.random() > 0.5 ? 1 : -1;
+                startX = centerX + side * nozzleW * (0.4 + Math.random() * 0.5);
+                const spread = (Math.random() - 0.5) * 1.5; 
+                vx = Math.sin(spread) * pxSpeed * 0.5;
+                vy = Math.cos(spread) * pxSpeed;
+                waveAmp = 30 + Math.random() * 10; waveFreq = 6; drag = 0.94;
+            } else if (modelId === 'dpu-s' && flowType === 'vertical-compact') {
+                startX = centerX + (Math.random() - 0.5) * nozzleW * 0.15;
+                const spread = (Math.random() - 0.5) * 0.05; 
+                vx = Math.sin(spread) * pxSpeed * 0.3;
+                vy = Math.cos(spread) * pxSpeed * 1.3; 
+                waveAmp = 1; drag = 0.985;
             } else if (flowType === 'vertical-swirl') {
                 startX = centerX + (Math.random() - 0.5) * nozzleW * 0.9;
                 const spread = (Math.random() - 0.5) * 1.5; 
@@ -247,6 +261,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         p.active = true;
         p.lastHistoryTime = 0;
         p.history.length = 0; 
+        p.history.push({ x: startX, y: startY });
     };
 
     const drawDiffuserSideProfile = (
@@ -275,25 +290,155 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         ctx.fillRect(cx - (wA * 0.8)/2, offsetY, wA * 0.8, yPos - offsetY);
         
         ctx.save();
-        ctx.translate(0, yPos);
-        ctx.fillStyle = '#475569';
-        ctx.beginPath();
-        ctx.rect(cx - wA/2, 0, wA, hD); ctx.fill();
+        ctx.translate(cx, yPos);
         
-        ctx.fillStyle = '#94a3b8';
-        ctx.beginPath();
-        ctx.moveTo(cx - wA/2, hD);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#94a3b8';
+        ctx.fillStyle = '#cbd5e1';
         
-        if (modelId === 'dpu-s') {
-             ctx.lineTo(cx - wA/2 + 10, hTotal + 20);
-             ctx.lineTo(cx + wA/2 - 10, hTotal + 20); ctx.lineTo(cx + wA/2, hD);
-        } else if (modelId === 'amn-adn') {
-             ctx.rect(cx - wA/2, hD, wA, 5*scale);
-        } else {
-             ctx.quadraticCurveTo(cx - wA/2, hTotal, cx, hTotal + 5);
-             ctx.quadraticCurveTo(cx + wA/2, hTotal, cx + wA/2, hD);
+        const r = wA / 2;
+        const h = hD;
+
+        switch (modelId) {
+            case 'dpu-m':
+                // Outer casing
+                ctx.beginPath();
+                ctx.moveTo(-r, -h);
+                ctx.lineTo(-r, 0);
+                ctx.quadraticCurveTo(-r, h * 0.5, -r * 0.8, h * 0.8);
+                ctx.lineTo(r * 0.8, h * 0.8);
+                ctx.quadraticCurveTo(r, h * 0.5, r, 0);
+                ctx.lineTo(r, -h);
+                ctx.stroke();
+                
+                // Inner cone
+                ctx.beginPath();
+                ctx.moveTo(-r * 0.6, h * 0.8);
+                ctx.quadraticCurveTo(0, h * 1.5, r * 0.6, h * 0.8);
+                ctx.lineTo(-r * 0.6, h * 0.8);
+                ctx.fill();
+                ctx.stroke();
+                
+                // Central rod
+                ctx.beginPath();
+                ctx.moveTo(0, -h);
+                ctx.lineTo(0, h * 1.2);
+                ctx.stroke();
+                break;
+                
+            case 'dpu-k':
+                // Outer casing
+                ctx.beginPath();
+                ctx.moveTo(-r, -h);
+                ctx.lineTo(-r, 0);
+                ctx.quadraticCurveTo(-r, h * 0.5, -r * 0.8, h * 0.8);
+                ctx.lineTo(r * 0.8, h * 0.8);
+                ctx.quadraticCurveTo(r, h * 0.5, r, 0);
+                ctx.lineTo(r, -h);
+                ctx.stroke();
+                
+                // Concentric cones
+                for (let i = 1; i <= 3; i++) {
+                    const cr = r * 0.8 * (i / 3);
+                    const ch = h * 0.8 + (3 - i) * 5 * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(-cr, ch);
+                    ctx.lineTo(cr, ch);
+                    ctx.stroke();
+                    
+                    // Connect to center
+                    ctx.beginPath();
+                    ctx.moveTo(-cr, ch);
+                    ctx.lineTo(0, ch - 10 * scale);
+                    ctx.moveTo(cr, ch);
+                    ctx.lineTo(0, ch - 10 * scale);
+                    ctx.stroke();
+                }
+                
+                // Central rod
+                ctx.beginPath();
+                ctx.moveTo(0, -h);
+                ctx.lineTo(0, h * 0.8 + 10 * scale);
+                ctx.stroke();
+                break;
+                
+            case 'dpu-v':
+                // Outer casing
+                ctx.beginPath();
+                ctx.moveTo(-r, -h);
+                ctx.lineTo(-r, 0);
+                ctx.quadraticCurveTo(-r, h * 0.5, -r * 0.8, h * 0.8);
+                ctx.lineTo(r * 0.8, h * 0.8);
+                ctx.quadraticCurveTo(r, h * 0.5, r, 0);
+                ctx.lineTo(r, -h);
+                ctx.stroke();
+                
+                // Swirl element
+                ctx.beginPath();
+                ctx.rect(-r * 0.8, h * 0.2, r * 1.6, h * 0.4);
+                ctx.stroke();
+                
+                // Swirl blades (side view)
+                for (let i = -3; i <= 3; i++) {
+                    const bx = i * (r * 0.2);
+                    ctx.beginPath();
+                    ctx.moveTo(bx - 5 * scale, h * 0.2);
+                    ctx.lineTo(bx + 5 * scale, h * 0.6);
+                    ctx.stroke();
+                }
+                
+                // Central rod
+                ctx.beginPath();
+                ctx.moveTo(0, -h);
+                ctx.lineTo(0, h * 0.6);
+                ctx.stroke();
+                break;
+                
+            case 'dpu-s':
+                // Outer casing
+                ctx.beginPath();
+                ctx.moveTo(-r, -h);
+                ctx.lineTo(-r, 0);
+                ctx.quadraticCurveTo(-r, h * 0.8, -r * 0.4, h * 1.2);
+                ctx.lineTo(r * 0.4, h * 1.2);
+                ctx.quadraticCurveTo(r, h * 0.8, r, 0);
+                ctx.lineTo(r, -h);
+                ctx.stroke();
+                
+                // Inner nozzle
+                ctx.beginPath();
+                ctx.moveTo(-r * 0.8, 0);
+                ctx.quadraticCurveTo(-r * 0.8, h * 0.6, -r * 0.3, h * 1.2);
+                ctx.lineTo(r * 0.3, h * 1.2);
+                ctx.quadraticCurveTo(r * 0.8, h * 0.6, r * 0.8, 0);
+                ctx.stroke();
+                
+                // Central rod
+                ctx.beginPath();
+                ctx.moveTo(0, -h);
+                ctx.lineTo(0, h * 1.2);
+                ctx.stroke();
+                break;
+                
+            default:
+                ctx.fillStyle = '#475569';
+                ctx.beginPath();
+                ctx.rect(-wA/2, 0, wA, hD); ctx.fill();
+                
+                ctx.fillStyle = '#94a3b8';
+                ctx.beginPath();
+                ctx.moveTo(-wA/2, hD);
+                
+                if (modelId === 'amn-adn') {
+                     ctx.rect(-wA/2, hD, wA, 5*scale);
+                } else {
+                     ctx.quadraticCurveTo(-wA/2, hTotal, 0, hTotal + 5);
+                     ctx.quadraticCurveTo(wA/2, hTotal, wA/2, hD);
+                }
+                ctx.closePath(); ctx.fill();
+                break;
         }
-        ctx.closePath(); ctx.fill();
+        
         ctx.restore();
     };
 

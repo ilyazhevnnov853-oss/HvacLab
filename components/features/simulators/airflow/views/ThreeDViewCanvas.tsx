@@ -3,6 +3,229 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { CONSTANTS, Particle3D, ThreeDViewCanvasProps, project, spawnParticle, updateParticlePhysics } from '../utils/airflow3DLogic';
 import ViewCube from './ViewCube';
 
+const drawRealisticDiffuser3D = (
+    ctx: CanvasRenderingContext2D, 
+    centerX: number, 
+    centerY: number, 
+    centerZ: number, 
+    radius: number, 
+    modelId: string, 
+    p3d: (x: number, y: number, z: number) => {x: number, y: number, s: number}
+) => {
+    const drawRing3D = (r: number, yOffset: number = 0, segments: number = 32) => {
+        ctx.beginPath();
+        for (let i = 0; i <= segments; i++) {
+            const angle = (i * Math.PI * 2) / segments;
+            const x = centerX + Math.cos(angle) * r;
+            const z = centerZ + Math.sin(angle) * r;
+            const p = p3d(x, centerY + yOffset, z);
+            if (i === 0) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+        }
+        ctx.stroke();
+    };
+
+    const drawFilledRing3D = (r: number, yOffset: number = 0, segments: number = 32) => {
+        ctx.beginPath();
+        for (let i = 0; i <= segments; i++) {
+            const angle = (i * Math.PI * 2) / segments;
+            const x = centerX + Math.cos(angle) * r;
+            const z = centerZ + Math.sin(angle) * r;
+            const p = p3d(x, centerY + yOffset, z);
+            if (i === 0) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+        }
+        ctx.fill();
+        ctx.stroke();
+    };
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#94a3b8'; 
+    ctx.fillStyle = '#cbd5e1';
+
+    const h = radius * 0.5; // Depth of the diffuser
+
+    switch (modelId) {
+        case 'dpu-m':
+            // Outer casing
+            drawFilledRing3D(radius, 0);
+            drawRing3D(radius, -h);
+            
+            // Connect top and bottom rings of outer casing
+            for (let i = 0; i < 8; i++) {
+                const angle = (i * Math.PI * 2) / 8;
+                const x = centerX + Math.cos(angle) * radius;
+                const z = centerZ + Math.sin(angle) * radius;
+                const p1 = p3d(x, centerY, z);
+                const p2 = p3d(x, centerY - h, z);
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+
+            // Inner cone
+            ctx.fillStyle = '#94a3b8';
+            drawFilledRing3D(radius * 0.6, -h * 0.8);
+            drawRing3D(0, -h * 1.5);
+            
+            // Central rod
+            const rodTop = p3d(centerX, centerY, centerZ);
+            const rodBottom = p3d(centerX, centerY - h * 1.5, centerZ);
+            ctx.beginPath();
+            ctx.moveTo(rodTop.x, rodTop.y);
+            ctx.lineTo(rodBottom.x, rodBottom.y);
+            ctx.stroke();
+            break;
+            
+        case 'dpu-k':
+            // Outer casing
+            drawFilledRing3D(radius, 0);
+            drawRing3D(radius, -h);
+            
+            // Connect top and bottom rings of outer casing
+            for (let i = 0; i < 8; i++) {
+                const angle = (i * Math.PI * 2) / 8;
+                const x = centerX + Math.cos(angle) * radius;
+                const z = centerZ + Math.sin(angle) * radius;
+                const p1 = p3d(x, centerY, z);
+                const p2 = p3d(x, centerY - h, z);
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+
+            // Concentric cones
+            for (let i = 1; i <= 3; i++) {
+                const cr = radius * 0.8 * (i / 3);
+                const ch = -h * 0.8 - (3 - i) * (h * 0.2);
+                drawRing3D(cr, ch);
+                
+                // Connect to center
+                for (let j = 0; j < 3; j++) {
+                    const angle = (j * 120 * Math.PI) / 180 - Math.PI / 2;
+                    const x = centerX + Math.cos(angle) * cr;
+                    const z = centerZ + Math.sin(angle) * cr;
+                    const p1 = p3d(x, centerY + ch, z);
+                    const p2 = p3d(centerX, centerY + ch + h * 0.2, centerZ);
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                }
+            }
+            
+            // Central rod
+            const rodTopK = p3d(centerX, centerY, centerZ);
+            const rodBottomK = p3d(centerX, centerY - h * 1.2, centerZ);
+            ctx.beginPath();
+            ctx.moveTo(rodTopK.x, rodTopK.y);
+            ctx.lineTo(rodBottomK.x, rodBottomK.y);
+            ctx.stroke();
+            break;
+            
+        case 'dpu-v':
+            // Outer casing
+            drawFilledRing3D(radius, 0);
+            drawRing3D(radius, -h);
+            
+            // Connect top and bottom rings of outer casing
+            for (let i = 0; i < 8; i++) {
+                const angle = (i * Math.PI * 2) / 8;
+                const x = centerX + Math.cos(angle) * radius;
+                const z = centerZ + Math.sin(angle) * radius;
+                const p1 = p3d(x, centerY, z);
+                const p2 = p3d(x, centerY - h, z);
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+            
+            // Swirl element
+            ctx.fillStyle = '#94a3b8';
+            drawFilledRing3D(radius * 0.4, -h * 0.5);
+            
+            ctx.beginPath();
+            const numSlots = 10;
+            for (let i = 0; i < numSlots; i++) {
+                const angle = (i * Math.PI * 2) / numSlots;
+                const startR = radius * 0.4;
+                const endR = radius * 0.9;
+                
+                const x1 = centerX + Math.cos(angle) * startR;
+                const z1 = centerZ + Math.sin(angle) * startR;
+                const x2 = centerX + Math.cos(angle + 0.4) * endR;
+                const z2 = centerZ + Math.sin(angle + 0.4) * endR;
+                
+                const p1 = p3d(x1, centerY - h * 0.5, z1);
+                const p2 = p3d(x2, centerY - h * 0.5, z2);
+                
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+            }
+            ctx.stroke();
+            break;
+            
+        case 'dpu-s':
+            // Outer casing
+            drawFilledRing3D(radius, 0);
+            drawRing3D(radius, -h);
+            
+            // Connect top and bottom rings of outer casing
+            for (let i = 0; i < 8; i++) {
+                const angle = (i * Math.PI * 2) / 8;
+                const x = centerX + Math.cos(angle) * radius;
+                const z = centerZ + Math.sin(angle) * radius;
+                const p1 = p3d(x, centerY, z);
+                const p2 = p3d(x, centerY - h, z);
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+            
+            // Inner nozzle
+            ctx.lineWidth = 2;
+            drawRing3D(radius * 0.3, -h * 1.2);
+            
+            // Connect outer casing to inner nozzle
+            for (let i = 0; i < 8; i++) {
+                const angle = (i * Math.PI * 2) / 8;
+                const x1 = centerX + Math.cos(angle) * radius;
+                const z1 = centerZ + Math.sin(angle) * radius;
+                const x2 = centerX + Math.cos(angle) * (radius * 0.3);
+                const z2 = centerZ + Math.sin(angle) * (radius * 0.3);
+                const p1 = p3d(x1, centerY - h, z1);
+                const p2 = p3d(x2, centerY - h * 1.2, z2);
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+            break;
+            
+        default:
+            ctx.beginPath();
+            const corners = [
+                {x: centerX - radius, z: centerZ - radius},
+                {x: centerX + radius, z: centerZ - radius},
+                {x: centerX + radius, z: centerZ + radius},
+                {x: centerX - radius, z: centerZ + radius}
+            ];
+            corners.forEach((c, i) => {
+                const p = p3d(c.x, centerY, c.z);
+                if (i === 0) ctx.moveTo(p.x, p.y);
+                else ctx.lineTo(p.x, p.y);
+            });
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            break;
+    }
+};
+
 const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const requestRef = useRef<number>(0);
@@ -208,10 +431,7 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
             
             if (p.s > 0) {
                 const r = (d.performance.spec.A ? Math.sqrt(d.performance.spec.A)/50 : 0.15) * PPM * finalScale * 0.5;
-                ctx.beginPath();
-                ctx.fillStyle = '#cbd5e1';
-                ctx.arc(p.x, p.y, Math.max(2, r), 0, Math.PI*2);
-                ctx.fill();
+                drawRealisticDiffuser3D(ctx, cx, diffY, cz, Math.max(2, r), d.modelId, p3d);
             }
         });
 

@@ -161,8 +161,9 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
             vy = -Math.abs(pxSpeed * 0.1);
         } else if (modelId === 'dpu-m' && flowType.includes('vertical')) {
             const angle = Math.random() * Math.PI * 2;
-            pX += Math.cos(angle) * nozzleW * 0.45;
-            pZ += Math.sin(angle) * nozzleW * 0.45;
+            const radius = nozzleW * (0.4 + Math.random() * 0.4);
+            pX += Math.cos(angle) * radius;
+            pZ += Math.sin(angle) * radius;
             const coneAngle = (35 + Math.random() * 10) * (Math.PI / 180);
             const horizontalSpeed = Math.sin(coneAngle) * pxSpeed;
             vx = Math.cos(angle) * horizontalSpeed;
@@ -171,7 +172,7 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
             waveAmp = 5; drag = 0.95;
         } else if (modelId === 'dpu-k' && flowType.includes('vertical')) {
             const angle = Math.random() * Math.PI * 2;
-            const radius = Math.random() * nozzleW * 0.95;
+            const radius = nozzleW * (0.4 + Math.random() * 0.4);
             pX += Math.cos(angle) * radius;
             pZ += Math.sin(angle) * radius;
             const spreadAngle = (Math.random() - 0.5) * 60 * (Math.PI / 180); 
@@ -180,17 +181,36 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
             vz = Math.sin(angle) * horizontalSpeed;
             vy = -Math.cos(spreadAngle) * pxSpeed;
             waveAmp = 8; drag = 0.96;
-        } else if (flowType === 'vertical-swirl') {
-            const angle = Math.random() * Math.PI * 2;
-            const radius = Math.random() * nozzleW * 0.9;
+        } else if (modelId === 'dpu-v' && flowType === 'vertical-swirl') {
+            const numSlots = 10;
+            const slotIdx = Math.floor(Math.random() * numSlots);
+            const baseAngle = (slotIdx * Math.PI * 2) / numSlots;
+            const angle = baseAngle + (Math.random() * 0.2 - 0.1);
+            
+            const radius = nozzleW * (0.4 + Math.random() * 0.5);
             pX += Math.cos(angle) * radius;
             pZ += Math.sin(angle) * radius;
+            
             const spread = (Math.random() - 0.5) * 1.5; 
             const horizontalSpeed = Math.sin(spread) * pxSpeed * 0.5;
+            
+            const tangentialSpeed = pxSpeed * 0.3;
+            vx = Math.cos(angle) * horizontalSpeed - Math.sin(angle) * tangentialSpeed;
+            vz = Math.sin(angle) * horizontalSpeed + Math.cos(angle) * tangentialSpeed;
+            
+            vy = -Math.cos(spread) * pxSpeed;
+            waveAmp = 30 + Math.random() * 10; waveFreq = 6; drag = 0.94;
+        } else if (modelId === 'dpu-s' && flowType === 'vertical-compact') {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = Math.random() * nozzleW * 0.15;
+            pX += Math.cos(angle) * radius;
+            pZ += Math.sin(angle) * radius;
+            const spread = (Math.random() - 0.5) * 0.05; 
+            const horizontalSpeed = Math.sin(spread) * pxSpeed * 0.3;
             vx = Math.cos(angle) * horizontalSpeed;
             vz = Math.sin(angle) * horizontalSpeed;
             vy = -Math.cos(spread) * pxSpeed;
-            waveAmp = 30 + Math.random() * 10; waveFreq = 6; drag = 0.94;
+            waveAmp = 2; drag = 0.98;
         } else if (flowType === 'vertical-compact') {
             const angle = Math.random() * Math.PI * 2;
             const radius = Math.random() * nozzleW * 0.95;
@@ -229,6 +249,7 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
     p.active = true;
     p.lastHistoryTime = 0;
     p.history.length = 0; 
+    p.history.push({ x: pX, y: pY, z: pZ });
 };
 
 export const updateParticlePhysics = (p: Particle3D, dt: number, state: ThreeDViewCanvasProps, ppm: number) => {
