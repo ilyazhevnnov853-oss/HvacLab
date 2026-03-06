@@ -133,8 +133,6 @@ export const calculatePerformance = (modelId: string, flowType: string, diameter
     const spec = SPECS[diameter];
     if (!spec) return null;
 
-    if (modelId === 'dpu-s' && diameter === 100) return null;
-    if (modelId === 'dpu-v' && diameter === 250) return null;
     if ((modelId === 'amn-adn' || modelId === '4ap') && typeof diameter === 'number') return null;
     if (modelId.includes('dpu') && typeof diameter === 'string') return null; 
 

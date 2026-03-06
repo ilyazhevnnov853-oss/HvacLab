@@ -258,7 +258,8 @@ const Simulator = ({ onBack, onHome }: any) => {
     const toggleSection = (id: string) => setOpenSection(openSection === id ? null : id);
     
     // Derived current flow type for passing to Canvas
-    const currentMode = { flowType: 'vertical-conical' }; // Placeholder, needs actual logic if modes vary
+    const currentModel = DIFFUSER_CATALOG.find(d => d.id === params.modelId);
+    const currentMode = currentModel?.modes[params.modeIdx] || currentModel?.modes[0] || { flowType: 'vertical-conical' };
 
     return (
         <div className="flex w-full min-h-screen bg-[#F5F5F7] dark:bg-[#020205] flex-col lg:flex-row relative font-sans text-slate-900 dark:text-slate-200 overflow-hidden selection:bg-blue-500/30">

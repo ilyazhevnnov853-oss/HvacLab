@@ -50,7 +50,7 @@ const ButtonPointer = ({ title, description, height = 80, delay = '0ms' }: any) 
 
 const SimulatorHelpOverlay: React.FC<SimulatorHelpOverlayProps> = ({ onClose, viewMode, isPowerOn }) => {
     return (
-        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center overflow-hidden">
+        <>
             <style>{`
                 @keyframes fadeInUp {
                     from { opacity: 0; transform: translateY(20px); }
@@ -62,16 +62,16 @@ const SimulatorHelpOverlay: React.FC<SimulatorHelpOverlayProps> = ({ onClose, vi
                 }
             `}</style>
 
-            {/* Backdrop */}
+            {/* Backdrop - behind panels (z-200) */}
             <div 
-                className="absolute inset-0 bg-[#020205]/80 backdrop-blur-md transition-opacity duration-500"
+                className="fixed inset-0 z-[200] bg-[#020205]/80 backdrop-blur-sm transition-opacity duration-500 pointer-events-auto"
                 onClick={onClose}
             />
 
-            {/* Close Button */}
+            {/* Close Button - above everything (z-300) */}
             <button 
                 onClick={onClose}
-                className="absolute top-8 right-8 z-[230] group flex items-center gap-3 px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-xl transition-all hover:scale-105 active:scale-95"
+                className="fixed top-8 right-8 z-[310] group flex items-center gap-3 px-6 py-3 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-xl transition-all hover:scale-105 active:scale-95 pointer-events-auto"
             >
                 <span className="text-xs font-bold text-white uppercase tracking-widest">Закрыть справку</span>
                 <div className="p-1 rounded-full bg-white text-black group-hover:rotate-90 transition-transform duration-300">
@@ -79,8 +79,8 @@ const SimulatorHelpOverlay: React.FC<SimulatorHelpOverlayProps> = ({ onClose, vi
                 </div>
             </button>
 
-            {/* Content Container */}
-            <div className="relative z-[220] pointer-events-none w-full h-full max-w-[1920px] mx-auto">
+            {/* Content Container - above panels (z-300) */}
+            <div className="fixed inset-0 z-[300] pointer-events-none w-full h-full max-w-[1920px] mx-auto">
                 
                 {/* Central Welcome Info */}
                 <div 
@@ -98,7 +98,7 @@ const SimulatorHelpOverlay: React.FC<SimulatorHelpOverlayProps> = ({ onClose, vi
 
                 {/* Left Panel Hotspot */}
                 <HelpHotspot 
-                    className="top-1/2 -translate-y-1/2 left-8 lg:left-16"
+                    className="top-1/2 -translate-y-1/2 left-4 lg:left-[440px]"
                     icon={<Settings2 size={24} />}
                     title="Настройка параметров"
                     description="Выберите модель диффузора, задайте размеры помещения, температуру и расход воздуха. Нажмите «Добавить», чтобы разместить устройство на плане."
@@ -107,7 +107,7 @@ const SimulatorHelpOverlay: React.FC<SimulatorHelpOverlayProps> = ({ onClose, vi
 
                 {/* Right Panel Hotspot */}
                 <HelpHotspot 
-                    className="top-1/2 -translate-y-1/2 right-8 lg:right-16"
+                    className="top-1/2 -translate-y-1/2 right-4 lg:right-[380px]"
                     align="right"
                     icon={<BarChart3 size={24} />}
                     title="Анализ и результаты"
@@ -172,7 +172,7 @@ const SimulatorHelpOverlay: React.FC<SimulatorHelpOverlayProps> = ({ onClose, vi
                 </div>
 
             </div>
-        </div>
+        </>
     );
 };
 
