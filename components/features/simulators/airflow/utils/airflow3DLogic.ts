@@ -89,6 +89,9 @@ const sampleDiskEmitter = (radius: number) => {
     };
 };
 
+const getRenderableDiffusers = (state: ThreeDViewCanvasProps) =>
+    (state.placedDiffusers || []).filter(d => !d.performance?.error && !!d.performance?.spec?.A);
+
 export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: number) => {
     // Determine Source
     let activeDiffuser: {
@@ -100,9 +103,11 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
         modeIdx?: number
     };
 
-    if (state.placedDiffusers && state.placedDiffusers.length > 0) {
-        const idx = Math.floor(Math.random() * state.placedDiffusers.length);
-        const d = state.placedDiffusers[idx];
+    const renderableDiffusers = getRenderableDiffusers(state);
+
+    if (renderableDiffusers.length > 0) {
+        const idx = Math.floor(Math.random() * renderableDiffusers.length);
+        const d = renderableDiffusers[idx];
         
         activeDiffuser = {
             x: (d.x - state.roomWidth / 2) * ppm,

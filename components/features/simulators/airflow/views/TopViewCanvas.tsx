@@ -30,6 +30,9 @@ interface TopViewCanvasProps {
   setActiveTool?: (mode: ToolMode) => void;
   placementMode?: 'single' | 'multi';
   onAddDiffuserAt?: (x: number, y: number) => void;
+  sliceX?: number;
+  sliceY?: number;
+  onUpdateSlice?: (axis: 'x' | 'y', val: number) => void;
   // Probe Props
   probes?: Probe[];
   onAddProbe?: (x: number, y: number) => void;
@@ -136,6 +139,11 @@ const getTopLayout = (w: number, h: number, rw: number, rl: number) => {
     return { ppm, originX, originY };
 };
 
+const SLICE_HIT_RADIUS = 15;
+
+const getDiffuserHitSize = (diffuser: PlacedDiffuser, ppm: number) =>
+    Math.max((((diffuser.performance?.spec?.A || 0) / 1000) * ppm) || 0, 40);
+
 const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const requestRef = useRef<number>(0);
@@ -150,7 +158,7 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string } | null>(null);
     
     // Drag Target Type
-    const dragTargetRef = useRef<{ type: 'diffuser' | 'probe', id: string } | null>(null);
+    const dragTargetRef = useRef<{ type: 'diffuser' | 'probe' | 'slice-x' | 'slice-y', id?: string } | null>(null);
 
     // Sync Props
     useEffect(() => {
@@ -347,43 +355,63 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         state.placedDiffusers?.forEach(d => {
             const cx = originX + d.x * ppm;
             const cy = originY + d.y * ppm;
-            
-            if (!state.showHeatmap) {
-                const rPx = d.performance.coverageRadius * ppm;
-                const v = d.performance.workzoneVelocity;
-                
-                let fillStyle = 'rgba(16, 185, 129, 0.15)'; 
-                let strokeStyle = 'rgba(16, 185, 129, 0.4)';
-                
-                if (v > 0.5) { 
-                    fillStyle = 'rgba(239, 68, 68, 0.15)'; 
-                    strokeStyle = 'rgba(239, 68, 68, 0.4)';
-                } else if (v > 0.25) { 
-                    fillStyle = 'rgba(245, 158, 11, 0.15)'; 
-                    strokeStyle = 'rgba(245, 158, 11, 0.4)';
-                }
-                
-                ctx.beginPath();
-                ctx.arc(cx, cy, Math.max(0, rPx), 0, Math.PI * 2);
-                ctx.fillStyle = fillStyle; 
-                ctx.fill();
-                ctx.lineWidth = 1; 
-                ctx.strokeStyle = strokeStyle; 
-                ctx.stroke();
+
+            const rPx = Math.max(0, (d.performance?.coverageRadius || 0) * ppm);
+            const v = d.performance?.workzoneVelocity || 0;
+
+            let fillStyle = 'rgba(16, 185, 129, 0.15)';
+            let strokeStyle = 'rgba(16, 185, 129, 0.4)';
+
+            if (v > 0.5) {
+                fillStyle = 'rgba(239, 68, 68, 0.15)';
+                strokeStyle = 'rgba(239, 68, 68, 0.4)';
+            } else if (v > 0.25) {
+                fillStyle = 'rgba(245, 158, 11, 0.15)';
+                strokeStyle = 'rgba(245, 158, 11, 0.4)';
             }
 
-            const dSize = (d.performance.spec.A / 1000 * ppm) || 20;
-            
+            ctx.beginPath();
+            ctx.arc(cx, cy, Math.max(0, rPx), 0, Math.PI * 2);
+            ctx.fillStyle = fillStyle;
+            ctx.fill();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = strokeStyle;
+            ctx.stroke();
+
+            const dSize = ((d.performance?.spec?.A || 0) / 1000) * ppm || 20;
+
             if (state.selectedDiffuserId === d.id) {
-                ctx.fillStyle = '#3b82f6'; 
+                ctx.fillStyle = '#3b82f6';
                 ctx.strokeStyle = '#fff';
             } else {
-                ctx.fillStyle = '#475569'; 
+                ctx.fillStyle = '#475569';
                 ctx.strokeStyle = '#94a3b8';
             }
-            
+
             drawRealisticDiffuser2D(ctx, cx, cy, dSize / 2, d.modelId);
         });
+
+        const sliceX = Math.max(0, Math.min(state.roomWidth, state.sliceX || 0));
+        const sliceY = Math.max(0, Math.min(state.roomLength, state.sliceY || 0));
+        const sliceXPx = originX + sliceX * ppm;
+        const sliceYPx = originY + sliceY * ppm;
+
+        ctx.save();
+        ctx.setLineDash([10, 8]);
+        ctx.lineWidth = 2;
+
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.95)';
+        ctx.beginPath();
+        ctx.moveTo(sliceXPx, originY);
+        ctx.lineTo(sliceXPx, originY + state.roomLength * ppm);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.95)';
+        ctx.beginPath();
+        ctx.moveTo(originX, sliceYPx);
+        ctx.lineTo(originX + state.roomWidth * ppm, sliceYPx);
+        ctx.stroke();
+        ctx.restore();
 
         state.probes?.forEach(p => {
             drawProbe(ctx, p, ppm, originX, originY, state);
@@ -443,7 +471,7 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             const d = diffusers[i];
             const cx = originX + d.x * ppm;
             const cy = originY + d.y * ppm;
-            const hitSize = Math.max((d.performance.spec.A / 1000 * ppm), 40); 
+            const hitSize = getDiffuserHitSize(d, ppm); 
             
             if (mouseX >= cx - hitSize/2 && mouseX <= cx + hitSize/2 && 
                 mouseY >= cy - hitSize/2 && mouseY <= cy + hitSize/2) {
@@ -474,6 +502,20 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
 
         const { x: mouseX, y: mouseY } = getMousePos(e);
         const { ppm, originX, originY } = getTopLayout(props.width, props.height, props.roomWidth, props.roomLength);
+
+        if (props.activeTool === 'select' && props.onUpdateSlice) {
+            const sliceXPx = originX + (props.sliceX || 0) * ppm;
+            const sliceYPx = originY + (props.sliceY || 0) * ppm;
+            const distToSliceX = Math.abs(mouseX - sliceXPx);
+            const distToSliceY = Math.abs(mouseY - sliceYPx);
+
+            if (distToSliceX <= SLICE_HIT_RADIUS || distToSliceY <= SLICE_HIT_RADIUS) {
+                setIsDragging(true);
+                dragTargetRef.current = distToSliceX <= distToSliceY ? { type: 'slice-x' } : { type: 'slice-y' };
+                setDragOffset({ x: mouseX - sliceXPx, y: mouseY - sliceYPx });
+                return;
+            }
+        }
 
         switch (props.activeTool) {
             case 'select':
@@ -523,7 +565,7 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
                     const d = diffusers[i];
                     const cx = originX + d.x * ppm;
                     const cy = originY + d.y * ppm;
-                    const hitSize = Math.max((d.performance.spec.A / 1000 * ppm), 40); 
+                    const hitSize = getDiffuserHitSize(d, ppm); 
                     
                     if (mouseX >= cx - hitSize/2 && mouseX <= cx + hitSize/2 && 
                         mouseY >= cy - hitSize/2 && mouseY <= cy + hitSize/2) {
@@ -568,6 +610,18 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         
         const { x: mouseX, y: mouseY } = getMousePos(e);
         const { ppm, originX, originY } = getTopLayout(props.width, props.height, props.roomWidth, props.roomLength);
+        const rw = props.roomWidth;
+        const rl = props.roomLength;
+
+        if (dragTargetRef.current.type === 'slice-x') {
+            props.onUpdateSlice && props.onUpdateSlice('x', Math.max(0, Math.min(rw, (mouseX - dragOffset.x - originX) / ppm)));
+            return;
+        }
+
+        if (dragTargetRef.current.type === 'slice-y') {
+            props.onUpdateSlice && props.onUpdateSlice('y', Math.max(0, Math.min(rl, (mouseY - dragOffset.y - originY) / ppm)));
+            return;
+        }
 
         let newX = (mouseX - dragOffset.x - originX) / ppm;
         let newY = (mouseY - dragOffset.y - originY) / ppm;
@@ -576,16 +630,13 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             newX = Math.round(newX / props.gridSnapSize) * props.gridSnapSize;
             newY = Math.round(newY / props.gridSnapSize) * props.gridSnapSize;
         }
-
-        const rw = props.roomWidth;
-        const rl = props.roomLength;
         
         newX = Math.max(0, Math.min(rw, newX));
         newY = Math.max(0, Math.min(rl, newY));
 
-        if (dragTargetRef.current.type === 'diffuser' && props.onUpdateDiffuserPos) {
+        if (dragTargetRef.current.type === 'diffuser' && dragTargetRef.current.id && props.onUpdateDiffuserPos) {
             props.onUpdateDiffuserPos(dragTargetRef.current.id, newX, newY);
-        } else if (dragTargetRef.current.type === 'probe' && props.onUpdateProbePos) {
+        } else if (dragTargetRef.current.type === 'probe' && dragTargetRef.current.id && props.onUpdateProbePos) {
             props.onUpdateProbePos(dragTargetRef.current.id, { x: newX, y: newY });
         }
     };
@@ -679,7 +730,7 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
                                     </div>
                                     <div>
                                         <div className="text-[9px] text-slate-500 font-bold uppercase">Т° Потока</div>
-                                        <div className="text-xs font-bold text-white">{props.supplyTemp}°C</div>
+                                        <div className="text-xs font-bold text-white">{typeof d.temperature === 'number' ? d.temperature.toFixed(1) : (props.supplyTemp || 0).toFixed(1)}°C</div>
                                     </div>
                                 </div>
                             </div>

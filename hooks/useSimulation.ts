@@ -174,6 +174,58 @@ export const calculatePerformance = (modelId: string, flowType: string, diameter
     return { v0, pressure, noise, throwDist, spec };
 };
 
+export const calculateScientificPerformanceResult = (
+    modelId: string, 
+    flowType: string, 
+    diameter: string | number, 
+    volume: number, 
+    temp: number, 
+    roomTemp: number, 
+    diffuserHeight: number, 
+    workZoneHeight: number
+): PerformanceResult => {
+    const perf = calculatePerformance(modelId, flowType, diameter, volume);
+    const fallbackSpec: Spec = { f0: 0, A: 0, B: 0, C: 0, D: 0, min: 0, max: 0 };
+
+    if (!perf || !perf.spec) return { 
+        error: 'Типоразмер не производится', 
+        spec: SPECS[diameter] || fallbackSpec, 
+        v0:0, throwDist:0, pressure:0, noise:0,
+        workzoneVelocity: 0, coverageRadius: 0, Ar: 0
+    };
+
+    const { v0 = 0, pressure = 0, noise = 0, throwDist = 0, spec } = perf;
+    
+    // Use helper
+    const Ar = calculateArchimedes(v0, spec.f0, temp, roomTemp);
+
+    let k_archimedes = 1.0;
+    const VISUAL_GAIN = 15.0; 
+
+    if (Math.abs(Ar) > 0.00001) {
+        k_archimedes = 1.0 - (VISUAL_GAIN * Ar); 
+        k_archimedes = Math.max(0.1, Math.min(3.0, k_archimedes));
+    }
+
+    const finalThrow = Math.max(0, throwDist * k_archimedes);
+    const Ak_mm2 = spec.f0 * 1000000; 
+    const { workzoneVelocity, coverageRadius } = calculateWorkzoneVelocityAndCoverage(
+        v0, Ak_mm2, diffuserHeight, workZoneHeight, 2.0, k_archimedes 
+    );
+
+    return {
+        v0: Math.max(0, v0),
+        pressure: Math.max(0, pressure),
+        noise: Math.max(0, noise),
+        throwDist: finalThrow,
+        workzoneVelocity: Math.max(0, workzoneVelocity),
+        coverageRadius: Math.max(0, coverageRadius),
+        spec,
+        Ar, 
+        error: null
+    };
+};
+
 export const useScientificSimulation = (
     modelId: string, 
     flowType: string, 
@@ -185,46 +237,7 @@ export const useScientificSimulation = (
     workZoneHeight: number
 ): PerformanceResult => {
     return useMemo(() => {
-        const perf = calculatePerformance(modelId, flowType, diameter, volume);
-        const fallbackSpec: Spec = { f0: 0, A: 0, B: 0, C: 0, D: 0, min: 0, max: 0 };
-
-        if (!perf || !perf.spec) return { 
-            error: 'Типоразмер не производится', 
-            spec: SPECS[diameter] || fallbackSpec, 
-            v0:0, throwDist:0, pressure:0, noise:0,
-            workzoneVelocity: 0, coverageRadius: 0, Ar: 0
-        };
-
-        const { v0 = 0, pressure = 0, noise = 0, throwDist = 0, spec } = perf;
-        
-        // Use helper
-        const Ar = calculateArchimedes(v0, spec.f0, temp, roomTemp);
-
-        let k_archimedes = 1.0;
-        const VISUAL_GAIN = 15.0; 
-
-        if (Math.abs(Ar) > 0.00001) {
-            k_archimedes = 1.0 - (VISUAL_GAIN * Ar); 
-            k_archimedes = Math.max(0.1, Math.min(3.0, k_archimedes));
-        }
-
-        const finalThrow = Math.max(0, throwDist * k_archimedes);
-        const Ak_mm2 = spec.f0 * 1000000; 
-        const { workzoneVelocity, coverageRadius } = calculateWorkzoneVelocityAndCoverage(
-            v0, Ak_mm2, diffuserHeight, workZoneHeight, 2.0, k_archimedes 
-        );
-
-        return {
-            v0: Math.max(0, v0),
-            pressure: Math.max(0, pressure),
-            noise: Math.max(0, noise),
-            throwDist: finalThrow,
-            workzoneVelocity: Math.max(0, workzoneVelocity),
-            coverageRadius: Math.max(0, coverageRadius),
-            spec,
-            Ar, 
-            error: null
-        };
+        return calculateScientificPerformanceResult(modelId, flowType, diameter, volume, temp, roomTemp, diffuserHeight, workZoneHeight);
     }, [modelId, flowType, diameter, volume, temp, roomTemp, diffuserHeight, workZoneHeight]);
 };
 

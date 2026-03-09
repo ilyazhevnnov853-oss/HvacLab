@@ -12,6 +12,10 @@ const CONSTANTS = {
   SPAWN_RATE_MULTIPLIER: 8
 };
 
+const SLICE_PARTICLE_DISTANCE = 1.5;
+const SLICE_FADE_START = 1.5;
+const SLICE_FADE_END = 2.0;
+
 // --- TYPES ---
 interface Particle {
     active: boolean;
@@ -51,6 +55,7 @@ interface SideViewCanvasProps {
   workZoneHeight: number;
   placedDiffusers?: PlacedDiffuser[];
   viewType: 'front' | 'right';
+  sliceDepth: number;
   // Added Props
   activeTool?: ToolMode;
   probes?: Probe[];
@@ -97,9 +102,26 @@ const sampleProjectedDisk = (radius: number) => {
     };
 };
 
+const getProjectedPos = (viewType: 'front' | 'right', diffuser: Pick<PlacedDiffuser, 'x' | 'y'>) =>
+    viewType === 'front' ? diffuser.x : diffuser.y;
+
+const getDepthPos = (viewType: 'front' | 'right', diffuser: Pick<PlacedDiffuser, 'x' | 'y'>) =>
+    viewType === 'front' ? diffuser.y : diffuser.x;
+
+const getSliceOpacity = (distance: number) => {
+    if (distance <= SLICE_FADE_START) return 1;
+    if (distance >= SLICE_FADE_END) return 0.25;
+
+    const t = (distance - SLICE_FADE_START) / (SLICE_FADE_END - SLICE_FADE_START);
+    return 1 - t * 0.75;
+};
+
+const isRenderableDiffuser = (diffuser: PlacedDiffuser) =>
+    !diffuser.performance?.error && !!diffuser.performance?.spec?.A;
+
 const buildSideFlowResetKey = (state: SideViewCanvasProps) => JSON.stringify({
     viewType: state.viewType,
-    room: [state.roomWidth, state.roomLength, state.roomHeight, state.diffuserHeight, state.workZoneHeight],
+    room: [state.roomWidth, state.roomLength, state.roomHeight, state.diffuserHeight, state.workZoneHeight, state.sliceDepth],
     source: [state.modelId, state.flowType, state.temp, state.roomTemp],
     physics: [
         state.physics.v0,
@@ -185,30 +207,37 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
     const spawnParticle = (p: Particle, state: SideViewCanvasProps, ppm: number, offsetX: number, offsetY: number) => {
         // Determine Source
         let activeDiffuser: {
-            x: number, // Projected onto Screen X
+            x: number,
             performance: PerformanceResult,
             modelId: string,
             flowType?: string,
-            modeIdx?: number
+            modeIdx?: number,
+            temperature: number
         };
 
-        if (state.placedDiffusers && state.placedDiffusers.length > 0) {
-            const idx = Math.floor(Math.random() * state.placedDiffusers.length);
-            const d = state.placedDiffusers[idx];
-            const pos = state.viewType === 'front' ? d.x : d.y;
+        const sliceDiffusers = (state.placedDiffusers || []).filter(d => {
+            const depthPos = getDepthPos(state.viewType, d);
+            return Math.abs(depthPos - state.sliceDepth) <= SLICE_PARTICLE_DISTANCE && isRenderableDiffuser(d);
+        });
+
+        if (sliceDiffusers.length > 0) {
+            const idx = Math.floor(Math.random() * sliceDiffusers.length);
+            const d = sliceDiffusers[idx];
+            const pos = getProjectedPos(state.viewType, d);
             activeDiffuser = {
                 x: offsetX + pos * ppm,
                 performance: d.performance,
                 modelId: d.modelId,
                 flowType: d.flowType,
-                modeIdx: d.modeIdx
+                modeIdx: d.modeIdx,
+                temperature: d.temperature
             };
         } else {
             return;
         }
 
-        const { performance: physics, modelId, x: centerX, flowType: explicitFlowType, modeIdx } = activeDiffuser;
-        const { temp, roomHeight, diffuserHeight } = state;
+        const { performance: physics, modelId, x: centerX, flowType: explicitFlowType, modeIdx, temperature: diffuserTemp } = activeDiffuser;
+        const { roomHeight, diffuserHeight } = state;
         
         if (physics.error) return;
         const spec = physics.spec;
@@ -303,7 +332,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
             }
 
             p.life = 2.0 + Math.random() * 1.5;
-            p.color = getGlowColor(temp);
+            p.color = getGlowColor(diffuserTemp);
         }
 
         p.x = startX; p.y = startY; p.vx = vx; p.vy = vy; 
@@ -477,9 +506,13 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
     const drawAllDiffusers = (ctx: CanvasRenderingContext2D, ppm: number, offsetX: number, offsetY: number, state: SideViewCanvasProps) => {
         if (state.placedDiffusers && state.placedDiffusers.length > 0) {
             state.placedDiffusers.forEach(d => {
-                const pos = state.viewType === 'front' ? d.x : d.y;
-                const screenX = offsetX + pos * ppm;
+                const screenX = offsetX + getProjectedPos(state.viewType, d) * ppm;
+                const distanceToSlice = Math.abs(getDepthPos(state.viewType, d) - state.sliceDepth);
+
+                ctx.save();
+                ctx.globalAlpha = getSliceOpacity(distanceToSlice);
                 drawDiffuserSideProfile(ctx, screenX, ppm, offsetY, state, d.performance, d.modelId);
+                ctx.restore();
             });
         }
     }
@@ -588,12 +621,16 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         const pool = particlePool.current;
         
         // 1. SPAWN
-        const maxV0 = (state.placedDiffusers && state.placedDiffusers.length > 0)
-            ? Math.max(...state.placedDiffusers.map(d => d.performance.v0 || 0))
-            : (state.physics.v0 || 0);
+        const sliceDiffusers = (state.placedDiffusers || []).filter(d => {
+            const depthPos = getDepthPos(state.viewType, d);
+            return Math.abs(depthPos - state.sliceDepth) <= SLICE_PARTICLE_DISTANCE && isRenderableDiffuser(d);
+        });
+        const maxV0 = sliceDiffusers.length > 0
+            ? Math.max(...sliceDiffusers.map(d => d.performance.v0 || 0))
+            : 0;
 
-        if (isPowerOn && isPlaying && !state.physics.error) {
-            const diffusersCount = state.placedDiffusers?.length || 1;
+        if (isPowerOn && isPlaying && sliceDiffusers.length > 0) {
+            const diffusersCount = sliceDiffusers.length;
             const baseRate = CONSTANTS.SPAWN_RATE_BASE + maxV0 / 2 * CONSTANTS.SPAWN_RATE_MULTIPLIER;
             const spawnRate = Math.ceil(baseRate * diffusersCount);
             
@@ -818,6 +855,9 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         }
     };
 
+    const hasRenderablePlacedDiffuser = (props.placedDiffusers || []).some(isRenderableDiffuser);
+    const showUnavailableOverlay = !hasRenderablePlacedDiffuser && !!props.physics.error;
+
     return (
         <div className="relative w-full h-full">
             <canvas 
@@ -834,7 +874,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 onTouchEnd={handleEnd}
                 style={{ touchAction: 'none' }}
             />
-            {props.physics.error && (
+            {showUnavailableOverlay && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-20">
                     <div className="flex flex-col items-center gap-4 p-8 border border-red-500/30 bg-red-500/5 rounded-3xl text-red-200">
                         <span className="font-bold text-xl tracking-tight">ТИПОРАЗМЕР НЕДОСТУПЕН</span>

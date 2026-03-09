@@ -470,14 +470,15 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
         const pool = particlesRef.current;
         const dt = CONSTANTS.BASE_TIME_STEP;
 
-        // Logic to determine spawn rate based on MAX velocity of all diffusers
-        const maxV0 = state.placedDiffusers?.length 
-            ? Math.max(...state.placedDiffusers.map(d => d.performance.v0 || 0))
+        // Logic to determine spawn rate based on MAX velocity of all valid diffusers
+        const renderableDiffusers = (state.placedDiffusers || []).filter(d => !d.performance?.error && !!d.performance?.spec?.A);
+        const maxV0 = renderableDiffusers.length
+            ? Math.max(...renderableDiffusers.map(d => d.performance.v0 || 0))
             : (state.physics.v0 || 0);
 
         if (isPowerOn && isPlaying && maxV0 > 0) {
             // Scale spawn rate by number of diffusers to maintain density per device
-            const diffusersCount = state.placedDiffusers?.length || 1;
+            const diffusersCount = renderableDiffusers.length || 1;
             const baseRate = CONSTANTS.SPAWN_RATE_BASE + maxV0 / 2 * CONSTANTS.SPAWN_RATE_MULTIPLIER;
             const spawnRate = Math.ceil(baseRate * diffusersCount);
             
