@@ -1,6 +1,7 @@
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { CONSTANTS, Particle3D, ThreeDViewCanvasProps, project, spawnParticle, updateParticlePhysics } from '../utils/airflow3DLogic';
+import { getDiffuserGeometry } from '../utils/diffuserJetProfile';
 import ViewCube from './ViewCube';
 
 const drawRealisticDiffuser3D = (
@@ -208,10 +209,43 @@ const drawRealisticDiffuser3D = (
     }
 };
 
+const buildThreeDFlowResetKey = (state: ThreeDViewCanvasProps) => JSON.stringify({
+    room: [state.roomWidth, state.roomLength, state.roomHeight, state.diffuserHeight, state.workZoneHeight],
+    source: [state.modelId, state.flowType, state.temp, state.roomTemp],
+    physics: [
+        state.physics.v0,
+        state.physics.throwDist,
+        state.physics.workzoneVelocity,
+        state.physics.coverageRadius,
+        state.physics.Ar,
+        state.physics.spec?.A,
+        state.physics.spec?.D
+    ],
+    diffusers: (state.placedDiffusers || []).map(d => [
+        d.id,
+        d.x,
+        d.y,
+        d.modelId,
+        d.flowType,
+        d.modeIdx ?? 0,
+        d.diameter,
+        d.volume,
+        d.temperature,
+        d.performance.v0,
+        d.performance.throwDist,
+        d.performance.workzoneVelocity,
+        d.performance.coverageRadius,
+        d.performance.Ar,
+        d.performance.spec?.A,
+        d.performance.spec?.D
+    ])
+});
+
 const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const requestRef = useRef<number>(0);
     const simulationRef = useRef(props);
+    const flowResetKeyRef = useRef(buildThreeDFlowResetKey(props));
     const particlesRef = useRef<Particle3D[]>([]);
     
     // Camera State
@@ -246,7 +280,10 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
     }, []);
 
     useEffect(() => {
-        if (simulationRef.current.viewMode !== props.viewMode) {
+        const nextFlowResetKey = buildThreeDFlowResetKey(props);
+        const shouldResetParticles = simulationRef.current.viewMode !== props.viewMode || flowResetKeyRef.current !== nextFlowResetKey;
+
+        if (shouldResetParticles) {
              particlesRef.current.forEach(p => p.active = false);
              const canvas = canvasRef.current;
              if (canvas) {
@@ -258,6 +295,8 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
                  }
              }
         }
+
+        flowResetKeyRef.current = nextFlowResetKey;
         simulationRef.current = props;
     }, [props]);
 
@@ -418,7 +457,8 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
             if (p.s > 0) {
                 const r = ((d.performance.spec.A || 150) / 2000) * PPM;
                 const nominalDepth = Math.max(16 * (PPM / 1000), ((d.performance.spec.D || 55) * PPM) / 1000);
-                drawRealisticDiffuser3D(ctx, cx, mountY, cz, Math.max(2, r), nominalDepth, d.modelId, p3d);
+                const geometry = getDiffuserGeometry(d.modelId, nominalDepth);
+                drawRealisticDiffuser3D(ctx, cx, mountY, cz, Math.max(2, r), geometry.bodyDepth, d.modelId, p3d);
             }
         });
 

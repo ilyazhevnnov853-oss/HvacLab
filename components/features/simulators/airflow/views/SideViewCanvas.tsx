@@ -2,6 +2,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { PerformanceResult, PlacedDiffuser, Probe, ToolMode } from '../../../../../types';
 import { getDiffuserFlowType } from '../../../../../constants';
+import { getDiffuserGeometry, getHorizontalJetProfile, getVerticalJetProfile, resolveHorizontalStartOffset } from '../utils/diffuserJetProfile';
 
 const CONSTANTS = {
   BASE_TIME_STEP: 1/60, 
@@ -96,25 +97,44 @@ const sampleProjectedDisk = (radius: number) => {
     };
 };
 
-const getSideDiffuserGeometry = (modelId: string, nominalDepth: number) => {
-    switch (modelId) {
-        case 'dpu-m':
-            return { bodyDepth: nominalDepth * 1.1, outletOffset: nominalDepth * 0.78, horizontalOffset: nominalDepth * 0.16 };
-        case 'dpu-k':
-            return { bodyDepth: nominalDepth * 0.95, outletOffset: nominalDepth * 0.72, horizontalOffset: nominalDepth * 0.14 };
-        case 'dpu-v':
-            return { bodyDepth: nominalDepth * 0.8, outletOffset: nominalDepth * 0.5, horizontalOffset: nominalDepth * 0.12 };
-        case 'dpu-s':
-            return { bodyDepth: nominalDepth * 1.2, outletOffset: nominalDepth * 1.05, horizontalOffset: nominalDepth * 0.18 };
-        default:
-            return { bodyDepth: nominalDepth, outletOffset: nominalDepth * 0.7, horizontalOffset: nominalDepth * 0.15 };
-    }
-};
+const buildSideFlowResetKey = (state: SideViewCanvasProps) => JSON.stringify({
+    viewType: state.viewType,
+    room: [state.roomWidth, state.roomLength, state.roomHeight, state.diffuserHeight, state.workZoneHeight],
+    source: [state.modelId, state.flowType, state.temp, state.roomTemp],
+    physics: [
+        state.physics.v0,
+        state.physics.throwDist,
+        state.physics.workzoneVelocity,
+        state.physics.coverageRadius,
+        state.physics.Ar,
+        state.physics.spec?.A,
+        state.physics.spec?.D
+    ],
+    diffusers: (state.placedDiffusers || []).map(d => [
+        d.id,
+        d.x,
+        d.y,
+        d.modelId,
+        d.flowType,
+        d.modeIdx ?? 0,
+        d.diameter,
+        d.volume,
+        d.temperature,
+        d.performance.v0,
+        d.performance.throwDist,
+        d.performance.workzoneVelocity,
+        d.performance.coverageRadius,
+        d.performance.Ar,
+        d.performance.spec?.A,
+        d.performance.spec?.D
+    ])
+});
 
 const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const requestRef = useRef<number>(0);
     const simulationRef = useRef(props);
+    const flowResetKeyRef = useRef(buildSideFlowResetKey(props));
     const particlePool = useRef<Particle[]>([]);
 
     // Interaction State
@@ -142,10 +162,11 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
 
     // Sync Props
     useEffect(() => {
-        if (simulationRef.current.viewType !== props.viewType) {
-            // Clear particles when view type changes
+        const nextFlowResetKey = buildSideFlowResetKey(props);
+        const shouldResetParticles = simulationRef.current.viewType !== props.viewType || flowResetKeyRef.current !== nextFlowResetKey;
+
+        if (shouldResetParticles) {
             particlePool.current.forEach(p => p.active = false);
-            // Also clear the canvas immediately
             const canvas = canvasRef.current;
             if (canvas) {
                 const ctx = canvas.getContext('2d');
@@ -156,6 +177,8 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 }
             }
         }
+
+        flowResetKeyRef.current = nextFlowResetKey;
         simulationRef.current = props;
     }, [props]);
 
@@ -195,7 +218,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
 
         const nozzleW = (spec.A / 1000) * ppm;
         const nominalDepth = Math.max(16 * (ppm / 1000), (spec.D || 55) * (ppm / 1000));
-        const geometry = getSideDiffuserGeometry(modelId, nominalDepth);
+        const geometry = getDiffuserGeometry(modelId, nominalDepth);
 
         const mountedHeight = Math.max(0, Math.min(diffuserHeight, roomHeight));
         const diffuserYPos = offsetY + (roomHeight - mountedHeight) * ppm;
@@ -232,76 +255,44 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
             p.life = 3.0; 
             p.color = '150, 150, 150';
         } else {
-            if (flowType === 'horizontal-fan') {
+            const horizontalProfile = getHorizontalJetProfile(modelId, flowType);
+            const verticalProfile = getVerticalJetProfile(modelId, flowType);
+
+            if (horizontalProfile) {
                 isHorizontal = true;
                 const side = Math.random() > 0.5 ? 1 : -1;
-                startY = diffuserYPos + geometry.horizontalOffset;
-                startX = centerX + side * (nozzleW * (modelId === 'dpu-k' ? 0.4 : 0.48));
-                vx = side * pxSpeed * (modelId === 'dpu-k' ? 1.08 : 1.05);
-                vy = pxSpeed * (modelId === 'dpu-k' ? 0.015 : 0.03);
-                waveAmp = modelId === 'dpu-k' ? 0.9 : 1.2;
-                waveFreq = modelId === 'dpu-k' ? 6.2 : 5.5;
-                drag = modelId === 'dpu-k' ? 0.978 : 0.972;
-            } else if (flowType === 'horizontal-swirl') {
-                isHorizontal = true;
-                const side = Math.random() > 0.5 ? 1 : -1;
-                startY = diffuserYPos + geometry.horizontalOffset;
-                startX = centerX + side * (nozzleW * 0.45);
-                vx = side * pxSpeed * 0.95;
-                vy = pxSpeed * 0.02;
-                waveAmp = 7;
-                waveFreq = 7.5;
-                drag = 0.968;
+                const emitterRadius = nozzleW * horizontalProfile.radiusFactor;
+                const lateralOffset = horizontalProfile.emitter === 'center'
+                    ? emitterRadius * Math.random()
+                    : emitterRadius;
+                startY = diffuserYPos + resolveHorizontalStartOffset(geometry, horizontalProfile);
+                startX = centerX + side * lateralOffset;
+                vx = side * pxSpeed * horizontalProfile.speedFactor;
+                vy = pxSpeed * horizontalProfile.dropFactor;
+                waveAmp = horizontalProfile.waveAmp;
+                waveFreq = horizontalProfile.waveFreq;
+                drag = horizontalProfile.drag;
             } else if (flowType === '4-way') {
                 isHorizontal = true;
                 const side = Math.random() > 0.5 ? 1 : -1;
                 startX = centerX + side * (nozzleW * 0.55);
                 vx = side * pxSpeed * 1.0;
                 vy = pxSpeed * 0.1;
-            } else if (modelId === 'dpu-m' && flowType.includes('vertical')) {
-                const projection = sampleProjectedRing(nozzleW * (0.28 + Math.random() * 0.12));
+            } else if (verticalProfile) {
+                const emitterRadius = nozzleW * (verticalProfile.radiusFactor + Math.random() * verticalProfile.radiusJitter);
+                const projection = verticalProfile.emitter === 'ring'
+                    ? sampleProjectedRing(emitterRadius)
+                    : sampleProjectedDisk(emitterRadius);
+                const coneAngle = (verticalProfile.coneMinDeg + Math.random() * verticalProfile.coneJitterDeg) * (Math.PI / 180);
+                const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * verticalProfile.horizontalFactor;
+                const radialDirection = 1 - 2 * verticalProfile.inwardFactor;
+
                 startX = centerX + projection.offset;
-                const coneAngle = (30 + Math.random() * 8) * (Math.PI / 180);
-                vx = projection.lateral * Math.sin(coneAngle) * pxSpeed;
-                vy = Math.cos(coneAngle) * pxSpeed;
-                waveAmp = 2.5; drag = 0.955;
-            } else if (modelId === 'dpu-k' && flowType.includes('vertical')) {
-                const projection = sampleProjectedRing(nozzleW * (0.18 + Math.random() * 0.18));
-                startX = centerX + projection.offset;
-                const coneAngle = (18 + Math.random() * 18) * (Math.PI / 180);
-                vx = projection.lateral * Math.sin(coneAngle) * pxSpeed * 0.9;
-                vy = Math.cos(coneAngle) * pxSpeed;
-                waveAmp = 4.5; drag = 0.958;
-            } else if (modelId === 'dpu-v' && flowType === 'vertical-swirl') {
-                const projection = sampleProjectedRing(nozzleW * (0.22 + Math.random() * 0.18));
-                startX = centerX + projection.offset;
-                const coneAngle = (8 + Math.random() * 14) * (Math.PI / 180);
-                const radialVx = projection.lateral * Math.sin(coneAngle) * pxSpeed * 0.35;
-                const tangentialVx = projection.tangent * pxSpeed * 0.18;
-                vx = radialVx + tangentialVx;
-                vy = Math.cos(coneAngle) * pxSpeed;
-                waveAmp = 10 + Math.random() * 4; waveFreq = 6.5; drag = 0.95;
-            } else if (modelId === 'dpu-s' && flowType === 'vertical-compact') {
-                const projection = sampleProjectedDisk(nozzleW * 0.08);
-                startX = centerX + projection.offset;
-                const coneAngle = (2 + Math.random() * 4) * (Math.PI / 180);
-                vx = projection.lateral * Math.sin(coneAngle) * pxSpeed * 0.18;
-                vy = Math.cos(coneAngle) * pxSpeed * 1.05; 
-                waveAmp = 0.8; drag = 0.988;
-            } else if (flowType === 'vertical-swirl') {
-                const projection = sampleProjectedRing(nozzleW * 0.22);
-                startX = centerX + projection.offset;
-                const coneAngle = (8 + Math.random() * 14) * (Math.PI / 180);
-                vx = projection.lateral * Math.sin(coneAngle) * pxSpeed * 0.25 + projection.tangent * pxSpeed * 0.15;
-                vy = Math.cos(coneAngle) * pxSpeed;
-                waveAmp = 10 + Math.random() * 4; waveFreq = 6.5; drag = 0.95;
-            } else if (flowType === 'vertical-compact') {
-                const projection = sampleProjectedDisk(nozzleW * 0.2);
-                startX = centerX + projection.offset;
-                const coneAngle = (3 + Math.random() * 6) * (Math.PI / 180);
-                vx = projection.lateral * Math.sin(coneAngle) * pxSpeed * 0.22;
-                vy = Math.cos(coneAngle) * pxSpeed * 1.15; 
-                waveAmp = 1; drag = 0.985;
+                vx = projection.lateral * horizontalSpeed * radialDirection + projection.tangent * pxSpeed * verticalProfile.tangentialFactor;
+                vy = Math.cos(coneAngle) * pxSpeed * verticalProfile.speedFactor;
+                waveAmp = verticalProfile.waveAmp;
+                waveFreq = verticalProfile.waveFreq;
+                drag = verticalProfile.drag;
             } else {
                 const projection = sampleProjectedDisk(nozzleW * 0.25);
                 startX = centerX + projection.offset;
@@ -342,7 +333,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         const scale = ppm / 1000;
         const wA = spec.A * scale;
         const nominalDepth = Math.max(16 * scale, (spec.D || 55) * scale);
-        const geometry = getSideDiffuserGeometry(modelId, nominalDepth);
+        const geometry = getDiffuserGeometry(modelId, nominalDepth);
         const r = wA / 2;
         const mountedHeight = Math.max(0, Math.min(state.diffuserHeight, state.roomHeight));
         const yPos = offsetY + (state.roomHeight - mountedHeight) * ppm;

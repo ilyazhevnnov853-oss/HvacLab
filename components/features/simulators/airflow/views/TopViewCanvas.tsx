@@ -296,7 +296,7 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         const by = cy - 36;
         
         // Make probe semi-transparent if it's far from the current work zone height slice
-        const zDiff = Math.abs(probe.z - (state.workZoneHeight || 1.6));
+        const zDiff = Math.abs(probe.z - (state.workZoneHeight || 1.5));
         ctx.globalAlpha = zDiff > 0.5 ? 0.5 : 1.0;
         
         ctx.fillStyle = 'rgba(15, 23, 42, 0.95)'; 

@@ -69,6 +69,8 @@ export const SimulatorLeftPanel = ({
         setSizeSelected(true);
     };
 
+    const getMinRoomHeight = (workZoneHeight: number) => Number((workZoneHeight + 0.1).toFixed(1));
+
     return (
         <>
             {/* Mobile Overlay Backdrop */}
@@ -188,7 +190,7 @@ export const SimulatorLeftPanel = ({
                                         <input 
                                             type="number" 
                                             step="0.5" 
-                                            min={key === 'roomHeight' ? (params.workZoneHeight === 2.0 ? 2.1 : 1.6) : 1}
+                                            min={key === 'roomHeight' ? getMinRoomHeight(params.workZoneHeight) : 1}
                                             max={key === 'roomHeight' ? 4 : 10}
                                             value={(params as any)[key]} 
                                             onChange={(e) => {
@@ -205,7 +207,7 @@ export const SimulatorLeftPanel = ({
                                             onBlur={(e) => {
                                                 let val = Number(e.target.value);
                                                 if (key === 'roomHeight') {
-                                                    const minH = params.workZoneHeight === 2.0 ? 2.1 : 1.6;
+                                                    const minH = getMinRoomHeight(params.workZoneHeight);
                                                     if (val < minH) val = minH;
                                                     if (val > 4) val = 4;
                                                     setParams(p => ({
@@ -230,11 +232,11 @@ export const SimulatorLeftPanel = ({
                                 <div className="bg-black/5 dark:bg-black/20 p-3 rounded-2xl border border-black/5 dark:border-white/5 hover:border-black/10 dark:hover:border-white/20 transition-colors">
                                     <label className="text-[9px] font-bold text-slate-500 uppercase block mb-1.5">Раб. Зона (м)</label>
                                     <div className="flex bg-white/40 dark:bg-black/40 rounded-lg p-1 gap-1 h-[26px]">
-                                        {[1.6, 2.0].map(val => (
+                                        {[1.5, 2.0].map(val => (
                                             <button
                                                 key={val}
                                                 onClick={() => {
-                                                    const minH = val === 2.0 ? 2.1 : 1.6;
+                                                    const minH = getMinRoomHeight(val);
                                                     setParams((p: any) => ({ 
                                                         ...p, 
                                                         workZoneHeight: val,

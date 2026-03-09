@@ -1,4 +1,5 @@
 import { getDiffuserFlowType } from '../../../../../constants';
+import { getDiffuserGeometry, getHorizontalJetProfile, getVerticalJetProfile, resolveHorizontalStartOffset } from './diffuserJetProfile';
 import { PerformanceResult, PlacedDiffuser, Probe } from '../../../../../types';
 
 export const CONSTANTS = {
@@ -88,21 +89,6 @@ const sampleDiskEmitter = (radius: number) => {
     };
 };
 
-const get3DDiffuserGeometry = (modelId: string, nominalDepth: number) => {
-    switch (modelId) {
-        case 'dpu-m':
-            return { bodyDepth: nominalDepth * 1.1, outletOffset: nominalDepth * 0.78, horizontalOffset: nominalDepth * 0.16 };
-        case 'dpu-k':
-            return { bodyDepth: nominalDepth * 0.95, outletOffset: nominalDepth * 0.72, horizontalOffset: nominalDepth * 0.14 };
-        case 'dpu-v':
-            return { bodyDepth: nominalDepth * 0.8, outletOffset: nominalDepth * 0.5, horizontalOffset: nominalDepth * 0.12 };
-        case 'dpu-s':
-            return { bodyDepth: nominalDepth * 1.2, outletOffset: nominalDepth * 1.05, horizontalOffset: nominalDepth * 0.18 };
-        default:
-            return { bodyDepth: nominalDepth, outletOffset: nominalDepth * 0.7, horizontalOffset: nominalDepth * 0.15 };
-    }
-};
-
 export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: number) => {
     // Determine Source
     let activeDiffuser: {
@@ -148,7 +134,7 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
 
     const nozzleW = (spec.A / 1000) * ppm;
     const nominalDepth = Math.max(16 * (ppm / 1000), (spec.D || 55) * (ppm / 1000));
-    const geometry = get3DDiffuserGeometry(modelId, nominalDepth);
+    const geometry = getDiffuserGeometry(modelId, nominalDepth);
 
     const mountedHeight = Math.max(0, Math.min(diffuserHeight, roomHeight));
     const startY = mountedHeight * ppm - geometry.outletOffset;
@@ -176,34 +162,26 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
         p.life = 3.0; 
         p.color = '150, 150, 150';
     } else {
-        if (flowType === 'horizontal-fan') {
+        const horizontalProfile = getHorizontalJetProfile(modelId, flowType);
+        const verticalProfile = getVerticalJetProfile(modelId, flowType);
+
+        if (horizontalProfile) {
             isHorizontal = true;
-            const angle = Math.random() * Math.PI * 2;
-            const radiusFactor = modelId === 'dpu-k' ? 0.4 : 0.48;
-            const speedFactor = modelId === 'dpu-k' ? 1.08 : 1.02;
-            const dropFactor = modelId === 'dpu-k' ? 0.018 : 0.04;
-            pY = mountedHeight * ppm - geometry.horizontalOffset;
-            pX += Math.cos(angle) * nozzleW * radiusFactor;
-            pZ += Math.sin(angle) * nozzleW * radiusFactor;
-            vx = Math.cos(angle) * pxSpeed * speedFactor;
-            vz = Math.sin(angle) * pxSpeed * speedFactor;
-            vy = -Math.abs(pxSpeed * dropFactor);
-            waveAmp = modelId === 'dpu-k' ? 0.9 : 1.2;
-            waveFreq = modelId === 'dpu-k' ? 6.2 : 5.5;
-            drag = modelId === 'dpu-k' ? 0.978 : 0.972;
-        } else if (flowType === 'horizontal-swirl') {
-            isHorizontal = true;
-            const angle = Math.random() * Math.PI * 2;
-            pY = mountedHeight * ppm - geometry.horizontalOffset;
-            pX += Math.cos(angle) * nozzleW * 0.45;
-            pZ += Math.sin(angle) * nozzleW * 0.45;
-            const tangentialSpeed = pxSpeed * 0.22;
-            vx = Math.cos(angle) * pxSpeed * 0.88 - Math.sin(angle) * tangentialSpeed;
-            vz = Math.sin(angle) * pxSpeed * 0.88 + Math.cos(angle) * tangentialSpeed;
-            vy = -Math.abs(pxSpeed * 0.03);
-            waveAmp = 6;
-            waveFreq = 7.2;
-            drag = 0.968;
+            const emitterRadius = nozzleW * horizontalProfile.radiusFactor;
+            const emitter = horizontalProfile.emitter === 'rim'
+                ? sampleRingEmitter(emitterRadius)
+                : sampleDiskEmitter(emitterRadius);
+            const tangentialSpeed = pxSpeed * horizontalProfile.tangentialFactor;
+
+            pY = mountedHeight * ppm - resolveHorizontalStartOffset(geometry, horizontalProfile);
+            pX += emitter.x;
+            pZ += emitter.z;
+            vx = Math.cos(emitter.angle) * pxSpeed * horizontalProfile.speedFactor - Math.sin(emitter.angle) * tangentialSpeed;
+            vz = Math.sin(emitter.angle) * pxSpeed * horizontalProfile.speedFactor + Math.cos(emitter.angle) * tangentialSpeed;
+            vy = -Math.abs(pxSpeed * horizontalProfile.dropFactor);
+            waveAmp = horizontalProfile.waveAmp;
+            waveFreq = horizontalProfile.waveFreq;
+            drag = horizontalProfile.drag;
         } else if (flowType === '4-way') {
             isHorizontal = true;
             const dir = Math.floor(Math.random() * 4);
@@ -215,59 +193,25 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
             vx = Math.cos(angle) * pxSpeed * 1.0;
             vz = Math.sin(angle) * pxSpeed * 1.0;
             vy = -Math.abs(pxSpeed * 0.1);
-        } else if (modelId === 'dpu-m' && flowType.includes('vertical')) {
-            const emitter = sampleRingEmitter(nozzleW * (0.28 + Math.random() * 0.12));
+        } else if (verticalProfile) {
+            const emitterRadius = nozzleW * (verticalProfile.radiusFactor + Math.random() * verticalProfile.radiusJitter);
+            const emitter = verticalProfile.emitter === 'ring'
+                ? sampleRingEmitter(emitterRadius)
+                : sampleDiskEmitter(emitterRadius);
+            const coneAngle = (verticalProfile.coneMinDeg + Math.random() * verticalProfile.coneJitterDeg) * (Math.PI / 180);
+            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * verticalProfile.horizontalFactor;
+            const radialDirection = 1 - 2 * verticalProfile.inwardFactor;
+            const tangentialSpeed = pxSpeed * verticalProfile.tangentialFactor;
+
             pX += emitter.x;
             pZ += emitter.z;
-            const coneAngle = (30 + Math.random() * 8) * (Math.PI / 180);
-            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed;
-            vx = Math.cos(emitter.angle) * horizontalSpeed;
-            vz = Math.sin(emitter.angle) * horizontalSpeed;
-            vy = -Math.cos(coneAngle) * pxSpeed;
-            waveAmp = 3; drag = 0.955;
-        } else if (modelId === 'dpu-k' && flowType.includes('vertical')) {
-            const emitter = sampleRingEmitter(nozzleW * (0.18 + Math.random() * 0.18));
-            pX += emitter.x;
-            pZ += emitter.z;
-            const coneAngle = (18 + Math.random() * 18) * (Math.PI / 180);
-            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * 0.9;
-            vx = Math.cos(emitter.angle) * horizontalSpeed;
-            vz = Math.sin(emitter.angle) * horizontalSpeed;
-            vy = -Math.cos(coneAngle) * pxSpeed;
-            waveAmp = 5; drag = 0.958;
-        } else if (modelId === 'dpu-v' && flowType === 'vertical-swirl') {
-            const emitter = sampleRingEmitter(nozzleW * (0.22 + Math.random() * 0.18));
-            pX += emitter.x;
-            pZ += emitter.z;
-            const coneAngle = (8 + Math.random() * 14) * (Math.PI / 180);
-            const radialSpeed = Math.sin(coneAngle) * pxSpeed * 0.35;
-            const tangentialSpeed = pxSpeed * (0.22 + Math.random() * 0.05);
-            vx = Math.cos(emitter.angle) * radialSpeed - Math.sin(emitter.angle) * tangentialSpeed;
-            vz = Math.sin(emitter.angle) * radialSpeed + Math.cos(emitter.angle) * tangentialSpeed;
-            vy = -Math.cos(coneAngle) * pxSpeed;
-            waveAmp = 14 + Math.random() * 4; waveFreq = 6.5; drag = 0.95;
-        } else if (modelId === 'dpu-s' && flowType === 'vertical-compact') {
-            const emitter = sampleDiskEmitter(nozzleW * 0.08);
-            pX += emitter.x;
-            pZ += emitter.z;
-            const coneAngle = (2 + Math.random() * 4) * (Math.PI / 180);
-            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * 0.18;
-            vx = Math.cos(emitter.angle) * horizontalSpeed;
-            vz = Math.sin(emitter.angle) * horizontalSpeed;
-            vy = -Math.cos(coneAngle) * pxSpeed * 1.05;
-            waveAmp = 0.8; drag = 0.988;
-        } else if (flowType === 'vertical-compact') {
-            const emitter = sampleDiskEmitter(nozzleW * 0.2);
-            pX += emitter.x;
-            pZ += emitter.z;
-            const coneAngle = (3 + Math.random() * 6) * (Math.PI / 180);
-            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * 0.22;
-            vx = Math.cos(emitter.angle) * horizontalSpeed;
-            vz = Math.sin(emitter.angle) * horizontalSpeed;
-            vy = -Math.cos(coneAngle) * pxSpeed * 1.15; 
-            waveAmp = 1; drag = 0.985;
+            vx = Math.cos(emitter.angle) * horizontalSpeed * radialDirection - Math.sin(emitter.angle) * tangentialSpeed;
+            vz = Math.sin(emitter.angle) * horizontalSpeed * radialDirection + Math.cos(emitter.angle) * tangentialSpeed;
+            vy = -Math.cos(coneAngle) * pxSpeed * verticalProfile.speedFactor;
+            waveAmp = verticalProfile.waveAmp;
+            waveFreq = verticalProfile.waveFreq;
+            drag = verticalProfile.drag;
         } else {
-            // Vertical
             const emitter = sampleDiskEmitter(nozzleW * 0.25);
             pX += emitter.x;
             pZ += emitter.z;

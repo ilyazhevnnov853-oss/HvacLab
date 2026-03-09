@@ -1,171 +1,411 @@
-import React, { useState } from 'react';
-import { Target, Trash2, ScanLine, X } from 'lucide-react';
-import { InfoRow, AccordionItem } from './SimulatorUI';
+import React, { useMemo } from 'react';
+import { Activity, AlertTriangle, CheckCircle2, Fan, Home, Layers, ScanLine, Target, Thermometer, Trash2, Volume2, Wind, X } from 'lucide-react';
 import { calculateProbeData } from '../../../../hooks/useSimulation';
+import { DIFFUSER_CATALOG, getDiffuserMode } from '../../../../constants';
 
-export const SimulatorRightPanel = ({ 
-    viewMode, physics, params, placedDiffusers, topViewStats, 
-    isMobileStatsOpen, setIsMobileStatsOpen,
+const VIEW_LABELS: Record<string, string> = {
+    front: 'Спереди',
+    right: 'Справа',
+    top: 'План',
+    '3d': '3D'
+};
+
+type Tone = 'neutral' | 'info' | 'good' | 'warn' | 'danger';
+
+const TONE_STYLES: Record<Tone, { tile: string; icon: string; value: string }> = {
+    neutral: {
+        tile: 'border-black/5 dark:border-white/8 bg-[#f8fafc] dark:bg-[#111827]/70',
+        icon: 'bg-slate-200/80 text-slate-700 dark:bg-white/10 dark:text-slate-200',
+        value: 'text-slate-900 dark:text-white'
+    },
+    info: {
+        tile: 'border-sky-200/80 bg-sky-50 dark:border-sky-500/20 dark:bg-sky-500/10',
+        icon: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300',
+        value: 'text-sky-900 dark:text-sky-200'
+    },
+    good: {
+        tile: 'border-emerald-200/80 bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-500/10',
+        icon: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+        value: 'text-emerald-900 dark:text-emerald-200'
+    },
+    warn: {
+        tile: 'border-amber-200/80 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/10',
+        icon: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
+        value: 'text-amber-900 dark:text-amber-200'
+    },
+    danger: {
+        tile: 'border-rose-200/80 bg-rose-50 dark:border-rose-500/20 dark:bg-rose-500/10',
+        icon: 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
+        value: 'text-rose-900 dark:text-rose-200'
+    }
+};
+
+const formatNumber = (value: number | undefined, digits: number = 1) => {
+    if (typeof value !== 'number' || Number.isNaN(value)) return '0.0';
+    return value.toFixed(digits);
+};
+
+const getCoverageTone = (coverage: number): Tone => {
+    if (coverage >= 80) return 'good';
+    if (coverage >= 60) return 'warn';
+    return 'danger';
+};
+
+const getAdpiTone = (adpi: number): Tone => {
+    if (adpi >= 70) return 'good';
+    if (adpi >= 55) return 'warn';
+    return 'danger';
+};
+
+const getNoiseTone = (noise: number): Tone => {
+    if (noise > 45) return 'danger';
+    if (noise > 35) return 'warn';
+    return 'good';
+};
+
+const getVelocityTone = (velocity: number): Tone => {
+    if (velocity <= 0.25) return 'good';
+    if (velocity <= 0.35) return 'warn';
+    return 'danger';
+};
+
+const getDraftTone = (dr: number): Tone => {
+    if (dr >= 25) return 'danger';
+    if (dr >= 15) return 'warn';
+    return 'good';
+};
+
+const SectionCard = ({ title, subtitle, icon, children }: any) => (
+    <section className="rounded-[28px] border border-black/5 bg-white/88 p-5 shadow-[0_20px_45px_-24px_rgba(15,23,42,0.35)] ring-1 ring-black/5 dark:border-white/8 dark:bg-[#0b1020]/88 dark:ring-white/5">
+        <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">{title}</div>
+                {subtitle ? <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{subtitle}</div> : null}
+            </div>
+            <div className="rounded-2xl bg-slate-100 p-2.5 text-slate-700 ring-1 ring-black/5 dark:bg-white/10 dark:text-slate-200 dark:ring-white/10">
+                {icon}
+            </div>
+        </div>
+        {children}
+    </section>
+);
+
+const MetricTile = ({ label, value, unit, note, tone = 'neutral', icon }: any) => {
+    const style = TONE_STYLES[tone as Tone] || TONE_STYLES.neutral;
+    return (
+        <div className={`rounded-2xl border p-4 ${style.tile}`}>
+            <div className="flex items-center justify-between gap-3">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{label}</div>
+                <div className={`rounded-xl p-2 ${style.icon}`}>{icon}</div>
+            </div>
+            <div className={`mt-3 flex items-baseline gap-1 font-mono text-[26px] font-black leading-none tracking-tight ${style.value}`}>
+                <span>{value}</span>
+                {unit ? <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">{unit}</span> : null}
+            </div>
+            {note ? <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">{note}</div> : null}
+        </div>
+    );
+};
+
+const DetailRow = ({ label, value, hint, tone = 'neutral' }: any) => {
+    const valueColor = {
+        neutral: 'text-slate-900 dark:text-white',
+        info: 'text-sky-700 dark:text-sky-300',
+        good: 'text-emerald-700 dark:text-emerald-300',
+        warn: 'text-amber-700 dark:text-amber-300',
+        danger: 'text-rose-700 dark:text-rose-300'
+    }[tone as Tone] || 'text-slate-900 dark:text-white';
+
+    return (
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 border-b border-slate-200/70 py-3 last:border-0 dark:border-white/8">
+            <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{label}</div>
+                {hint ? <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{hint}</div> : null}
+            </div>
+            <div className={`text-right font-mono text-sm font-bold ${valueColor}`}>{value}</div>
+        </div>
+    );
+};
+
+const StatPill = ({ label, value, tone = 'neutral' }: any) => {
+    const style = TONE_STYLES[tone as Tone] || TONE_STYLES.neutral;
+    return (
+        <div className={`rounded-2xl border px-3 py-2 ${style.tile}`}>
+            <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{label}</div>
+            <div className={`mt-1 font-mono text-sm font-black ${style.value}`}>{value}</div>
+        </div>
+    );
+};
+
+export const SimulatorRightPanel = ({
+    viewMode,
+    physics,
+    params,
+    placedDiffusers,
+    topViewStats,
+    isMobileStatsOpen,
+    setIsMobileStatsOpen,
     isHelpMode,
-    probes, onRemoveProbe
+    selectedDiffuserId,
+    probes,
+    onRemoveProbe
 }: any) => {
+    const diffusers = placedDiffusers || [];
+    const hasDiffusers = diffusers.length > 0;
+    const activeDiffuser = selectedDiffuserId
+        ? diffusers.find((d: any) => d.id === selectedDiffuserId) || diffusers[diffusers.length - 1] || null
+        : diffusers[diffusers.length - 1] || null;
 
-    const [sections, setSections] = useState({
-        main: true,
-        probes: true
-    });
+    const previewDiffuser = {
+        modelId: params?.modelId,
+        modeIdx: params?.modeIdx,
+        diameter: params?.diameter,
+        volume: params?.volume,
+        temperature: params?.temperature,
+        performance: physics
+    };
 
-    const toggle = (key: string) => setSections((prev: any) => ({ ...prev, [key]: !prev[key] }));
+    const currentDiffuser = activeDiffuser || previewDiffuser;
+    const currentModel = DIFFUSER_CATALOG.find(item => item.id === currentDiffuser?.modelId);
+    const currentMode = currentDiffuser ? getDiffuserMode(currentDiffuser.modelId, currentDiffuser.modeIdx ?? 0) : null;
 
-    // Логика выбора активного диффузора. 
-    // Берем последний из списка добавленных. Если в будущем добавится пропс selectedId, 
-    // можно будет искать конкретный: placedDiffusers.find(d => d.id === selectedId)
-    const hasDiffusers = placedDiffusers && placedDiffusers.length > 0;
-    const activeDiffuser = hasDiffusers ? placedDiffusers[placedDiffusers.length - 1] : null;
+    const roomArea = (params?.roomWidth || 0) * (params?.roomLength || 0);
+    const roomVolume = roomArea * (params?.roomHeight || 0);
+    const totalAir = diffusers.reduce((sum: number, diffuser: any) => sum + (diffuser.volume || 0), 0);
 
-    const Content = () => (
-        <div className="space-y-4 animate-in slide-in-from-right-8 duration-500 relative z-10">
-            
-            <AccordionItem 
-                title="Показатели системы" 
-                icon={<ScanLine size={16}/>} 
-                isOpen={sections.main} 
-                onClick={() => toggle('main')}
-            >
-                <div className="mt-0 bg-[#13141c] rounded-[24px] p-6 border border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.4)] relative overflow-hidden">
-                    <div className="absolute -top-20 -right-20 w-48 h-48 bg-blue-500/10 rounded-full blur-[60px] pointer-events-none"></div>
-                    
-                    <div className="space-y-1 relative z-10">
-                        {/* 1. Общие показатели среды и помещения */}
-                        <div className="mb-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                            Общие данные
+    const summaryNoise = hasDiffusers ? (topViewStats?.maxNoise || 0) : (currentDiffuser?.performance?.noise || 0);
+    const summaryCoverage = hasDiffusers ? (topViewStats?.coverage || 0) : 0;
+    const summaryAdpi = hasDiffusers ? (topViewStats?.adpi || 0) : 0;
+    const summaryVelocity = hasDiffusers ? (topViewStats?.avgVelocity || 0) : (currentDiffuser?.performance?.workzoneVelocity || 0);
+    const summaryTemperature = hasDiffusers ? (topViewStats?.calcTemp || params?.roomTemp || 0) : (params?.roomTemp || 0);
+
+    const probeCards = useMemo(() => {
+        return (probes || []).map((probe: any) => ({
+            probe,
+            data: calculateProbeData(
+                probe,
+                diffusers,
+                params?.roomTemp || 20,
+                params?.temperature || 20,
+                params?.roomWidth || 10,
+                params?.roomLength || 10,
+                params?.roomHeight || 3
+            )
+        }));
+    }, [diffusers, params?.roomHeight, params?.roomLength, params?.roomTemp, params?.roomWidth, params?.temperature, probes]);
+
+    const content = (
+        <div className="space-y-4">
+            <section className="rounded-[32px] border border-black/5 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(241,245,249,0.92))] p-5 shadow-[0_28px_60px_-30px_rgba(15,23,42,0.45)] ring-1 ring-black/5 dark:border-white/8 dark:bg-[linear-gradient(135deg,rgba(11,16,32,0.96),rgba(15,23,42,0.92))] dark:ring-white/5">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-sky-600 dark:text-sky-300">Сводка</div>
+                        <div className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-white">Поток и комфорт</div>
+                        <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                            Срез рабочей зоны {formatNumber(params?.workZoneHeight || 0, 1)} м, вид {VIEW_LABELS[viewMode] || viewMode}
                         </div>
-                        <InfoRow 
-                            label="Т° Помещения" 
-                            value={params?.roomTemp || '0'} 
-                            unit="°C" 
-                        />
-                        <InfoRow 
-                            label="Общий шум диффузоров" 
-                            value={hasDiffusers ? topViewStats?.maxNoise?.toFixed(0) : '-'} 
-                            unit={hasDiffusers ? "дБ" : ""} 
-                            alert={hasDiffusers && (topViewStats?.maxNoise || 0) > 45} 
-                        />
-                        
-                        <div className="my-5 border-t border-white/5" />
-
-                        {/* 2. Показатели конкретного (последнего/выбранного) диффузора */}
-                        <div className="mb-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest flex justify-between items-center">
-                            <span>{hasDiffusers ? 'Текущий диффузор' : 'Диффузоры не добавлены'}</span>
-                            {hasDiffusers && (
-                                <span className="text-[9px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">
-                                    Активный
-                                </span>
-                            )}
-                        </div>
-                        
-                        <InfoRow 
-                            label="Температура притока" 
-                            value={activeDiffuser ? activeDiffuser.temperature : '-'} 
-                            unit={activeDiffuser ? "°C" : ""} 
-                            highlight={!!activeDiffuser}
-                        />
-                        <InfoRow 
-                            label="Скорость в рабочей зоне" 
-                            value={activeDiffuser && activeDiffuser.performance?.workzoneVelocity 
-                                ? activeDiffuser.performance.workzoneVelocity.toFixed(2) 
-                                : '-'} 
-                            unit={activeDiffuser ? "м/с" : ""} 
-                        />
+                    </div>
+                    <div className="rounded-[24px] bg-slate-950 px-4 py-3 text-right text-white shadow-[0_16px_30px_-20px_rgba(15,23,42,0.8)] dark:bg-white dark:text-slate-950">
+                        <div className="text-[9px] font-bold uppercase tracking-[0.22em] opacity-60">Диффузоры</div>
+                        <div className="mt-1 font-mono text-2xl font-black leading-none">{diffusers.length}</div>
                     </div>
                 </div>
-            </AccordionItem>
 
-            {/* ТОЧКИ ИЗМЕРЕНИЯ (Датчики) */}
-            {probes && probes.length > 0 && (
-                <AccordionItem 
-                    title="Точки измерения" 
-                    icon={<Target size={16}/>} 
-                    isOpen={sections.probes} 
-                    onClick={() => toggle('probes')}
-                >
-                    <div className="mt-0 space-y-3">
-                        {probes.map((probe: any, idx: number) => {
-                            const data = calculateProbeData(
-                                probe, 
-                                placedDiffusers || [], 
-                                params?.roomTemp || 20,
-                                params?.temperature || 20,
-                                params?.roomWidth || 10,
-                                params?.roomLength || 10,
-                                params?.roomHeight || 3
-                            );
-                            
+                <div className="mt-4 flex flex-wrap gap-2">
+                    <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+                        {hasDiffusers ? 'активная сцена' : 'предпросмотр'}
+                    </span>
+                    <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+                        монтаж {params?.isCeilingMounted ? 'в потолке' : 'свободный'}
+                    </span>
+                    <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+                        помещение {formatNumber(roomArea, 1)} м²
+                    </span>
+                </div>
+            </section>
+
+            <SectionCard title="Система" subtitle="Общие показатели по текущей конфигурации" icon={<ScanLine size={18} />}>
+                <div className="grid grid-cols-2 gap-3">
+                    <MetricTile
+                        label="Общий расход"
+                        value={formatNumber(hasDiffusers ? totalAir : params?.volume || 0, 0)}
+                        unit="м³/ч"
+                        note={hasDiffusers ? 'сумма по всем диффузорам' : 'значение выбранной конфигурации'}
+                        tone="info"
+                        icon={<Wind size={16} />}
+                    />
+                    <MetricTile
+                        label="Шум"
+                        value={formatNumber(summaryNoise, 0)}
+                        unit="дБ"
+                        note={summaryNoise > 45 ? 'выше комфортного порога' : 'в пределах типового диапазона'}
+                        tone={getNoiseTone(summaryNoise)}
+                        icon={<Volume2 size={16} />}
+                    />
+                    <MetricTile
+                        label="Покрытие"
+                        value={formatNumber(summaryCoverage, 0)}
+                        unit="%"
+                        note={hasDiffusers ? 'заполнение рабочей зоны' : 'появится после установки'}
+                        tone={hasDiffusers ? getCoverageTone(summaryCoverage) : 'neutral'}
+                        icon={<Layers size={16} />}
+                    />
+                    <MetricTile
+                        label="ADPI"
+                        value={formatNumber(summaryAdpi, 0)}
+                        unit="%"
+                        note={hasDiffusers ? 'индекс комфорта' : 'рассчитывается по полю'}
+                        tone={hasDiffusers ? getAdpiTone(summaryAdpi) : 'neutral'}
+                        icon={<CheckCircle2 size={16} />}
+                    />
+                    <MetricTile
+                        label="Средняя скорость"
+                        value={formatNumber(summaryVelocity, 2)}
+                        unit="м/с"
+                        note={hasDiffusers ? 'по расчётному полю' : 'по выбранному диффузору'}
+                        tone={getVelocityTone(summaryVelocity)}
+                        icon={<Activity size={16} />}
+                    />
+                    <MetricTile
+                        label="Температура"
+                        value={formatNumber(summaryTemperature, 1)}
+                        unit="°C"
+                        note={hasDiffusers ? 'средняя по рабочей зоне' : 'температура помещения'}
+                        tone="neutral"
+                        icon={<Thermometer size={16} />}
+                    />
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2 xl:grid-cols-4">
+                    <StatPill label="Комфорт" value={topViewStats?.comfortZones || 0} tone="good" />
+                    <StatPill label="Переход" value={topViewStats?.warningZones || 0} tone="warn" />
+                    <StatPill label="Сквозняк" value={topViewStats?.draftZones || 0} tone="danger" />
+                    <StatPill label="Мёртвые" value={topViewStats?.deadZones || 0} tone="neutral" />
+                </div>
+            </SectionCard>
+
+            <SectionCard
+                title="Активный диффузор"
+                subtitle={currentModel ? `${currentModel.series} ${currentModel.name}` : 'Текущая конфигурация'}
+                icon={<Fan size={18} />}
+            >
+                <div className="mb-4 flex flex-wrap gap-2">
+                    <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-200">
+                        {activeDiffuser ? `диффузор #${activeDiffuser.index}` : 'предпросмотр'}
+                    </span>
+                    {currentMode ? (
+                        <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300">
+                            {currentMode.name} / {currentMode.subtitle}
+                        </span>
+                    ) : null}
+                    {currentMode?.b_text ? (
+                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+                            {currentMode.b_text}
+                        </span>
+                    ) : null}
+                </div>
+
+                {currentDiffuser?.performance?.error ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
+                        <div className="flex items-center gap-2 font-semibold"><AlertTriangle size={16} /> Расчёт недоступен</div>
+                        <div className="mt-1 text-xs opacity-80">{currentDiffuser.performance.error}</div>
+                    </div>
+                ) : (
+                    <div>
+                        <DetailRow label="Типоразмер" value={String(currentDiffuser?.diameter ?? '-')} />
+                        <DetailRow label="Расход" value={`${formatNumber(currentDiffuser?.volume || 0, 0)} м³/ч`} tone="info" />
+                        <DetailRow label="Температура притока" value={`${formatNumber(currentDiffuser?.temperature || 0, 1)} °C`} />
+                        <DetailRow label="Скорость на выходе" value={`${formatNumber(currentDiffuser?.performance?.v0 || 0, 2)} м/с`} tone="info" />
+                        <DetailRow label="Дальность струи" value={`${formatNumber(currentDiffuser?.performance?.throwDist || 0, 2)} м`} />
+                        <DetailRow label="Скорость в рабочей зоне" value={`${formatNumber(currentDiffuser?.performance?.workzoneVelocity || 0, 2)} м/с`} tone={getVelocityTone(currentDiffuser?.performance?.workzoneVelocity || 0)} />
+                        <DetailRow label="Радиус покрытия" value={`${formatNumber(currentDiffuser?.performance?.coverageRadius || 0, 2)} м`} />
+                        <DetailRow label="Давление" value={`${formatNumber(currentDiffuser?.performance?.pressure || 0, 0)} Па`} />
+                        <DetailRow label="Шум" value={`${formatNumber(currentDiffuser?.performance?.noise || 0, 0)} дБ`} tone={getNoiseTone(currentDiffuser?.performance?.noise || 0)} />
+                    </div>
+                )}
+            </SectionCard>
+
+            <SectionCard title="Помещение" subtitle="Геометрия и режим расчёта" icon={<Home size={18} />}>
+                <DetailRow label="Габариты" value={`${formatNumber(params?.roomWidth || 0, 1)} × ${formatNumber(params?.roomLength || 0, 1)} × ${formatNumber(params?.roomHeight || 0, 1)} м`} />
+                <DetailRow label="Площадь" value={`${formatNumber(roomArea, 1)} м²`} />
+                <DetailRow label="Объём" value={`${formatNumber(roomVolume, 1)} м³`} />
+                <DetailRow label="Рабочая зона" value={`${formatNumber(params?.workZoneHeight || 0, 1)} м`} hint="активный расчётный срез" tone="info" />
+                <DetailRow label="Температура помещения" value={`${formatNumber(params?.roomTemp || 0, 1)} °C`} />
+                <DetailRow label="Монтаж" value={params?.isCeilingMounted ? 'Потолочный' : 'Свободный'} hint={params?.isCeilingMounted ? 'включён эффект Коанда' : 'без потолочного прижатия'} />
+            </SectionCard>
+
+            <SectionCard title="Датчики" subtitle={probeCards.length > 0 ? `Точек измерения: ${probeCards.length}` : 'Измерения ещё не добавлены'} icon={<Target size={18} />}>
+                {probeCards.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+                        Добавь датчик на сцену, и здесь появятся скорость, температура и DR в выбранной точке.
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {probeCards.map(({ probe, data }: any, idx: number) => {
+                            const tone = getDraftTone(data.dr);
                             return (
-                                <div key={probe.id} className="bg-black/20 rounded-xl p-3 border border-white/5 hover:bg-white/5 transition-colors group">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-bold text-slate-400">
-                                                {idx + 1}
+                                <div key={probe.id} className={`rounded-2xl border p-4 ${TONE_STYLES[tone].tile}`}>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Датчик #{idx + 1}</div>
+                                            <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                                                X {formatNumber(probe.x, 2)} м, Y {formatNumber(probe.y, 2)} м, Z {formatNumber(probe.z, 2)} м
                                             </div>
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase">H={probe.z.toFixed(1)}m</span>
                                         </div>
-                                        <button onClick={() => onRemoveProbe(probe.id)} className="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100">
-                                            <Trash2 size={12} />
+                                        <button
+                                            onClick={() => onRemoveProbe(probe.id)}
+                                            className="rounded-xl border border-black/5 bg-white/70 p-2 text-slate-500 transition-colors hover:text-rose-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:text-rose-300"
+                                        >
+                                            <Trash2 size={14} />
                                         </button>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div className="text-center bg-white/5 rounded-lg p-1.5">
-                                            <div className="text-[9px] text-slate-500 mb-0.5">V (м/с)</div>
-                                            <div className="font-mono font-bold text-xs text-white">{data.v.toFixed(2)}</div>
-                                        </div>
-                                        <div className="text-center bg-white/5 rounded-lg p-1.5">
-                                            <div className="text-[9px] text-slate-500 mb-0.5">T (°C)</div>
-                                            <div className="font-mono font-bold text-xs text-white">{data.t.toFixed(1)}</div>
-                                        </div>
+
+                                    <div className="mt-3 grid grid-cols-3 gap-2">
+                                        <StatPill label="V" value={`${formatNumber(data.v, 2)} м/с`} tone={getVelocityTone(data.v)} />
+                                        <StatPill label="T" value={`${formatNumber(data.t, 1)} °C`} tone="neutral" />
+                                        <StatPill label="DR" value={`${formatNumber(data.dr, 0)} %`} tone={tone} />
                                     </div>
                                 </div>
                             );
                         })}
                     </div>
-                </AccordionItem>
-            )}
+                )}
+            </SectionCard>
         </div>
     );
 
     return (
         <>
-            {/* Desktop Panel */}
-            <div className={`
-                hidden lg:flex flex-col w-[360px] h-screen shrink-0 relative p-4 pl-0 transition-all duration-300
-                ${isHelpMode ? 'z-[210]' : 'z-20'}
-            `}>
-                <div className="flex-1 rounded-[32px] bg-[#0a0a0f]/80 backdrop-blur-2xl border border-white/5 p-6 flex flex-col gap-6 shadow-2xl overflow-y-auto custom-scrollbar relative">
-                    <div className="absolute top-0 right-0 w-full h-32 bg-gradient-to-b from-blue-900/10 to-transparent pointer-events-none"/>
-                    <Content />
+            <div className={`hidden lg:flex h-screen w-[392px] shrink-0 p-4 pl-0 transition-all duration-300 ${isHelpMode ? 'z-[210]' : 'z-20'}`}>
+                <div className="flex-1 overflow-y-auto rounded-[36px] bg-white/72 p-4 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.45)] ring-1 ring-black/5 backdrop-blur-2xl custom-scrollbar dark:bg-[#05070f]/72 dark:ring-white/8">
+                    {content}
                 </div>
             </div>
 
-            {/* Mobile Bottom Sheet/Drawer */}
-            <div className={`
-                fixed inset-x-0 bottom-0 lg:hidden
-                bg-[#0a0a0f] border-t border-white/10 rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.8)]
-                transform transition-transform duration-300 ease-out flex flex-col max-h-[85vh]
-                ${isHelpMode ? 'z-[210]' : 'z-[80]'}
-                ${isMobileStatsOpen ? 'translate-y-0' : 'translate-y-full'}
-            `}>
-                <div className="flex items-center justify-between p-5 border-b border-white/5">
-                     <div className="w-12 h-1 bg-white/10 rounded-full absolute top-3 left-1/2 -translate-x-1/2"></div>
-                     <span className="font-bold text-white uppercase tracking-widest text-xs">Статистика</span>
-                     <button onClick={() => setIsMobileStatsOpen(false)} className="p-2 bg-white/10 rounded-full text-slate-400 hover:text-white"><X size={16}/></button>
+            <div
+                className={`fixed inset-x-0 bottom-0 lg:hidden max-h-[88vh] transform rounded-t-[32px] border-t border-black/10 bg-white/95 shadow-[0_-24px_60px_rgba(15,23,42,0.35)] transition-transform duration-300 ease-out dark:border-white/10 dark:bg-[#05070f]/96 ${isHelpMode ? 'z-[210]' : 'z-[80]'} ${isMobileStatsOpen ? 'translate-y-0' : 'translate-y-full'}`}
+            >
+                <div className="relative flex items-center justify-between border-b border-black/5 px-5 py-4 dark:border-white/10">
+                    <div className="absolute left-1/2 top-2 h-1.5 w-14 -translate-x-1/2 rounded-full bg-slate-300 dark:bg-white/10" />
+                    <div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">Сводка</div>
+                        <div className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">Поток и комфорт</div>
+                    </div>
+                    <button
+                        onClick={() => setIsMobileStatsOpen(false)}
+                        className="rounded-xl border border-black/5 bg-white/70 p-2 text-slate-500 transition-colors hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:text-white"
+                    >
+                        <X size={16} />
+                    </button>
                 </div>
-                <div className="p-6 overflow-y-auto custom-scrollbar pb-10">
-                    <Content />
-                </div>
+                <div className="overflow-y-auto p-4 pb-8 custom-scrollbar">{content}</div>
             </div>
-            {/* Mobile Backdrop */}
+
             {isMobileStatsOpen && (
-                <div className="fixed inset-0 bg-black/60 z-[70] lg:hidden backdrop-blur-sm" onClick={() => setIsMobileStatsOpen(false)} />
+                <div
+                    className="fixed inset-0 z-[70] bg-black/55 backdrop-blur-sm lg:hidden"
+                    onClick={() => setIsMobileStatsOpen(false)}
+                />
             )}
         </>
     );
