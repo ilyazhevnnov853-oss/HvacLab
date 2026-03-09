@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { GlassButton, GlassSlider, SectionHeader } from '../../../ui/Shared';
 import { FIRE_LOADS } from './constants_fire';
+import { useLocalStorage } from '../../../../hooks/useLocalStorage';
 
 // --- ТИПЫ ДАННЫХ ---
 interface SmokeData {
@@ -33,7 +34,7 @@ const SmokeCalculator = ({ onBack, onHome }: any) => {
     const [currentStep, setCurrentStep] = useState(0);
     const [maxStepReached, setMaxStepReached] = useState(0);
     
-    const [data, setData] = useState<SmokeData>({
+    const [data, setData] = useLocalStorage<SmokeData>('hvac-calc-smoke', {
         systemType: 'Extraction',
         roomArea: 25, roomHeight: 3.0, fireLoadMass: 400, material: 'Office_Furniture',
         corridorWidth: 2.0, corridorLength: 15.0, doorWidth: 0.9, doorHeight: 2.1, isSingleDoor: true,

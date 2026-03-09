@@ -1,22 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import { Gauge, Wind, Ruler, Settings2, Home, ChevronLeft, Menu, X, Activity, Box, CircleDot } from 'lucide-react';
 import { SectionHeader, GlassSlider } from '../../../ui/Shared';
+import { useLocalStorage } from '../../../../hooks/useLocalStorage';
+
+interface PressureLossState {
+    airflow: number;
+    shape: 'round' | 'rect';
+    diameter: number;
+    width: number;
+    height: number;
+    length: number;
+    zeta: number;
+}
 
 const PressureLossCalculator = ({ onBack, onHome }: any) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [calcState, setCalcState] = useLocalStorage<PressureLossState>('hvac-calc-pressure-loss', {
+        airflow: 1000,
+        shape: 'round',
+        diameter: 200,
+        width: 300,
+        height: 200,
+        length: 20,
+        zeta: 2
+    });
     
     // Inputs
-    const [airflow, setAirflow] = useState(1000);
-    const [shape, setShape] = useState<'round' | 'rect'>('round');
+    const { airflow, shape, diameter, width, height, length, zeta } = calcState;
+    const setAirflow = (nextAirflow: number) => setCalcState(prev => ({ ...prev, airflow: nextAirflow }));
+    const setShape = (nextShape: PressureLossState['shape']) => setCalcState(prev => ({ ...prev, shape: nextShape }));
     
     // Dimensions
-    const [diameter, setDiameter] = useState(200);
-    const [width, setWidth] = useState(300);
-    const [height, setHeight] = useState(200);
+    const setDiameter = (nextDiameter: number) => setCalcState(prev => ({ ...prev, diameter: nextDiameter }));
+    const setWidth = (nextWidth: number) => setCalcState(prev => ({ ...prev, width: nextWidth }));
+    const setHeight = (nextHeight: number) => setCalcState(prev => ({ ...prev, height: nextHeight }));
     
     // Network Params
-    const [length, setLength] = useState(20);
-    const [zeta, setZeta] = useState(2); // Local resistance sum
+    const setLength = (nextLength: number) => setCalcState(prev => ({ ...prev, length: nextLength }));
+    const setZeta = (nextZeta: number) => setCalcState(prev => ({ ...prev, zeta: nextZeta })); // Local resistance sum
     const [roughness] = useState(0.1); // mm (galvanized steel default)
 
     // Results

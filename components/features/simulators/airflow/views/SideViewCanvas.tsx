@@ -56,6 +56,7 @@ interface SideViewCanvasProps {
   placedDiffusers?: PlacedDiffuser[];
   viewType: 'front' | 'right';
   sliceDepth: number;
+  isSliceMode?: boolean;
   // Added Props
   activeTool?: ToolMode;
   probes?: Probe[];

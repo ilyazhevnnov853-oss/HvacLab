@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Volume2, Plus, Trash2, Home, ChevronLeft, Menu, X, Activity, Waves } from 'lucide-react';
 import { SectionHeader, GlassSlider, GlassButton } from '../../../ui/Shared';
+import { useLocalStorage } from '../../../../hooks/useLocalStorage';
 
 const AcousticCalculator = ({ onBack, onHome }: any) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [calcState, setCalcState] = useLocalStorage<{ sources: number[] }>('hvac-calc-acoustic', {
+        sources: [35, 35]
+    });
     
     // Initial state: 2 sources of 35dB
-    const [sources, setSources] = useState<number[]>([35, 35]); 
+    const { sources } = calcState;
+    const setSources = (nextSources: number[]) => setCalcState(prev => ({ ...prev, sources: nextSources }));
     const [totalNoise, setTotalNoise] = useState(0);
 
     useEffect(() => {

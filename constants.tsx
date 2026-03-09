@@ -134,19 +134,25 @@ export const DIFFUSER_CATALOG: DiffuserModel[] = [
     { 
         id: 'dpu-m', series: 'ДПУ-М', name: 'Универсальный',
         modes: [
-            { id: 'm-vert', name: 'Коническая', subtitle: 'Вертикальная', b_text: 'b = 0.2A', flowType: 'vertical-conical', icon: <IconDpuM size={16}/> }
+            { id: 'm-hor', name: 'Fan', subtitle: 'Horizontal', b_text: 'b = 0.1A ... 0.15A', flowType: 'horizontal-fan', performanceFlowType: 'vertical-conical', icon: <IconDpuM size={16}/> },
+            { id: 'm-vert', name: 'Conical', subtitle: 'Vertical', b_text: 'b = 0.2A', flowType: 'vertical-conical', icon: <IconDpuM size={16}/> }
+        
         ]
     },
     { 
         id: 'dpu-k', series: 'ДПУ-К', name: 'Веерный',
         modes: [
-            { id: 'k-vert', name: 'Коническая', subtitle: 'Вертикальная', b_text: 'b = 0.1A', flowType: 'vertical-conical', icon: <IconDpuM size={16}/> }
+            { id: 'k-hor', name: 'Fan', subtitle: 'Horizontal', b_text: 'b = 0.05A', flowType: 'horizontal-fan', performanceFlowType: 'vertical-conical', icon: <IconDpuM size={16}/> },
+            { id: 'k-vert', name: 'Conical', subtitle: 'Vertical', b_text: 'b = 0.1A ... 0.15A', flowType: 'vertical-conical', icon: <IconDpuM size={16}/> }
+        
         ]
     },
     { 
         id: 'dpu-v', series: 'ДПУ-В', name: 'Вихревой',
         modes: [
-            { id: 'v-vert', name: 'Вихревая', subtitle: 'Вертикальная', b_text: 'b = 0 мм', flowType: 'vertical-swirl', icon: <IconDpuV size={16}/> }
+            { id: 'v-hor', name: 'Swirl', subtitle: 'Horizontal', b_text: 'b = -20 mm', flowType: 'horizontal-swirl', performanceFlowType: 'vertical-swirl', icon: <IconDpuV size={16}/> },
+            { id: 'v-vert', name: 'Conical', subtitle: 'Vertical', b_text: 'b = 0 mm', flowType: 'vertical-swirl', icon: <IconDpuV size={16}/> }
+        
         ]
     },
     { 
@@ -157,19 +163,19 @@ export const DIFFUSER_CATALOG: DiffuserModel[] = [
     }
 ];
 
-export const getDiffuserMode = (modelId: string, modeIdx: number = 0) => {
-    const model = DIFFUSER_CATALOG.find(item => item.id === modelId);
-    return model?.modes[modeIdx] || model?.modes[0];
-};
-
 export const getDiffuserFlowType = (
     modelId: string,
     modeIdx: number = 0,
     explicitFlowType?: string
 ) => {
     if (explicitFlowType) return explicitFlowType;
-    const mode = getDiffuserMode(modelId, modeIdx);
-    return mode?.flowType || 'vertical-conical';
+    const model = DIFFUSER_CATALOG.find(item => item.id === modelId);
+    return model?.modes[modeIdx]?.flowType || model?.modes[0]?.flowType || 'vertical-conical';
+};
+
+export const getDiffuserMode = (modelId: string, modeIdx: number = 0) => {
+    const model = DIFFUSER_CATALOG.find(item => item.id === modelId);
+    return model?.modes[modeIdx] || model?.modes[0] || null;
 };
 
 export const getDiffuserPerformanceFlowType = (
@@ -179,9 +185,10 @@ export const getDiffuserPerformanceFlowType = (
 ) => {
     if (explicitFlowType) return explicitFlowType;
     const mode = getDiffuserMode(modelId, modeIdx);
-    // @ts-ignore
     return mode?.performanceFlowType || mode?.flowType || 'vertical-conical';
 };
+
+
 
 // Helper components for Wiki - ESTHETICALLY ENHANCED
 const Var = ({c}: {c: string; children?: React.ReactNode}) => <span className="font-serif italic text-blue-200 font-semibold tracking-wide text-xl">{c}</span>;

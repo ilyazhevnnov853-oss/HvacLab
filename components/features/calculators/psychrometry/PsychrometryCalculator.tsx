@@ -1,14 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { CloudRain, Thermometer, Droplets, Home, ChevronLeft, Menu, X, Gauge, Activity, Waves } from 'lucide-react';
 import { SectionHeader, GlassSlider } from '../../../ui/Shared';
+import { useLocalStorage } from '../../../../hooks/useLocalStorage';
+
+interface PsychrometryState {
+    dryBulb: number;
+    relHum: number;
+    pressure: number;
+}
 
 const PsychrometryCalculator = ({ onBack, onHome }: any) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [calcState, setCalcState] = useLocalStorage<PsychrometryState>('hvac-calc-psychrometry', {
+        dryBulb: 24,
+        relHum: 50,
+        pressure: 101.325
+    });
 
     // Inputs
-    const [dryBulb, setDryBulb] = useState(24); // °C
-    const [relHum, setRelHum] = useState(50); // %
-    const [pressure, setPressure] = useState(101.325); // kPa
+    const { dryBulb, relHum, pressure } = calcState;
+    const setDryBulb = (nextDryBulb: number) => setCalcState(prev => ({ ...prev, dryBulb: nextDryBulb }));
+    const setRelHum = (nextRelHum: number) => setCalcState(prev => ({ ...prev, relHum: nextRelHum }));
+    const setPressure = (nextPressure: number) => setCalcState(prev => ({ ...prev, pressure: nextPressure }));
 
     // Results
     const [enthalpy, setEnthalpy] = useState(0);

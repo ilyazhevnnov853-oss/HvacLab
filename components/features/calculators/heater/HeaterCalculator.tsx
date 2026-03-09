@@ -1,12 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { Calculator, Thermometer, Wind, Zap, Droplets, Home, ChevronLeft, Menu, X, ArrowRight, Flame, Snowflake } from 'lucide-react';
 import { SectionHeader, GlassSlider, GlassButton, GlassMetric } from '../../../ui/Shared';
+import { useLocalStorage } from '../../../../hooks/useLocalStorage';
+
+interface HeaterState {
+    airflow: number;
+    tempIn: number;
+    tempOut: number;
+    mode: 'heating' | 'cooling';
+}
 
 const HeaterCalculator = ({ onBack, onHome }: any) => {
-    const [airflow, setAirflow] = useState<number>(1000);
-    const [tempIn, setTempIn] = useState<number>(-26);
-    const [tempOut, setTempOut] = useState<number>(22);
-    const [mode, setMode] = useState<'heating' | 'cooling'>('heating');
+    const [calcState, setCalcState] = useLocalStorage<HeaterState>('hvac-calc-heater', {
+        airflow: 1000,
+        tempIn: -26,
+        tempOut: 22,
+        mode: 'heating'
+    });
+    const { airflow, tempIn, tempOut, mode } = calcState;
+    const setAirflow = (nextAirflow: number) => setCalcState(prev => ({ ...prev, airflow: nextAirflow }));
+    const setTempIn = (nextTempIn: number) => setCalcState(prev => ({ ...prev, tempIn: nextTempIn }));
+    const setTempOut = (nextTempOut: number) => setCalcState(prev => ({ ...prev, tempOut: nextTempOut }));
+    const setMode = (nextMode: HeaterState['mode']) => setCalcState(prev => ({ ...prev, mode: nextMode }));
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     // Constants

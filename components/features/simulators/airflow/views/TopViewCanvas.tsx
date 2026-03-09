@@ -33,6 +33,7 @@ interface TopViewCanvasProps {
   sliceX?: number;
   sliceY?: number;
   onUpdateSlice?: (axis: 'x' | 'y', val: number) => void;
+  isSliceMode?: boolean;
   // Probe Props
   probes?: Probe[];
   onAddProbe?: (x: number, y: number) => void;
@@ -391,27 +392,29 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             drawRealisticDiffuser2D(ctx, cx, cy, dSize / 2, d.modelId);
         });
 
-        const sliceX = Math.max(0, Math.min(state.roomWidth, state.sliceX || 0));
-        const sliceY = Math.max(0, Math.min(state.roomLength, state.sliceY || 0));
-        const sliceXPx = originX + sliceX * ppm;
-        const sliceYPx = originY + sliceY * ppm;
+        if (state.isSliceMode) {
+            const sliceX = Math.max(0, Math.min(state.roomWidth, state.sliceX || 0));
+            const sliceY = Math.max(0, Math.min(state.roomLength, state.sliceY || 0));
+            const sliceXPx = originX + sliceX * ppm;
+            const sliceYPx = originY + sliceY * ppm;
 
-        ctx.save();
-        ctx.setLineDash([10, 8]);
-        ctx.lineWidth = 2;
+            ctx.save();
+            ctx.setLineDash([10, 8]);
+            ctx.lineWidth = 2;
 
-        ctx.strokeStyle = 'rgba(250, 204, 21, 0.95)';
-        ctx.beginPath();
-        ctx.moveTo(sliceXPx, originY);
-        ctx.lineTo(sliceXPx, originY + state.roomLength * ppm);
-        ctx.stroke();
+            ctx.strokeStyle = 'rgba(250, 204, 21, 0.95)';
+            ctx.beginPath();
+            ctx.moveTo(sliceXPx, originY);
+            ctx.lineTo(sliceXPx, originY + state.roomLength * ppm);
+            ctx.stroke();
 
-        ctx.strokeStyle = 'rgba(59, 130, 246, 0.95)';
-        ctx.beginPath();
-        ctx.moveTo(originX, sliceYPx);
-        ctx.lineTo(originX + state.roomWidth * ppm, sliceYPx);
-        ctx.stroke();
-        ctx.restore();
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.95)';
+            ctx.beginPath();
+            ctx.moveTo(originX, sliceYPx);
+            ctx.lineTo(originX + state.roomWidth * ppm, sliceYPx);
+            ctx.stroke();
+            ctx.restore();
+        }
 
         state.probes?.forEach(p => {
             drawProbe(ctx, p, ppm, originX, originY, state);
@@ -503,7 +506,7 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         const { x: mouseX, y: mouseY } = getMousePos(e);
         const { ppm, originX, originY } = getTopLayout(props.width, props.height, props.roomWidth, props.roomLength);
 
-        if (props.activeTool === 'select' && props.onUpdateSlice) {
+        if (props.isSliceMode && props.onUpdateSlice) {
             const sliceXPx = originX + (props.sliceX || 0) * ppm;
             const sliceYPx = originY + (props.sliceY || 0) * ppm;
             const distToSliceX = Math.abs(mouseX - sliceXPx);

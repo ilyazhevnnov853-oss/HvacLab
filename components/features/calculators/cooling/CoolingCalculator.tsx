@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { GlassButton, GlassSlider, SectionHeader } from '../../../ui/Shared';
 import { SOLAR_GAINS, WALL_TRANSMISSION, INTERNAL_LOADS } from '../../../../constants';
+import { useLocalStorage } from '../../../../hooks/useLocalStorage';
 
 // --- ТИПЫ ДАННЫХ ---
 interface CalcData {
@@ -37,7 +38,7 @@ const CoolingCalculator = ({ onBack, onHome }: any) => {
     const [maxStepReached, setMaxStepReached] = useState(0);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     
-    const [data, setData] = useState<CalcData>({
+    const [data, setData] = useLocalStorage<CalcData>('hvac-calc-cooling', {
         width: 0, length: 0, height: 3.0, wallType: 'Modern', azimuth: 180,
         glassArea: 0, isSkylight: false, glassType: 'Glass_Double', climateCoef: 1.0,
         people: 0, computers: 0, lighting: true,

@@ -1,19 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Box, Home, ChevronLeft, Menu, X, Wind, Ruler, Activity } from 'lucide-react';
 import { SectionHeader, GlassSlider } from '../../../ui/Shared';
+import { useLocalStorage } from '../../../../hooks/useLocalStorage';
+
+interface AirExchangeState {
+    mode: 'room' | 'people';
+    area: number;
+    height: number;
+    multiplicity: number;
+    peopleCount: number;
+    normPerPerson: number;
+}
 
 const AirExchangeCalculator = ({ onBack, onHome }: any) => {
-    const [mode, setMode] = useState<'room' | 'people'>('room');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [calcState, setCalcState] = useLocalStorage<AirExchangeState>('hvac-calc-air-exchange', {
+        mode: 'room',
+        area: 20,
+        height: 3.0,
+        multiplicity: 1,
+        peopleCount: 5,
+        normPerPerson: 60
+    });
+
+    const { mode, area, height, multiplicity, peopleCount, normPerPerson } = calcState;
 
     // Room Parameters
-    const [area, setArea] = useState(20);
-    const [height, setHeight] = useState(3.0);
-    const [multiplicity, setMultiplicity] = useState(1);
+    const setMode = (nextMode: AirExchangeState['mode']) => setCalcState(prev => ({ ...prev, mode: nextMode }));
+    const setArea = (nextArea: number) => setCalcState(prev => ({ ...prev, area: nextArea }));
+    const setHeight = (nextHeight: number) => setCalcState(prev => ({ ...prev, height: nextHeight }));
+    const setMultiplicity = (nextMultiplicity: number) => setCalcState(prev => ({ ...prev, multiplicity: nextMultiplicity }));
 
     // People Parameters
-    const [peopleCount, setPeopleCount] = useState(5);
-    const [normPerPerson, setNormPerPerson] = useState(60);
+    const setPeopleCount = (nextPeopleCount: number) => setCalcState(prev => ({ ...prev, peopleCount: nextPeopleCount }));
+    const setNormPerPerson = (nextNormPerPerson: number) => setCalcState(prev => ({ ...prev, normPerPerson: nextNormPerPerson }));
 
     const [resultFlow, setResultFlow] = useState(0);
 

@@ -1,17 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { GitMerge, Wind, Thermometer, Home, ChevronLeft, Menu, X, ArrowRight, Snowflake, Flame } from 'lucide-react';
 import { SectionHeader, GlassSlider } from '../../../ui/Shared';
+import { useLocalStorage } from '../../../../hooks/useLocalStorage';
+
+interface MixingState {
+    flow1: number;
+    temp1: number;
+    flow2: number;
+    temp2: number;
+}
 
 const MixingCalculator = ({ onBack, onHome }: any) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [calcState, setCalcState] = useLocalStorage<MixingState>('hvac-calc-mixing', {
+        flow1: 1000,
+        temp1: -20,
+        flow2: 3000,
+        temp2: 22
+    });
 
     // Stream 1 (Outdoor Air)
-    const [flow1, setFlow1] = useState(1000);
-    const [temp1, setTemp1] = useState(-20);
+    const { flow1, temp1, flow2, temp2 } = calcState;
+    const setFlow1 = (nextFlow1: number) => setCalcState(prev => ({ ...prev, flow1: nextFlow1 }));
+    const setTemp1 = (nextTemp1: number) => setCalcState(prev => ({ ...prev, temp1: nextTemp1 }));
 
     // Stream 2 (Recirculation Air)
-    const [flow2, setFlow2] = useState(3000);
-    const [temp2, setTemp2] = useState(22);
+    const setFlow2 = (nextFlow2: number) => setCalcState(prev => ({ ...prev, flow2: nextFlow2 }));
+    const setTemp2 = (nextTemp2: number) => setCalcState(prev => ({ ...prev, temp2: nextTemp2 }));
 
     const [mixedTemp, setMixedTemp] = useState(0);
     const [totalFlow, setTotalFlow] = useState(0);

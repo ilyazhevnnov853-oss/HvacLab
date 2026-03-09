@@ -44,6 +44,7 @@ interface DiffuserCanvasProps {
   sliceX?: number;
   sliceY?: number;
   onUpdateSlice?: (axis: 'x' | 'y', val: number) => void;
+  isSliceMode?: boolean;
   // Probe Props
   probes?: Probe[];
   onAddProbe?: (x: number, y: number) => void;
@@ -103,6 +104,7 @@ const DiffuserCanvas: React.FC<DiffuserCanvasProps> = (props) => {
                 sliceX={props.sliceX}
                 sliceY={props.sliceY}
                 onUpdateSlice={props.onUpdateSlice}
+                isSliceMode={props.isSliceMode}
                 // Pass Probe props
                 probes={props.probes}
                 onAddProbe={props.onAddProbe}
@@ -157,6 +159,7 @@ const DiffuserCanvas: React.FC<DiffuserCanvasProps> = (props) => {
                 placedDiffusers={props.placedDiffusers}
                 viewType={props.viewMode === 'right' ? 'right' : 'front'}
                 sliceDepth={props.viewMode === 'right' ? (props.sliceX || 0) : (props.sliceY || 0)}
+                isSliceMode={props.isSliceMode}
                 // Pass Side Props
                 activeTool={props.activeTool}
                 probes={props.probes}

@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Play, Pause, Power, Info, Menu, Grid as GridIcon, Thermometer, Box, Scan, MousePointer2, MousePointerClick, Ruler, Eye, HelpCircle, Layers, Maximize, Square, GripHorizontal, Download } from 'lucide-react';
+import { Play, Pause, Power, Info, Menu, Grid as GridIcon, Thermometer, Box, Scan, MousePointer2, MousePointerClick, Ruler, Eye, HelpCircle, Layers, Maximize, Square, GripHorizontal, Download, SplitSquareHorizontal } from 'lucide-react';
 import { SimulatorLeftPanel } from './SimulatorLeftPanel';
 import { SimulatorRightPanel } from './SimulatorRightPanel';
 import DiffuserCanvas from './DiffuserCanvas';
@@ -9,6 +9,7 @@ import { useScientificSimulation, calculateScientificPerformanceResult, calculat
 import { PlacedDiffuser, Probe, ToolMode } from '../../../../types';
 import { GlassButton } from '../../../ui/Shared';
 import { DIFFUSER_CATALOG, getDiffuserMode, getDiffuserFlowType, getDiffuserPerformanceFlowType } from '../../../../constants';
+import { useLocalStorage } from '../../../../hooks/useLocalStorage';
 
 const buildPlacedDiffuserPerformance = (
     diffuser: Pick<PlacedDiffuser, 'modelId' | 'modeIdx' | 'diameter' | 'volume' | 'temperature'>,
@@ -46,7 +47,7 @@ const INITIAL_PARAMS = {
 
 const Simulator = ({ onBack, onHome }: any) => {
     // --- STATE ---
-    const [params, setParams] = useState(INITIAL_PARAMS);
+    const [params, setParams] = useLocalStorage<typeof INITIAL_PARAMS>('hvac-sim-params', INITIAL_PARAMS);
 
     const [viewMode, setViewMode] = useState<'front' | 'right' | 'top' | '3d'>('front');
     const [isPowerOn, setIsPowerOn] = useState(true);
@@ -59,11 +60,12 @@ const Simulator = ({ onBack, onHome }: any) => {
     const [placementMode, setPlacementMode] = useState<'single' | 'multi'>('single');
 
     // Objects
-    const [placedDiffusers, setPlacedDiffusers] = useState<PlacedDiffuser[]>([]);
+    const [placedDiffusers, setPlacedDiffusers] = useLocalStorage<PlacedDiffuser[]>('hvac-sim-diffusers', []);
     const [selectedDiffuserId, setSelectedDiffuserId] = useState<string | null>(null);
-    const [probes, setProbes] = useState<Probe[]>([]);
-    const [sliceX, setSliceX] = useState(() => INITIAL_PARAMS.roomWidth / 2);
-    const [sliceY, setSliceY] = useState(() => INITIAL_PARAMS.roomLength / 2);
+    const [probes, setProbes] = useLocalStorage<Probe[]>('hvac-sim-probes', []);
+    const [sliceX, setSliceX] = useLocalStorage<number>('hvac-sim-slicex', INITIAL_PARAMS.roomWidth / 2);
+    const [sliceY, setSliceY] = useLocalStorage<number>('hvac-sim-slicey', INITIAL_PARAMS.roomLength / 2);
+    const [isSliceMode, setIsSliceMode] = useLocalStorage<boolean>('hvac-sim-slicemode', false);
 
     // UI State
     const [openSection, setOpenSection] = useState<string | null>('distributor');
@@ -489,6 +491,7 @@ const Simulator = ({ onBack, onHome }: any) => {
                         sliceX={sliceX}
                         sliceY={sliceY}
                         onUpdateSlice={handleUpdateSlice}
+                        isSliceMode={isSliceMode}
                         probes={probes}
                         onAddProbe={addProbeAtScreenClick}
                         onRemoveProbe={removeProbe}
@@ -574,6 +577,14 @@ const Simulator = ({ onBack, onHome }: any) => {
                                 >
                                     <Scan size={18} />
                                     <span className="text-[9px] font-bold uppercase tracking-wider">Привязка</span>
+                                </button>
+                                <button 
+                                    onClick={() => setIsSliceMode(!isSliceMode)} 
+                                    disabled={viewMode !== 'top'}
+                                    className={`w-[68px] h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${viewMode !== 'top' ? 'opacity-30 cursor-not-allowed' : ''} ${isSliceMode && viewMode === 'top' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
+                                >
+                                    <SplitSquareHorizontal size={18} />
+                                    <span className="text-[9px] font-bold uppercase tracking-wider">Срез</span>
                                 </button>
                             </div>
                         )}

@@ -1,13 +1,28 @@
 import React, { useState, useMemo } from 'react';
 import { Calculator, Grid, CircleDot, Wind, Settings2, Home, ChevronLeft, Menu, X, Table2, Wand2, CheckCircle2, ArrowRight } from 'lucide-react';
 import { SectionHeader, GlassSlider, GlassButton } from '../../../ui/Shared';
+import { useLocalStorage } from '../../../../hooks/useLocalStorage';
+
+interface VelocityState {
+    volume: number;
+    minSpeed: number;
+    maxSpeed: number;
+    mode: 'check' | 'wizard';
+}
 
 const VelocityCalculator = ({ onBack, onHome }: any) => {
-    const [volume, setVolume] = useState<number>(1000);
-    const [minSpeed, setMinSpeed] = useState<number>(2);
-    const [maxSpeed, setMaxSpeed] = useState<number>(5); // Acts as Limit in Wizard
+    const [calcState, setCalcState] = useLocalStorage<VelocityState>('hvac-calc-velocity', {
+        volume: 1000,
+        minSpeed: 2,
+        maxSpeed: 5,
+        mode: 'check'
+    });
+    const { volume, minSpeed, maxSpeed, mode } = calcState;
+    const setVolume = (nextVolume: number) => setCalcState(prev => ({ ...prev, volume: nextVolume }));
+    const setMinSpeed = (nextMinSpeed: number) => setCalcState(prev => ({ ...prev, minSpeed: nextMinSpeed }));
+    const setMaxSpeed = (nextMaxSpeed: number) => setCalcState(prev => ({ ...prev, maxSpeed: nextMaxSpeed }));
+    const setMode = (nextMode: VelocityState['mode']) => setCalcState(prev => ({ ...prev, mode: nextMode }));
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [mode, setMode] = useState<'check' | 'wizard'>('check');
 
     // Data ranges
     const circularSizes = [100, 125, 160, 200, 250, 315, 355, 400, 450, 500, 630, 710, 800, 1000, 1250];

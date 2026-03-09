@@ -1,6 +1,7 @@
 
 import { useMemo } from 'react';
-import { SPECS, ENGINEERING_DATA, DIFFUSER_CATALOG } from '../constants';
+import { SPECS, ENGINEERING_DATA, getDiffuserFlowType } from '../constants';
+import { isHorizontalFlowType } from '../components/features/simulators/airflow/utils/diffuserJetProfile';
 import { PerformanceResult, Spec, PlacedDiffuser, ProbeData, GridPoint } from '../types';
 
 // ==========================================
@@ -175,42 +176,52 @@ export const calculatePerformance = (modelId: string, flowType: string, diameter
 };
 
 export const calculateScientificPerformanceResult = (
-    modelId: string, 
-    flowType: string, 
-    diameter: string | number, 
-    volume: number, 
-    temp: number, 
-    roomTemp: number, 
-    diffuserHeight: number, 
+    modelId: string,
+    flowType: string,
+    diameter: string | number,
+    volume: number,
+    temp: number,
+    roomTemp: number,
+    diffuserHeight: number,
     workZoneHeight: number
 ): PerformanceResult => {
     const perf = calculatePerformance(modelId, flowType, diameter, volume);
     const fallbackSpec: Spec = { f0: 0, A: 0, B: 0, C: 0, D: 0, min: 0, max: 0 };
 
-    if (!perf || !perf.spec) return { 
-        error: 'Типоразмер не производится', 
-        spec: SPECS[diameter] || fallbackSpec, 
-        v0:0, throwDist:0, pressure:0, noise:0,
-        workzoneVelocity: 0, coverageRadius: 0, Ar: 0
-    };
-
-    const { v0 = 0, pressure = 0, noise = 0, throwDist = 0, spec } = perf;
-    
-    // Use helper
-    const Ar = calculateArchimedes(v0, spec.f0, temp, roomTemp);
-
-    let k_archimedes = 1.0;
-    const VISUAL_GAIN = 15.0; 
-
-    if (Math.abs(Ar) > 0.00001) {
-        k_archimedes = 1.0 - (VISUAL_GAIN * Ar); 
-        k_archimedes = Math.max(0.1, Math.min(3.0, k_archimedes));
+    if (!perf || !perf.spec) {
+        return {
+            error: '???????????????????? ???? ????????????????????????',
+            spec: SPECS[diameter] || fallbackSpec,
+            v0: 0,
+            throwDist: 0,
+            pressure: 0,
+            noise: 0,
+            workzoneVelocity: 0,
+            coverageRadius: 0,
+            Ar: 0
+        };
     }
 
-    const finalThrow = Math.max(0, throwDist * k_archimedes);
-    const Ak_mm2 = spec.f0 * 1000000; 
+    const { v0 = 0, pressure = 0, noise = 0, throwDist = 0, spec } = perf;
+    const Ar = calculateArchimedes(v0, spec.f0, temp, roomTemp);
+
+    let kArchimedes = 1.0;
+    const VISUAL_GAIN = 15.0;
+
+    if (Math.abs(Ar) > 0.00001) {
+        kArchimedes = 1.0 - VISUAL_GAIN * Ar;
+        kArchimedes = Math.max(0.1, Math.min(3.0, kArchimedes));
+    }
+
+    const finalThrow = Math.max(0, throwDist * kArchimedes);
+    const AkMm2 = spec.f0 * 1000000;
     const { workzoneVelocity, coverageRadius } = calculateWorkzoneVelocityAndCoverage(
-        v0, Ak_mm2, diffuserHeight, workZoneHeight, 2.0, k_archimedes 
+        v0,
+        AkMm2,
+        diffuserHeight,
+        workZoneHeight,
+        2.0,
+        kArchimedes
     );
 
     return {
@@ -221,29 +232,33 @@ export const calculateScientificPerformanceResult = (
         workzoneVelocity: Math.max(0, workzoneVelocity),
         coverageRadius: Math.max(0, coverageRadius),
         spec,
-        Ar, 
+        Ar,
         error: null
     };
 };
 
 export const useScientificSimulation = (
-    modelId: string, 
-    flowType: string, 
-    diameter: string | number, 
-    volume: number, 
-    temp: number, 
-    roomTemp: number, 
-    diffuserHeight: number, 
+    modelId: string,
+    flowType: string,
+    diameter: string | number,
+    volume: number,
+    temp: number,
+    roomTemp: number,
+    diffuserHeight: number,
     workZoneHeight: number
 ): PerformanceResult => {
-    return useMemo(() => {
-        return calculateScientificPerformanceResult(modelId, flowType, diameter, volume, temp, roomTemp, diffuserHeight, workZoneHeight);
-    }, [modelId, flowType, diameter, volume, temp, roomTemp, diffuserHeight, workZoneHeight]);
+    return useMemo(
+        () => calculateScientificPerformanceResult(modelId, flowType, diameter, volume, temp, roomTemp, diffuserHeight, workZoneHeight),
+        [modelId, flowType, diameter, volume, temp, roomTemp, diffuserHeight, workZoneHeight]
+    );
 };
 
 // --- PROBE PHYSICS ---
 // Updated to use same Logic as calculateSimulationField where possible
 // For single point probe, we can simulate vector addition from all diffusers
+const hasRenderableDiffuserSpec = (diffuser: PlacedDiffuser) =>
+    !diffuser?.performance?.error && !!diffuser?.performance?.spec?.A;
+
 export const calculateProbeData = (
     probe: { x: number, y: number, z: number }, 
     diffusers: PlacedDiffuser[], 
@@ -263,18 +278,17 @@ export const calculateProbeData = (
     // Used for vector damping logic
     const vectors: {vx: number, vy: number, mag: number}[] = [];
 
-    const safeDiffusers = Array.isArray(diffusers) ? diffusers : [];
+    const safeDiffusers = Array.isArray(diffusers) ? diffusers.filter(hasRenderableDiffuserSpec) : [];
 
     safeDiffusers.forEach(d => {
-        const diffZ = d.performance.diffuserHeight || roomHeight; 
+        const diffZ = roomHeight; 
         
         const shadowFactor = 1.0;
 
         const dist2D = Math.sqrt(Math.pow(d.x - probe.x, 2) + Math.pow(d.y - probe.y, 2));
         
-        const model = DIFFUSER_CATALOG.find(m => m.id === d.modelId);
-        const flowType = model?.modes[0].flowType || 'vertical';
-        const isHorizontal = flowType.includes('horizontal') || flowType === '4-way';
+        const flowType = getDiffuserFlowType(d.modelId, d.modeIdx, d.flowType);
+        const isHorizontal = isHorizontalFlowType(flowType);
 
         let vPoint = 0;
 
@@ -380,13 +394,15 @@ export const calculateSimulationField = (
     const rows = Math.ceil(roomLength / gridStep);
     const field: GridPoint[][] = Array(rows).fill(null).map(() => Array(cols).fill(null));
 
-    const diffusersWithProps = placedDiffusers.map((d) => {
-        const model = DIFFUSER_CATALOG.find(m => m.id === d.modelId);
-        const flowType = model?.modes[0].flowType || 'vertical';
-        const isHorizontal = flowType.includes('horizontal') || flowType === '4-way';
-        const Ak_m = Math.sqrt(d.performance.spec.A / 1000000);
-        return { ...d, isHorizontal, Ak_m };
-    });
+    const diffusersWithProps = placedDiffusers
+        .filter(hasRenderableDiffuserSpec)
+        .map((d) => {
+            const flowType = getDiffuserFlowType(d.modelId, d.modeIdx, d.flowType);
+            const isHorizontal = isHorizontalFlowType(flowType);
+            const specArea = d.performance.spec?.A || 0;
+            const Ak_m = Math.sqrt(specArea / 1000000);
+            return { ...d, isHorizontal, Ak_m };
+        });
 
     for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {

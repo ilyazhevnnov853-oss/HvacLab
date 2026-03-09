@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Activity, AlertTriangle, CheckCircle2, Fan, Home, Layers, ScanLine, Target, Thermometer, Trash2, Volume2, Wind, X } from 'lucide-react';
+import { Fan, Home, ScanLine, Target, Thermometer, Trash2, Volume2, Wind, X } from 'lucide-react';
 import { calculateProbeData } from '../../../../hooks/useSimulation';
 import { DIFFUSER_CATALOG, getDiffuserMode } from '../../../../constants';
 
@@ -45,18 +45,6 @@ const formatNumber = (value: number | undefined, digits: number = 1) => {
     return value.toFixed(digits);
 };
 
-const getCoverageTone = (coverage: number): Tone => {
-    if (coverage >= 80) return 'good';
-    if (coverage >= 60) return 'warn';
-    return 'danger';
-};
-
-const getAdpiTone = (adpi: number): Tone => {
-    if (adpi >= 70) return 'good';
-    if (adpi >= 55) return 'warn';
-    return 'danger';
-};
-
 const getNoiseTone = (noise: number): Tone => {
     if (noise > 45) return 'danger';
     if (noise > 35) return 'warn';
@@ -67,12 +55,6 @@ const getVelocityTone = (velocity: number): Tone => {
     if (velocity <= 0.25) return 'good';
     if (velocity <= 0.35) return 'warn';
     return 'danger';
-};
-
-const getDraftTone = (dr: number): Tone => {
-    if (dr >= 25) return 'danger';
-    if (dr >= 15) return 'warn';
-    return 'good';
 };
 
 const SectionCard = ({ title, subtitle, icon, children }: any) => (
@@ -174,9 +156,6 @@ export const SimulatorRightPanel = ({
     const totalAir = diffusers.reduce((sum: number, diffuser: any) => sum + (diffuser.volume || 0), 0);
 
     const summaryNoise = hasDiffusers ? (topViewStats?.maxNoise || 0) : (currentDiffuser?.performance?.noise || 0);
-    const summaryCoverage = hasDiffusers ? (topViewStats?.coverage || 0) : 0;
-    const summaryAdpi = hasDiffusers ? (topViewStats?.adpi || 0) : 0;
-    const summaryVelocity = hasDiffusers ? (topViewStats?.avgVelocity || 0) : (currentDiffuser?.performance?.workzoneVelocity || 0);
     const summaryTemperature = hasDiffusers ? (topViewStats?.calcTemp || params?.roomTemp || 0) : (params?.roomTemp || 0);
 
     const probeCards = useMemo(() => {
@@ -225,7 +204,7 @@ export const SimulatorRightPanel = ({
             </section>
 
             <SectionCard title="Система" subtitle="Общие показатели по текущей конфигурации" icon={<ScanLine size={18} />}>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                     <MetricTile
                         label="Общий расход"
                         value={formatNumber(hasDiffusers ? totalAir : params?.volume || 0, 0)}
@@ -242,30 +221,9 @@ export const SimulatorRightPanel = ({
                         tone={getNoiseTone(summaryNoise)}
                         icon={<Volume2 size={16} />}
                     />
-                    <MetricTile
-                        label="Покрытие"
-                        value={formatNumber(summaryCoverage, 0)}
-                        unit="%"
-                        note={hasDiffusers ? 'заполнение рабочей зоны' : 'появится после установки'}
-                        tone={hasDiffusers ? getCoverageTone(summaryCoverage) : 'neutral'}
-                        icon={<Layers size={16} />}
-                    />
-                    <MetricTile
-                        label="ADPI"
-                        value={formatNumber(summaryAdpi, 0)}
-                        unit="%"
-                        note={hasDiffusers ? 'индекс комфорта' : 'рассчитывается по полю'}
-                        tone={hasDiffusers ? getAdpiTone(summaryAdpi) : 'neutral'}
-                        icon={<CheckCircle2 size={16} />}
-                    />
-                    <MetricTile
-                        label="Средняя скорость"
-                        value={formatNumber(summaryVelocity, 2)}
-                        unit="м/с"
-                        note={hasDiffusers ? 'по расчётному полю' : 'по выбранному диффузору'}
-                        tone={getVelocityTone(summaryVelocity)}
-                        icon={<Activity size={16} />}
-                    />
+
+
+
                     <MetricTile
                         label="Температура"
                         value={formatNumber(summaryTemperature, 1)}
@@ -276,12 +234,7 @@ export const SimulatorRightPanel = ({
                     />
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-2 xl:grid-cols-4">
-                    <StatPill label="Комфорт" value={topViewStats?.comfortZones || 0} tone="good" />
-                    <StatPill label="Переход" value={topViewStats?.warningZones || 0} tone="warn" />
-                    <StatPill label="Сквозняк" value={topViewStats?.draftZones || 0} tone="danger" />
-                    <StatPill label="Мёртвые" value={topViewStats?.deadZones || 0} tone="neutral" />
-                </div>
+
             </SectionCard>
 
             <SectionCard
@@ -304,25 +257,13 @@ export const SimulatorRightPanel = ({
                         </span>
                     ) : null}
                 </div>
-
-                {currentDiffuser?.performance?.error ? (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
-                        <div className="flex items-center gap-2 font-semibold"><AlertTriangle size={16} /> Расчёт недоступен</div>
-                        <div className="mt-1 text-xs opacity-80">{currentDiffuser.performance.error}</div>
-                    </div>
-                ) : (
-                    <div>
-                        <DetailRow label="Типоразмер" value={String(currentDiffuser?.diameter ?? '-')} />
+                <div>
+                        <DetailRow label="Типоразмер" value={currentDiffuser?.diameter ? `${currentDiffuser.diameter} mm` : '-'} />
                         <DetailRow label="Расход" value={`${formatNumber(currentDiffuser?.volume || 0, 0)} м³/ч`} tone="info" />
                         <DetailRow label="Температура притока" value={`${formatNumber(currentDiffuser?.temperature || 0, 1)} °C`} />
                         <DetailRow label="Скорость на выходе" value={`${formatNumber(currentDiffuser?.performance?.v0 || 0, 2)} м/с`} tone="info" />
-                        <DetailRow label="Дальность струи" value={`${formatNumber(currentDiffuser?.performance?.throwDist || 0, 2)} м`} />
                         <DetailRow label="Скорость в рабочей зоне" value={`${formatNumber(currentDiffuser?.performance?.workzoneVelocity || 0, 2)} м/с`} tone={getVelocityTone(currentDiffuser?.performance?.workzoneVelocity || 0)} />
-                        <DetailRow label="Радиус покрытия" value={`${formatNumber(currentDiffuser?.performance?.coverageRadius || 0, 2)} м`} />
-                        <DetailRow label="Давление" value={`${formatNumber(currentDiffuser?.performance?.pressure || 0, 0)} Па`} />
-                        <DetailRow label="Шум" value={`${formatNumber(currentDiffuser?.performance?.noise || 0, 0)} дБ`} tone={getNoiseTone(currentDiffuser?.performance?.noise || 0)} />
-                    </div>
-                )}
+                </div>
             </SectionCard>
 
             <SectionCard title="Помещение" subtitle="Геометрия и режим расчёта" icon={<Home size={18} />}>
@@ -337,14 +278,13 @@ export const SimulatorRightPanel = ({
             <SectionCard title="Датчики" subtitle={probeCards.length > 0 ? `Точек измерения: ${probeCards.length}` : 'Измерения ещё не добавлены'} icon={<Target size={18} />}>
                 {probeCards.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
-                        Добавь датчик на сцену, и здесь появятся скорость, температура и DR в выбранной точке.
+                        Добавь датчик на сцену, и здесь появятся скорость и температура в выбранной точке.
                     </div>
                 ) : (
                     <div className="space-y-3">
                         {probeCards.map(({ probe, data }: any, idx: number) => {
-                            const tone = getDraftTone(data.dr);
                             return (
-                                <div key={probe.id} className={`rounded-2xl border p-4 ${TONE_STYLES[tone].tile}`}>
+                                <div key={probe.id} className={`rounded-2xl border p-4 ${TONE_STYLES.neutral.tile}`}>
                                     <div className="flex items-start justify-between gap-3">
                                         <div>
                                             <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Датчик #{idx + 1}</div>
@@ -360,10 +300,9 @@ export const SimulatorRightPanel = ({
                                         </button>
                                     </div>
 
-                                    <div className="mt-3 grid grid-cols-3 gap-2">
+                                    <div className="mt-3 grid grid-cols-2 gap-2">
                                         <StatPill label="V" value={`${formatNumber(data.v, 2)} м/с`} tone={getVelocityTone(data.v)} />
                                         <StatPill label="T" value={`${formatNumber(data.t, 1)} °C`} tone="neutral" />
-                                        <StatPill label="DR" value={`${formatNumber(data.dr, 0)} %`} tone={tone} />
                                     </div>
                                 </div>
                             );

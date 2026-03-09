@@ -33,6 +33,7 @@ export interface DiffuserMode {
   subtitle: string;
   b_text: string;
   flowType: string;
+  performanceFlowType?: string;
   icon: ReactNode;
 }
 
@@ -76,6 +77,8 @@ export interface PlacedDiffuser {
   x: number; // meters from left
   y: number; // meters from top
   modelId: string;
+  flowType: string;
+  modeIdx?: number;
   diameter: number | string;
   volume: number;
   temperature: number; // Supply temperature
