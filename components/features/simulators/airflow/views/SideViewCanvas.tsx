@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { PerformanceResult, PlacedDiffuser, Probe, ToolMode } from '../../../../../types';
-import { DIFFUSER_CATALOG } from '../../../../../constants';
+import { getDiffuserFlowType } from '../../../../../constants';
 
 const CONSTANTS = {
   BASE_TIME_STEP: 1/60, 
@@ -77,6 +77,40 @@ const getSideLayout = (w: number, h: number, rh: number, rw: number) => {
     return { ppm, offsetX, offsetY };
 };
 
+const sampleProjectedRing = (radius: number) => {
+    const azimuth = Math.random() * Math.PI * 2;
+    return {
+        offset: Math.cos(azimuth) * radius,
+        lateral: Math.cos(azimuth),
+        tangent: Math.sin(azimuth)
+    };
+};
+
+const sampleProjectedDisk = (radius: number) => {
+    const azimuth = Math.random() * Math.PI * 2;
+    const localRadius = Math.sqrt(Math.random()) * radius;
+    return {
+        offset: Math.cos(azimuth) * localRadius,
+        lateral: Math.cos(azimuth),
+        tangent: Math.sin(azimuth)
+    };
+};
+
+const getSideDiffuserGeometry = (modelId: string, nominalDepth: number) => {
+    switch (modelId) {
+        case 'dpu-m':
+            return { bodyDepth: nominalDepth * 1.1, outletOffset: nominalDepth * 0.78, horizontalOffset: nominalDepth * 0.16 };
+        case 'dpu-k':
+            return { bodyDepth: nominalDepth * 0.95, outletOffset: nominalDepth * 0.72, horizontalOffset: nominalDepth * 0.14 };
+        case 'dpu-v':
+            return { bodyDepth: nominalDepth * 0.8, outletOffset: nominalDepth * 0.5, horizontalOffset: nominalDepth * 0.12 };
+        case 'dpu-s':
+            return { bodyDepth: nominalDepth * 1.2, outletOffset: nominalDepth * 1.05, horizontalOffset: nominalDepth * 0.18 };
+        default:
+            return { bodyDepth: nominalDepth, outletOffset: nominalDepth * 0.7, horizontalOffset: nominalDepth * 0.15 };
+    }
+};
+
 const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const requestRef = useRef<number>(0);
@@ -130,7 +164,9 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         let activeDiffuser: {
             x: number, // Projected onto Screen X
             performance: PerformanceResult,
-            modelId: string
+            modelId: string,
+            flowType?: string,
+            modeIdx?: number
         };
 
         if (state.placedDiffusers && state.placedDiffusers.length > 0) {
@@ -140,27 +176,30 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
             activeDiffuser = {
                 x: offsetX + pos * ppm,
                 performance: d.performance,
-                modelId: d.modelId
+                modelId: d.modelId,
+                flowType: d.flowType,
+                modeIdx: d.modeIdx
             };
         } else {
             return;
         }
 
-        const { performance: physics, modelId, x: centerX } = activeDiffuser;
+        const { performance: physics, modelId, x: centerX, flowType: explicitFlowType, modeIdx } = activeDiffuser;
         const { temp, roomHeight, diffuserHeight } = state;
         
         if (physics.error) return;
         const spec = physics.spec;
         if (!spec || !spec.A) return;
 
-        const catalogItem = DIFFUSER_CATALOG.find(c => c.id === modelId);
-        const flowType = catalogItem ? catalogItem.modes[0].flowType : state.flowType;
+        const flowType = getDiffuserFlowType(modelId, modeIdx, explicitFlowType || state.flowType);
 
         const nozzleW = (spec.A / 1000) * ppm;
-        const scale = ppm / 1000;
-        
-        const diffuserYPos = offsetY + (roomHeight - diffuserHeight) * ppm;
-        const startY = diffuserYPos; // <-- Без дополнительных отступов
+        const nominalDepth = Math.max(16 * (ppm / 1000), (spec.D || 55) * (ppm / 1000));
+        const geometry = getSideDiffuserGeometry(modelId, nominalDepth);
+
+        const mountedHeight = Math.max(0, Math.min(diffuserHeight, roomHeight));
+        const diffuserYPos = offsetY + (roomHeight - mountedHeight) * ppm;
+        let startY = diffuserYPos + geometry.outletOffset;
 
         const pxSpeed = (physics.v0 || 0) * ppm * 0.8;
 
@@ -193,15 +232,26 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
             p.life = 3.0; 
             p.color = '150, 150, 150';
         } else {
-            if (flowType.includes('horizontal')) {
+            if (flowType === 'horizontal-fan') {
                 isHorizontal = true;
                 const side = Math.random() > 0.5 ? 1 : -1;
-                startX = centerX + side * (nozzleW * 0.55);
-                const spread = (Math.random() - 0.5) * 0.1; 
-                const angle = side === 1 ? spread : Math.PI + spread;
-                vx = Math.cos(angle) * pxSpeed * 1.2; 
-                vy = Math.sin(angle) * pxSpeed * 0.2; 
-                if (flowType.includes('swirl')) { waveAmp = 15; waveFreq = 8; } else { waveAmp = 3; }
+                startY = diffuserYPos + geometry.horizontalOffset;
+                startX = centerX + side * (nozzleW * (modelId === 'dpu-k' ? 0.4 : 0.48));
+                vx = side * pxSpeed * (modelId === 'dpu-k' ? 1.08 : 1.05);
+                vy = pxSpeed * (modelId === 'dpu-k' ? 0.015 : 0.03);
+                waveAmp = modelId === 'dpu-k' ? 0.9 : 1.2;
+                waveFreq = modelId === 'dpu-k' ? 6.2 : 5.5;
+                drag = modelId === 'dpu-k' ? 0.978 : 0.972;
+            } else if (flowType === 'horizontal-swirl') {
+                isHorizontal = true;
+                const side = Math.random() > 0.5 ? 1 : -1;
+                startY = diffuserYPos + geometry.horizontalOffset;
+                startX = centerX + side * (nozzleW * 0.45);
+                vx = side * pxSpeed * 0.95;
+                vy = pxSpeed * 0.02;
+                waveAmp = 7;
+                waveFreq = 7.5;
+                drag = 0.968;
             } else if (flowType === '4-way') {
                 isHorizontal = true;
                 const side = Math.random() > 0.5 ? 1 : -1;
@@ -209,44 +259,56 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 vx = side * pxSpeed * 1.0;
                 vy = pxSpeed * 0.1;
             } else if (modelId === 'dpu-m' && flowType.includes('vertical')) {
-                const side = Math.random() > 0.5 ? 1 : -1;
-                startX = centerX + side * nozzleW * (0.4 + Math.random() * 0.4);
-                const coneAngle = (35 + Math.random() * 10) * (Math.PI / 180);
-                vx = side * Math.sin(coneAngle) * pxSpeed;
+                const projection = sampleProjectedRing(nozzleW * (0.28 + Math.random() * 0.12));
+                startX = centerX + projection.offset;
+                const coneAngle = (30 + Math.random() * 8) * (Math.PI / 180);
+                vx = projection.lateral * Math.sin(coneAngle) * pxSpeed;
                 vy = Math.cos(coneAngle) * pxSpeed;
-                waveAmp = 5; drag = 0.95;
+                waveAmp = 2.5; drag = 0.955;
             } else if (modelId === 'dpu-k' && flowType.includes('vertical')) {
-                const side = Math.random() > 0.5 ? 1 : -1;
-                startX = centerX + side * nozzleW * (0.4 + Math.random() * 0.4);
-                const spreadAngle = (Math.random() - 0.5) * 60 * (Math.PI / 180); 
-                vx = Math.sin(spreadAngle) * pxSpeed * 0.8;
-                vy = Math.cos(spreadAngle) * pxSpeed;
-                waveAmp = 8; drag = 0.96;
+                const projection = sampleProjectedRing(nozzleW * (0.18 + Math.random() * 0.18));
+                startX = centerX + projection.offset;
+                const coneAngle = (18 + Math.random() * 18) * (Math.PI / 180);
+                vx = projection.lateral * Math.sin(coneAngle) * pxSpeed * 0.9;
+                vy = Math.cos(coneAngle) * pxSpeed;
+                waveAmp = 4.5; drag = 0.958;
             } else if (modelId === 'dpu-v' && flowType === 'vertical-swirl') {
-                const side = Math.random() > 0.5 ? 1 : -1;
-                startX = centerX + side * nozzleW * (0.4 + Math.random() * 0.5);
-                const spread = (Math.random() - 0.5) * 1.5; 
-                vx = Math.sin(spread) * pxSpeed * 0.5;
-                vy = Math.cos(spread) * pxSpeed;
-                waveAmp = 30 + Math.random() * 10; waveFreq = 6; drag = 0.94;
+                const projection = sampleProjectedRing(nozzleW * (0.22 + Math.random() * 0.18));
+                startX = centerX + projection.offset;
+                const coneAngle = (8 + Math.random() * 14) * (Math.PI / 180);
+                const radialVx = projection.lateral * Math.sin(coneAngle) * pxSpeed * 0.35;
+                const tangentialVx = projection.tangent * pxSpeed * 0.18;
+                vx = radialVx + tangentialVx;
+                vy = Math.cos(coneAngle) * pxSpeed;
+                waveAmp = 10 + Math.random() * 4; waveFreq = 6.5; drag = 0.95;
             } else if (modelId === 'dpu-s' && flowType === 'vertical-compact') {
-                startX = centerX + (Math.random() - 0.5) * nozzleW * 0.15;
-                const spread = (Math.random() - 0.5) * 0.05; 
-                vx = Math.sin(spread) * pxSpeed * 0.3;
-                vy = Math.cos(spread) * pxSpeed * 1.3; 
-                waveAmp = 1; drag = 0.985;
+                const projection = sampleProjectedDisk(nozzleW * 0.08);
+                startX = centerX + projection.offset;
+                const coneAngle = (2 + Math.random() * 4) * (Math.PI / 180);
+                vx = projection.lateral * Math.sin(coneAngle) * pxSpeed * 0.18;
+                vy = Math.cos(coneAngle) * pxSpeed * 1.05; 
+                waveAmp = 0.8; drag = 0.988;
             } else if (flowType === 'vertical-swirl') {
-                startX = centerX + (Math.random() - 0.5) * nozzleW * 0.9;
-                const spread = (Math.random() - 0.5) * 1.5; 
-                vx = Math.sin(spread) * pxSpeed * 0.5;
-                vy = Math.cos(spread) * pxSpeed;
-                waveAmp = 30 + Math.random() * 10; waveFreq = 6; drag = 0.94;
+                const projection = sampleProjectedRing(nozzleW * 0.22);
+                startX = centerX + projection.offset;
+                const coneAngle = (8 + Math.random() * 14) * (Math.PI / 180);
+                vx = projection.lateral * Math.sin(coneAngle) * pxSpeed * 0.25 + projection.tangent * pxSpeed * 0.15;
+                vy = Math.cos(coneAngle) * pxSpeed;
+                waveAmp = 10 + Math.random() * 4; waveFreq = 6.5; drag = 0.95;
             } else if (flowType === 'vertical-compact') {
-                startX = centerX + (Math.random() - 0.5) * nozzleW * 0.95;
-                const spread = (Math.random() - 0.5) * 0.05; 
-                vx = Math.sin(spread) * pxSpeed * 0.3;
-                vy = Math.cos(spread) * pxSpeed * 1.3; 
+                const projection = sampleProjectedDisk(nozzleW * 0.2);
+                startX = centerX + projection.offset;
+                const coneAngle = (3 + Math.random() * 6) * (Math.PI / 180);
+                vx = projection.lateral * Math.sin(coneAngle) * pxSpeed * 0.22;
+                vy = Math.cos(coneAngle) * pxSpeed * 1.15; 
                 waveAmp = 1; drag = 0.985;
+            } else {
+                const projection = sampleProjectedDisk(nozzleW * 0.25);
+                startX = centerX + projection.offset;
+                const coneAngle = (8 + Math.random() * 8) * (Math.PI / 180);
+                vx = projection.lateral * Math.sin(coneAngle) * pxSpeed * 0.28;
+                vy = Math.cos(coneAngle) * pxSpeed;
+                waveAmp = 2; drag = 0.96;
             }
 
             p.life = 2.0 + Math.random() * 1.5;
@@ -260,7 +322,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         p.active = true;
         p.lastHistoryTime = 0;
         p.history.length = 0; 
-        p.history.push({ x: startX, y: startY });
+        p.history.push({ x: startX, y: startY, age: 0 });
     };
 
     const drawDiffuserSideProfile = (
@@ -275,169 +337,149 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         const perf = overridePerf || state.physics;
         const modelId = overrideModelId || state.modelId;
         const spec = perf.spec;
-        
         if (!spec || !spec.A) return;
 
         const scale = ppm / 1000;
         const wA = spec.A * scale;
-        const hD = (spec.D || 0) * scale;
-        const hC = (spec.C || 0) * scale; 
-        const hTotal = hD + hC;
-        const yPos = offsetY + (state.roomHeight - state.diffuserHeight) * ppm;
-        
-        ctx.fillStyle = '#334155';
-        ctx.fillRect(cx - (wA * 0.8)/2, offsetY, wA * 0.8, yPos - offsetY);
-        
+        const nominalDepth = Math.max(16 * scale, (spec.D || 55) * scale);
+        const geometry = getSideDiffuserGeometry(modelId, nominalDepth);
+        const r = wA / 2;
+        const mountedHeight = Math.max(0, Math.min(state.diffuserHeight, state.roomHeight));
+        const yPos = offsetY + (state.roomHeight - mountedHeight) * ppm;
+        const lip = Math.max(2, 6 * scale);
+        const bodyFill = '#d9e1ea';
+        const detailFill = '#bcc8d6';
+        const accentFill = '#8d9daf';
+
         ctx.save();
         ctx.translate(cx, yPos);
-        
         ctx.lineWidth = 2;
-        ctx.strokeStyle = '#94a3b8';
-        ctx.fillStyle = '#cbd5e1';
-        
-        const r = wA / 2;
-        const h = hD;
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#8fa0b2';
+        ctx.fillStyle = bodyFill;
+
+        ctx.beginPath();
+        ctx.roundRect(-r * 0.92, 0, r * 1.84, lip, lip / 2);
+        ctx.fill();
+        ctx.stroke();
 
         switch (modelId) {
-            case 'dpu-m':
-                // Outer casing
+            case 'dpu-m': {
                 ctx.beginPath();
-                ctx.moveTo(-r, -h);
-                ctx.lineTo(-r, 0);
-                ctx.quadraticCurveTo(-r, h * 0.5, -r * 0.8, h * 0.8);
-                ctx.lineTo(r * 0.8, h * 0.8);
-                ctx.quadraticCurveTo(r, h * 0.5, r, 0);
-                ctx.lineTo(r, -h);
-                ctx.stroke();
-                
-                // Inner cone
-                ctx.beginPath();
-                ctx.moveTo(-r * 0.6, h * 0.8);
-                ctx.quadraticCurveTo(0, h * 1.5, r * 0.6, h * 0.8);
-                ctx.lineTo(-r * 0.6, h * 0.8);
+                ctx.moveTo(-r * 0.95, lip);
+                ctx.quadraticCurveTo(-r * 0.95, geometry.bodyDepth * 0.34, -r * 0.72, geometry.bodyDepth * 0.72);
+                ctx.lineTo(r * 0.72, geometry.bodyDepth * 0.72);
+                ctx.quadraticCurveTo(r * 0.95, geometry.bodyDepth * 0.34, r * 0.95, lip);
+                ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
-                
-                // Central rod
+
+                ctx.fillStyle = detailFill;
                 ctx.beginPath();
-                ctx.moveTo(0, -h);
-                ctx.lineTo(0, h * 1.2);
+                ctx.moveTo(-r * 0.56, geometry.bodyDepth * 0.62);
+                ctx.quadraticCurveTo(0, geometry.bodyDepth * 1.08, r * 0.56, geometry.bodyDepth * 0.62);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.strokeStyle = '#6e8094';
+                ctx.beginPath();
+                ctx.moveTo(0, lip);
+                ctx.lineTo(0, geometry.bodyDepth * 0.93);
+                ctx.moveTo(-r * 0.72, geometry.bodyDepth * 0.72);
+                ctx.lineTo(-r * 0.56, geometry.bodyDepth * 0.62);
+                ctx.moveTo(r * 0.72, geometry.bodyDepth * 0.72);
+                ctx.lineTo(r * 0.56, geometry.bodyDepth * 0.62);
                 ctx.stroke();
                 break;
-                
-            case 'dpu-k':
-                // Outer casing
+            }
+            case 'dpu-k': {
                 ctx.beginPath();
-                ctx.moveTo(-r, -h);
-                ctx.lineTo(-r, 0);
-                ctx.quadraticCurveTo(-r, h * 0.5, -r * 0.8, h * 0.8);
-                ctx.lineTo(r * 0.8, h * 0.8);
-                ctx.quadraticCurveTo(r, h * 0.5, r, 0);
-                ctx.lineTo(r, -h);
+                ctx.moveTo(-r * 0.95, lip);
+                ctx.quadraticCurveTo(-r * 0.95, geometry.bodyDepth * 0.34, -r * 0.72, geometry.bodyDepth * 0.68);
+                ctx.lineTo(r * 0.72, geometry.bodyDepth * 0.68);
+                ctx.quadraticCurveTo(r * 0.95, geometry.bodyDepth * 0.34, r * 0.95, lip);
+                ctx.closePath();
+                ctx.fill();
                 ctx.stroke();
-                
-                // Concentric cones
-                for (let i = 1; i <= 3; i++) {
-                    const cr = r * 0.8 * (i / 3);
-                    const ch = h * 0.8 + (3 - i) * 5 * scale;
+
+                ctx.strokeStyle = '#6e8094';
+                [0.42, 0.56, 0.70].forEach((ratio, idx) => {
+                    const span = r * (0.72 - idx * 0.15);
+                    const y = geometry.bodyDepth * ratio;
                     ctx.beginPath();
-                    ctx.moveTo(-cr, ch);
-                    ctx.lineTo(cr, ch);
+                    ctx.moveTo(-span, y);
+                    ctx.lineTo(span, y);
                     ctx.stroke();
-                    
-                    // Connect to center
                     ctx.beginPath();
-                    ctx.moveTo(-cr, ch);
-                    ctx.lineTo(0, ch - 10 * scale);
-                    ctx.moveTo(cr, ch);
-                    ctx.lineTo(0, ch - 10 * scale);
+                    ctx.moveTo(-span, y);
+                    ctx.lineTo(0, y - geometry.bodyDepth * 0.1);
+                    ctx.moveTo(span, y);
+                    ctx.lineTo(0, y - geometry.bodyDepth * 0.1);
                     ctx.stroke();
-                }
-                
-                // Central rod
+                });
+
                 ctx.beginPath();
-                ctx.moveTo(0, -h);
-                ctx.lineTo(0, h * 0.8 + 10 * scale);
+                ctx.moveTo(0, lip);
+                ctx.lineTo(0, geometry.bodyDepth * 0.75);
                 ctx.stroke();
                 break;
-                
-            case 'dpu-v':
-                // Outer casing
+            }
+            case 'dpu-v': {
                 ctx.beginPath();
-                ctx.moveTo(-r, -h);
-                ctx.lineTo(-r, 0);
-                ctx.quadraticCurveTo(-r, h * 0.5, -r * 0.8, h * 0.8);
-                ctx.lineTo(r * 0.8, h * 0.8);
-                ctx.quadraticCurveTo(r, h * 0.5, r, 0);
-                ctx.lineTo(r, -h);
+                ctx.moveTo(-r * 0.95, lip);
+                ctx.quadraticCurveTo(-r * 0.95, geometry.bodyDepth * 0.28, -r * 0.75, geometry.bodyDepth * 0.62);
+                ctx.lineTo(r * 0.75, geometry.bodyDepth * 0.62);
+                ctx.quadraticCurveTo(r * 0.95, geometry.bodyDepth * 0.28, r * 0.95, lip);
+                ctx.closePath();
+                ctx.fill();
                 ctx.stroke();
-                
-                // Swirl element
+
+                ctx.fillStyle = accentFill;
                 ctx.beginPath();
-                ctx.rect(-r * 0.8, h * 0.2, r * 1.6, h * 0.4);
+                ctx.roundRect(-r * 0.62, geometry.bodyDepth * 0.2, r * 1.24, geometry.bodyDepth * 0.26, lip / 2);
+                ctx.fill();
                 ctx.stroke();
-                
-                // Swirl blades (side view)
+
+                ctx.strokeStyle = '#e9f0f8';
                 for (let i = -3; i <= 3; i++) {
-                    const bx = i * (r * 0.2);
+                    const bx = i * r * 0.16;
                     ctx.beginPath();
-                    ctx.moveTo(bx - 5 * scale, h * 0.2);
-                    ctx.lineTo(bx + 5 * scale, h * 0.6);
+                    ctx.moveTo(bx - r * 0.06, geometry.bodyDepth * 0.2);
+                    ctx.lineTo(bx + r * 0.06, geometry.bodyDepth * 0.46);
                     ctx.stroke();
                 }
-                
-                // Central rod
+                break;
+            }
+            case 'dpu-s': {
                 ctx.beginPath();
-                ctx.moveTo(0, -h);
-                ctx.lineTo(0, h * 0.6);
+                ctx.moveTo(-r * 0.92, lip);
+                ctx.quadraticCurveTo(-r * 0.9, geometry.bodyDepth * 0.48, -r * 0.4, geometry.bodyDepth);
+                ctx.lineTo(r * 0.4, geometry.bodyDepth);
+                ctx.quadraticCurveTo(r * 0.9, geometry.bodyDepth * 0.48, r * 0.92, lip);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = detailFill;
+                ctx.beginPath();
+                ctx.moveTo(-r * 0.72, lip);
+                ctx.quadraticCurveTo(-r * 0.68, geometry.bodyDepth * 0.44, -r * 0.22, geometry.bodyDepth * 1.02);
+                ctx.lineTo(r * 0.22, geometry.bodyDepth * 1.02);
+                ctx.quadraticCurveTo(r * 0.68, geometry.bodyDepth * 0.44, r * 0.72, lip);
+                ctx.closePath();
+                ctx.fill();
                 ctx.stroke();
                 break;
-                
-            case 'dpu-s':
-                // Outer casing
-                ctx.beginPath();
-                ctx.moveTo(-r, -h);
-                ctx.lineTo(-r, 0);
-                ctx.quadraticCurveTo(-r, h * 0.8, -r * 0.4, h * 1.2);
-                ctx.lineTo(r * 0.4, h * 1.2);
-                ctx.quadraticCurveTo(r, h * 0.8, r, 0);
-                ctx.lineTo(r, -h);
-                ctx.stroke();
-                
-                // Inner nozzle
-                ctx.beginPath();
-                ctx.moveTo(-r * 0.8, 0);
-                ctx.quadraticCurveTo(-r * 0.8, h * 0.6, -r * 0.3, h * 1.2);
-                ctx.lineTo(r * 0.3, h * 1.2);
-                ctx.quadraticCurveTo(r * 0.8, h * 0.6, r * 0.8, 0);
-                ctx.stroke();
-                
-                // Central rod
-                ctx.beginPath();
-                ctx.moveTo(0, -h);
-                ctx.lineTo(0, h * 1.2);
-                ctx.stroke();
-                break;
-                
+            }
             default:
-                ctx.fillStyle = '#475569';
                 ctx.beginPath();
-                ctx.rect(-wA/2, 0, wA, hD); ctx.fill();
-                
-                ctx.fillStyle = '#94a3b8';
-                ctx.beginPath();
-                ctx.moveTo(-wA/2, hD);
-                
-                if (modelId === 'amn-adn') {
-                     ctx.rect(-wA/2, hD, wA, 5*scale);
-                } else {
-                     ctx.quadraticCurveTo(-wA/2, hTotal, 0, hTotal + 5);
-                     ctx.quadraticCurveTo(wA/2, hTotal, wA/2, hD);
-                }
-                ctx.closePath(); ctx.fill();
+                ctx.roundRect(-r * 0.8, lip, r * 1.6, geometry.bodyDepth * 0.7, lip / 2);
+                ctx.fill();
+                ctx.stroke();
                 break;
         }
-        
+
         ctx.restore();
     };
 
@@ -530,6 +572,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
 
         const state = simulationRef.current;
         const { width, height, isPowerOn, isPlaying, roomHeight } = state;
+        const mountedHeight = Math.max(0, Math.min(state.diffuserHeight, state.roomHeight));
         
         const dt = CONSTANTS.BASE_TIME_STEP;
         const roomDim = state.viewType === 'front' ? state.roomWidth : state.roomLength;
@@ -592,11 +635,11 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 if (p.isSuction) {
                     p.x += p.vx * dt; 
                     p.y += p.vy * dt;
-                    const diffY = offsetY + (state.roomHeight - state.diffuserHeight) * ppm;
+                    const diffY = offsetY + (state.roomHeight - mountedHeight) * ppm;
                     if (p.y > diffY - 10) p.active = false; 
                 } else {
                     if (p.isHorizontal) {
-                        const ceilingY = offsetY + (state.roomHeight - state.diffuserHeight) * ppm;
+                        const ceilingY = offsetY + (state.roomHeight - mountedHeight) * ppm;
                         if (p.y < ceilingY + (height * 0.15) && Math.abs(p.vx) > 0.3) { 
                             p.vy += (ceilingY - p.y) * 5.0 * dt; 
                         } else { 
@@ -614,26 +657,25 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 // Floor
                 if (p.y > offsetY + roomHeight * ppm) {
                     p.y = offsetY + roomHeight * ppm;
-                    p.vy *= -0.5;
-                    p.vx *= 0.8;
+                    p.active = false;
+                    continue;
                 }
                 // Ceiling
                 if (p.y < offsetY) {
                     p.y = offsetY;
-                    p.vy *= -0.5;
-                    p.vx *= 0.8;
+                    p.vy = Math.max(0, p.vy * -0.05);
                 }
                 // Left Wall
                 if (p.x < offsetX) {
                     p.x = offsetX;
-                    p.vx *= -0.5;
-                    p.vy *= 0.8;
+                    p.active = false;
+                    continue;
                 }
                 // Right Wall
                 if (p.x > offsetX + roomDim * ppm) {
                     p.x = offsetX + roomDim * ppm;
-                    p.vx *= -0.5;
-                    p.vy *= 0.8;
+                    p.active = false;
+                    continue;
                 }
 
                 if (p.age - p.lastHistoryTime >= CONSTANTS.HISTORY_RECORD_INTERVAL) {

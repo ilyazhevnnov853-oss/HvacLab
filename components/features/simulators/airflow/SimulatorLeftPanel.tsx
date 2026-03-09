@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Fan, ScanLine, Wind, Thermometer, Home, AlertTriangle, Power, PlusCircle, X, ChevronLeft, CheckCircle2, Shapes, Layers } from 'lucide-react';
-import { SPECS, DIFFUSER_CATALOG } from '../../../../constants';
+import { SPECS, DIFFUSER_CATALOG, getDiffuserMode, getDiffuserPerformanceFlowType } from '../../../../constants';
 import { calculatePerformance } from '../../../../hooks/useSimulation';
 import { GlassButton, GlassSlider } from '../../../ui/Shared';
 import { AccordionItem } from './SimulatorUI';
@@ -23,11 +23,11 @@ export const SimulatorLeftPanel = ({
     const handleModelChange = (id: string) => {
         const validDiameter = Object.keys(SPECS).find(d => {
             const val = !isNaN(Number(d)) ? Number(d) : d;
-            const model = DIFFUSER_CATALOG.find(m => m.id === id);
-            if (!model) return false;
+            const mode = getDiffuserMode(id, 0);
+            if (!mode) return false;
             // Use a volume that is within the spec's min/max to ensure it's valid
             const testVol = SPECS[d].min || 100;
-            return calculatePerformance(id, model.modes[0].flowType, val, testVol) !== null;
+            return calculatePerformance(id, getDiffuserPerformanceFlowType(id, 0, mode.performanceFlowType), val, testVol) !== null;
         });
         const newDiameter = validDiameter ? (!isNaN(Number(validDiameter)) ? Number(validDiameter) : validDiameter) : '';
         
@@ -38,6 +38,23 @@ export const SimulatorLeftPanel = ({
              if (newVol > max) newVol = max;
         }
         setParams(p => ({ ...p, modelId: id, modeIdx: 0, diameter: newDiameter, volume: newVol }));
+        setSizeSelected(!!newDiameter);
+    };
+
+    const handleModeChange = (nextModeIdx: number) => {
+        const validDiameter = Object.keys(SPECS).find(d => {
+            const val = !isNaN(Number(d)) ? Number(d) : d;
+            const testVol = SPECS[d].min || 100;
+            return calculatePerformance(params.modelId, getDiffuserPerformanceFlowType(params.modelId, nextModeIdx), val, testVol) !== null;
+        });
+        const newDiameter = validDiameter ? (!isNaN(Number(validDiameter)) ? Number(validDiameter) : validDiameter) : params.diameter;
+        let newVol = params.volume;
+        if (newDiameter && SPECS[newDiameter]) {
+             const { min, max } = SPECS[newDiameter];
+             if (newVol < min) newVol = min;
+             if (newVol > max) newVol = max;
+        }
+        setParams((p: any) => ({ ...p, modeIdx: nextModeIdx, diameter: newDiameter, volume: newVol }));
         setSizeSelected(!!newDiameter);
     };
 
@@ -123,6 +140,24 @@ export const SimulatorLeftPanel = ({
                             </div>
                             <div className="mb-6 p-4 rounded-2xl bg-black/5 dark:bg-black/20 border border-black/5 dark:border-white/5">
                                 <div className="flex justify-between items-baseline mb-3">
+                                    <label className="text-[9px] font-bold text-slate-500 uppercase">Mode</label>
+                                    <span className="text-[9px] text-slate-400 font-bold">{currentMode?.b_text}</span>
+                                </div>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {(DIFFUSER_CATALOG.find(m => m.id === params.modelId)?.modes || []).map((mode, idx) => (
+                                        <button
+                                            key={mode.id}
+                                            onClick={() => handleModeChange(idx)}
+                                            className={`px-3 py-2.5 rounded-xl border text-left transition-all ${params.modeIdx === idx ? 'bg-blue-600 text-white border-blue-500/50 shadow-[0_8px_20px_rgba(37,99,235,0.25)]' : 'bg-white/70 dark:bg-white/5 text-slate-600 dark:text-slate-300 border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/10'}`}
+                                        >
+                                            <div className="text-[10px] font-bold">{mode.name} / {mode.subtitle}</div>
+                                            <div className={`text-[9px] mt-1 ${params.modeIdx === idx ? 'text-blue-100' : 'text-slate-400'}`}>{mode.b_text}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="mb-6 p-4 rounded-2xl bg-black/5 dark:bg-black/20 border border-black/5 dark:border-white/5">
+                                <div className="flex justify-between items-baseline mb-3">
                                     <label className="text-[9px] font-bold text-slate-500 uppercase">Типоразмер</label>
                                     {!sizeSelected && <span className="text-[9px] text-amber-500 font-bold animate-pulse flex items-center gap-1"><AlertTriangle size={10}/> Выберите размер</span>}
                                 </div>
@@ -130,7 +165,7 @@ export const SimulatorLeftPanel = ({
                                     {Object.keys(SPECS).map(d => {
                                         const val = !isNaN(Number(d)) ? Number(d) : d;
                                         const testVol = SPECS[d].min || 100;
-                                        if (calculatePerformance(params.modelId, currentMode.flowType, val, testVol) === null) return null;
+                                        if (calculatePerformance(params.modelId, getDiffuserPerformanceFlowType(params.modelId, params.modeIdx), val, testVol) === null) return null;
                                         return <button key={d} onClick={() => handleSizeSelect(val)} className={`px-4 py-2.5 rounded-xl text-[10px] font-bold font-mono transition-all border ${params.diameter === val ? 'bg-slate-900 dark:bg-white text-white dark:text-black border-transparent shadow-[0_0_15px_rgba(0,0,0,0.2)] dark:shadow-[0_0_15px_rgba(255,255,255,0.4)] scale-105' : 'bg-white dark:bg-white/5 text-slate-500 border-black/5 dark:border-transparent hover:bg-black/5 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'}`}>{d}</button>;
                                     })}
                                 </div>

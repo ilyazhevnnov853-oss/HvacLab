@@ -157,6 +157,32 @@ export const DIFFUSER_CATALOG: DiffuserModel[] = [
     }
 ];
 
+export const getDiffuserMode = (modelId: string, modeIdx: number = 0) => {
+    const model = DIFFUSER_CATALOG.find(item => item.id === modelId);
+    return model?.modes[modeIdx] || model?.modes[0];
+};
+
+export const getDiffuserFlowType = (
+    modelId: string,
+    modeIdx: number = 0,
+    explicitFlowType?: string
+) => {
+    if (explicitFlowType) return explicitFlowType;
+    const mode = getDiffuserMode(modelId, modeIdx);
+    return mode?.flowType || 'vertical-conical';
+};
+
+export const getDiffuserPerformanceFlowType = (
+    modelId: string,
+    modeIdx: number = 0,
+    explicitFlowType?: string
+) => {
+    if (explicitFlowType) return explicitFlowType;
+    const mode = getDiffuserMode(modelId, modeIdx);
+    // @ts-ignore
+    return mode?.performanceFlowType || mode?.flowType || 'vertical-conical';
+};
+
 // Helper components for Wiki - ESTHETICALLY ENHANCED
 const Var = ({c}: {c: string; children?: React.ReactNode}) => <span className="font-serif italic text-blue-200 font-semibold tracking-wide text-xl">{c}</span>;
 const Num = ({c}: {c: string; children?: React.ReactNode}) => <span className="font-mono text-emerald-300 font-bold text-lg">{c}</span>;

@@ -8,7 +8,7 @@ import SimulatorHelpOverlay from './SimulatorHelpOverlay';
 import { useScientificSimulation, calculateSimulationField, analyzeField } from '../../../../hooks/useSimulation';
 import { PlacedDiffuser, Probe, ToolMode } from '../../../../types';
 import { GlassButton } from '../../../ui/Shared';
-import { DIFFUSER_CATALOG } from '../../../../constants';
+import { DIFFUSER_CATALOG, getDiffuserMode, getDiffuserFlowType, getDiffuserPerformanceFlowType } from '../../../../constants';
 
 const Simulator = ({ onBack, onHome }: any) => {
     // --- STATE ---
@@ -52,16 +52,26 @@ const Simulator = ({ onBack, onHome }: any) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [viewSize, setViewSize] = useState({ w: 800, h: 600 });
 
-    // --- PHYSICS CALCULATION ---
-    // 1. Single Diffuser Physics (Base Performance)
-    const flowType = useMemo(() => {
-        const catalogItem = DIFFUSER_CATALOG.find(c => c.id === params.modelId);
-        return catalogItem ? catalogItem.modes[0].flowType : 'vertical-conical';
-    }, [params.modelId]);
+    const currentModel = useMemo(
+        () => DIFFUSER_CATALOG.find(d => d.id === params.modelId),
+        [params.modelId]
+    );
+    const currentMode = useMemo(
+        () => getDiffuserMode(params.modelId, params.modeIdx) || currentModel?.modes[0] || { flowType: 'vertical-conical' },
+        [currentModel, params.modelId, params.modeIdx]
+    );
+    const visualFlowType = useMemo(
+        () => getDiffuserFlowType(params.modelId, params.modeIdx),
+        [params.modelId, params.modeIdx]
+    );
+    const performanceFlowType = useMemo(
+        () => getDiffuserPerformanceFlowType(params.modelId, params.modeIdx),
+        [params.modelId, params.modeIdx]
+    );
 
     const physics = useScientificSimulation(
         params.modelId,
-        flowType,
+        performanceFlowType,
         params.diameter,
         params.volume,
         params.temperature,
@@ -133,13 +143,15 @@ const Simulator = ({ onBack, onHome }: any) => {
                 x: params.roomWidth / 2, 
                 y: params.roomLength / 2, 
                 modelId: params.modelId, 
+                flowType: visualFlowType,
+                modeIdx: params.modeIdx,
                 diameter: params.diameter, 
                 volume: params.volume, 
                 temperature: params.temperature,
                 performance: physics
             }]);
         }
-    }, []);
+    }, [params.diameter, params.modeIdx, params.modelId, params.roomLength, params.roomWidth, params.temperature, physics, placedDiffusers.length, visualFlowType]);
 
     // Update diffusers when global params change (if single mode logic is desired)
     // Or just update the one selected? For this simulator, we update ALL to match params for simplicity
@@ -149,13 +161,15 @@ const Simulator = ({ onBack, onHome }: any) => {
             setPlacedDiffusers(prev => prev.map(d => ({
                 ...d,
                 modelId: params.modelId,
+                flowType: visualFlowType,
+                modeIdx: params.modeIdx,
                 diameter: params.diameter,
                 volume: params.volume,
                 temperature: params.temperature,
                 performance: physics
             })));
         }
-    }, [params.modelId, params.diameter, params.volume, params.temperature, physics]);
+    }, [params.diameter, params.modeIdx, params.modelId, params.temperature, params.volume, physics, visualFlowType]);
 
     // Ограничение координат диффузоров и датчиков при изменении габаритов комнаты
     useEffect(() => {
@@ -184,6 +198,8 @@ const Simulator = ({ onBack, onHome }: any) => {
             x,
             y,
             modelId: params.modelId,
+            flowType: visualFlowType,
+            modeIdx: params.modeIdx,
             diameter: params.diameter,
             volume: params.volume,
             temperature: params.temperature,
@@ -258,9 +274,6 @@ const Simulator = ({ onBack, onHome }: any) => {
     const toggleSection = (id: string) => setOpenSection(openSection === id ? null : id);
     
     // Derived current flow type for passing to Canvas
-    const currentModel = DIFFUSER_CATALOG.find(d => d.id === params.modelId);
-    const currentMode = currentModel?.modes[params.modeIdx] || currentModel?.modes[0] || { flowType: 'vertical-conical' };
-
     return (
         <div className="flex w-full min-h-screen bg-[#F5F5F7] dark:bg-[#020205] flex-col lg:flex-row relative font-sans text-slate-900 dark:text-slate-200 overflow-hidden selection:bg-blue-500/30">
             {/* Help Overlay */}
@@ -302,7 +315,7 @@ const Simulator = ({ onBack, onHome }: any) => {
                         isPlaying={isPlaying} 
                         temp={params.temperature} 
                         roomTemp={params.roomTemp} 
-                        flowType={currentMode.flowType} 
+                        flowType={visualFlowType} 
                         modelId={params.modelId}
                         showGrid={showGrid} 
                         roomHeight={params.roomHeight} 

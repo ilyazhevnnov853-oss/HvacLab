@@ -9,6 +9,7 @@ const drawRealisticDiffuser3D = (
     centerY: number, 
     centerZ: number, 
     radius: number, 
+    bodyDepth: number,
     modelId: string, 
     p3d: (x: number, y: number, z: number) => {x: number, y: number, s: number}
 ) => {
@@ -39,52 +40,86 @@ const drawRealisticDiffuser3D = (
         ctx.stroke();
     };
 
+    const fillBand3D = (
+        topRadius: number,
+        topOffset: number,
+        bottomRadius: number,
+        bottomOffset: number,
+        fill: string,
+        segments: number = 40
+    ) => {
+        ctx.fillStyle = fill;
+        for (let i = 0; i < segments; i++) {
+            const a0 = (i * Math.PI * 2) / segments;
+            const a1 = ((i + 1) * Math.PI * 2) / segments;
+
+            const p1 = p3d(centerX + Math.cos(a0) * topRadius, centerY + topOffset, centerZ + Math.sin(a0) * topRadius);
+            const p2 = p3d(centerX + Math.cos(a1) * topRadius, centerY + topOffset, centerZ + Math.sin(a1) * topRadius);
+            const p3 = p3d(centerX + Math.cos(a1) * bottomRadius, centerY + bottomOffset, centerZ + Math.sin(a1) * bottomRadius);
+            const p4 = p3d(centerX + Math.cos(a0) * bottomRadius, centerY + bottomOffset, centerZ + Math.sin(a0) * bottomRadius);
+
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.lineTo(p4.x, p4.y);
+            ctx.closePath();
+            ctx.fill();
+        }
+    };
+
+    const bodyFill = '#d9e1ea';
+    const detailFill = '#bcc8d6';
+    const accentFill = '#8d9daf';
+
     ctx.lineWidth = 1;
-    ctx.strokeStyle = '#94a3b8'; 
-    ctx.fillStyle = '#cbd5e1';
+    ctx.strokeStyle = '#8fa0b2'; 
+    ctx.fillStyle = bodyFill;
 
     // ВАЖНО: h теперь откладывается ВВЕРХ (в запотолочное пространство)
-    const h = radius * 0.5; 
+    const top = -Math.max(1.5, bodyDepth * 0.1);
+    const h = Math.max(bodyDepth, radius * 0.45); 
 
     switch (modelId) {
         case 'dpu-m':
-            drawFilledRing3D(radius, 0);
-            drawRing3D(radius, h); // Уходит в потолок
+            fillBand3D(radius * 0.95, top, radius * 0.72, top - h * 0.72, bodyFill);
+            drawFilledRing3D(radius * 0.95, top);
+            drawFilledRing3D(radius * 0.72, top - h * 0.72);
             
             for (let i = 0; i < 8; i++) {
                 const angle = (i * Math.PI * 2) / 8;
-                const x = centerX + Math.cos(angle) * radius;
-                const z = centerZ + Math.sin(angle) * radius;
-                const p1 = p3d(x, centerY, z);
-                const p2 = p3d(x, centerY + h, z);
+                const x = centerX + Math.cos(angle) * radius * 0.94;
+                const z = centerZ + Math.sin(angle) * radius * 0.94;
+                const p1 = p3d(x, centerY + top, z);
+                const p2 = p3d(centerX + Math.cos(angle) * radius * 0.58, centerY + top - h * 0.72, centerZ + Math.sin(angle) * radius * 0.58);
                 ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
             }
 
-            ctx.fillStyle = '#94a3b8';
-            drawFilledRing3D(radius * 0.6, h * 0.8);
-            drawRing3D(0, h * 1.5);
+            ctx.fillStyle = detailFill;
+            drawFilledRing3D(radius * 0.56, top - h * 0.92);
             
-            const rodTop = p3d(centerX, centerY, centerZ);
-            const rodBottom = p3d(centerX, centerY + h * 1.5, centerZ);
+            const rodTop = p3d(centerX, centerY + top, centerZ);
+            const rodBottom = p3d(centerX, centerY + top - h * 0.98, centerZ);
             ctx.beginPath(); ctx.moveTo(rodTop.x, rodTop.y); ctx.lineTo(rodBottom.x, rodBottom.y); ctx.stroke();
             break;
             
         case 'dpu-k':
-            drawFilledRing3D(radius, 0);
-            drawRing3D(radius, h);
+            fillBand3D(radius * 0.95, top, radius * 0.72, top - h * 0.68, bodyFill);
+            drawFilledRing3D(radius * 0.95, top);
+            drawRing3D(radius * 0.72, top - h * 0.68);
             
             for (let i = 0; i < 8; i++) {
                 const angle = (i * Math.PI * 2) / 8;
-                const x = centerX + Math.cos(angle) * radius;
-                const z = centerZ + Math.sin(angle) * radius;
-                const p1 = p3d(x, centerY, z);
-                const p2 = p3d(x, centerY + h, z);
+                const x = centerX + Math.cos(angle) * radius * 0.94;
+                const z = centerZ + Math.sin(angle) * radius * 0.94;
+                const p1 = p3d(x, centerY + top, z);
+                const p2 = p3d(centerX + Math.cos(angle) * radius * 0.58, centerY + top - h * 0.68, centerZ + Math.sin(angle) * radius * 0.58);
                 ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
             }
 
             for (let i = 1; i <= 3; i++) {
-                const cr = radius * 0.8 * (i / 3);
-                const ch = h * 0.8 + (3 - i) * (h * 0.2);
+                const cr = radius * (0.3 + i * 0.17);
+                const ch = top - h * (0.22 + i * 0.14);
                 drawRing3D(cr, ch);
                 
                 for (let j = 0; j < 3; j++) {
@@ -92,33 +127,25 @@ const drawRealisticDiffuser3D = (
                     const x = centerX + Math.cos(angle) * cr;
                     const z = centerZ + Math.sin(angle) * cr;
                     const p1 = p3d(x, centerY + ch, z);
-                    const p2 = p3d(centerX, centerY + ch - h * 0.2, centerZ);
+                    const p2 = p3d(centerX, centerY + ch - h * 0.08, centerZ);
                     ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
                 }
             }
             
-            const rodTopK = p3d(centerX, centerY, centerZ);
-            const rodBottomK = p3d(centerX, centerY + h * 1.2, centerZ);
+            const rodTopK = p3d(centerX, centerY + top, centerZ);
+            const rodBottomK = p3d(centerX, centerY + top - h * 0.95, centerZ);
             ctx.beginPath(); ctx.moveTo(rodTopK.x, rodTopK.y); ctx.lineTo(rodBottomK.x, rodBottomK.y); ctx.stroke();
             break;
             
         case 'dpu-v':
-            drawFilledRing3D(radius, 0);
-            drawRing3D(radius, h);
-            
-            for (let i = 0; i < 8; i++) {
-                const angle = (i * Math.PI * 2) / 8;
-                const x = centerX + Math.cos(angle) * radius;
-                const z = centerZ + Math.sin(angle) * radius;
-                const p1 = p3d(x, centerY, z);
-                const p2 = p3d(x, centerY + h, z);
-                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
-            }
-            
-            ctx.fillStyle = '#94a3b8';
-            drawFilledRing3D(radius * 0.4, h * 0.5);
-            
-            ctx.beginPath();
+            fillBand3D(radius * 0.95, top, radius * 0.75, top - h * 0.62, bodyFill);
+            drawFilledRing3D(radius * 0.95, top);
+            drawFilledRing3D(radius * 0.75, top - h * 0.62);
+
+            ctx.fillStyle = accentFill;
+            drawFilledRing3D(radius * 0.62, top - h * 0.32);
+
+            ctx.strokeStyle = '#e9f0f8';
             const numSlots = 10;
             for (let i = 0; i < numSlots; i++) {
                 const angle = (i * Math.PI * 2) / numSlots;
@@ -130,38 +157,33 @@ const drawRealisticDiffuser3D = (
                 const x2 = centerX + Math.cos(angle + 0.4) * endR;
                 const z2 = centerZ + Math.sin(angle + 0.4) * endR;
                 
-                const p1 = p3d(x1, centerY + h * 0.5, z1);
-                const p2 = p3d(x2, centerY + h * 0.5, z2);
-                
+                const p1 = p3d(x1, centerY + top - h * 0.32, z1);
+                const p2 = p3d(x2, centerY + top - h * 0.32, z2);
+
+                ctx.beginPath();
                 ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
             }
-            ctx.stroke();
             break;
             
         case 'dpu-s':
-            drawFilledRing3D(radius, 0);
-            drawRing3D(radius, h);
+            fillBand3D(radius * 0.92, top, radius * 0.4, top - h, bodyFill);
+            drawFilledRing3D(radius * 0.92, top);
+
+            ctx.fillStyle = detailFill;
+            fillBand3D(radius * 0.72, top, radius * 0.22, top - h * 1.02, detailFill);
+            drawFilledRing3D(radius * 0.22, top - h * 1.02);
+
+            ctx.strokeStyle = '#6e8094';
             
             for (let i = 0; i < 8; i++) {
                 const angle = (i * Math.PI * 2) / 8;
-                const x = centerX + Math.cos(angle) * radius;
-                const z = centerZ + Math.sin(angle) * radius;
-                const p1 = p3d(x, centerY, z);
-                const p2 = p3d(x, centerY + h, z);
-                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
-            }
-            
-            ctx.lineWidth = 2;
-            drawRing3D(radius * 0.3, h * 1.2);
-            
-            for (let i = 0; i < 8; i++) {
-                const angle = (i * Math.PI * 2) / 8;
-                const x1 = centerX + Math.cos(angle) * radius;
-                const z1 = centerZ + Math.sin(angle) * radius;
+                const x1 = centerX + Math.cos(angle) * radius * 0.92;
+                const z1 = centerZ + Math.sin(angle) * radius * 0.92;
                 const x2 = centerX + Math.cos(angle) * (radius * 0.3);
                 const z2 = centerZ + Math.sin(angle) * (radius * 0.3);
-                const p1 = p3d(x1, centerY + h, z1);
-                const p2 = p3d(x2, centerY + h * 1.2, z2);
+                const p1 = p3d(x1, centerY + top - h, z1);
+                const p2 = p3d(x2, centerY + top - h * 1.08, z2);
                 ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
             }
             break;
@@ -175,7 +197,7 @@ const drawRealisticDiffuser3D = (
                 {x: centerX - radius, z: centerZ + radius}
             ];
             corners.forEach((c, i) => {
-                const p = p3d(c.x, centerY, c.z);
+                const p = p3d(c.x, centerY + top, c.z);
                 if (i === 0) ctx.moveTo(p.x, p.y);
                 else ctx.lineTo(p.x, p.y);
             });
@@ -379,19 +401,24 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
         }
 
         // Draw Diffuser Bodies in 3D
-        const diffY = (state.diffuserHeight) * PPM;
+        const mountY = Math.max(0, Math.min(state.diffuserHeight, state.roomHeight)) * PPM;
         const sources = (placedDiffusers && placedDiffusers.length > 0) ? placedDiffusers : [{
-            x: state.roomWidth / 2, y: state.roomLength / 2, performance: state.physics, modelId: state.modelId
+            x: state.roomWidth / 2,
+            y: state.roomLength / 2,
+            performance: state.physics,
+            modelId: state.modelId,
+            flowType: state.flowType
         }];
 
         sources.forEach(d => {
             const cx = (d.x - state.roomWidth / 2) * PPM;
             const cz = (d.y - state.roomLength / 2) * PPM;
-            const p = p3d(cx, diffY, cz);
+            const p = p3d(cx, mountY, cz);
             
             if (p.s > 0) {
-                const r = (d.performance.spec.A ? Math.sqrt(d.performance.spec.A)/50 : 0.15) * PPM * finalScale * 0.5;
-                drawRealisticDiffuser3D(ctx, cx, diffY, cz, Math.max(2, r), d.modelId, p3d);
+                const r = ((d.performance.spec.A || 150) / 2000) * PPM;
+                const nominalDepth = Math.max(16 * (PPM / 1000), ((d.performance.spec.D || 55) * PPM) / 1000);
+                drawRealisticDiffuser3D(ctx, cx, mountY, cz, Math.max(2, r), nominalDepth, d.modelId, p3d);
             }
         });
 

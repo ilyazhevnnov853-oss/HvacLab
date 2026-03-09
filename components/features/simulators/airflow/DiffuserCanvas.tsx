@@ -124,6 +124,7 @@ const DiffuserCanvas: React.FC<DiffuserCanvasProps> = (props) => {
                 roomLength={props.roomLength || 6}
                 diffuserHeight={props.diffuserHeight}
                 workZoneHeight={props.workZoneHeight}
+                viewMode="3d"
                 placedDiffusers={props.placedDiffusers}
                 // Pass 3D Props
                 probes={props.probes}

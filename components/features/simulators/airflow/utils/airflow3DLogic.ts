@@ -1,4 +1,4 @@
-import { DIFFUSER_CATALOG } from '../../../../../constants';
+import { getDiffuserFlowType } from '../../../../../constants';
 import { PerformanceResult, PlacedDiffuser, Probe } from '../../../../../types';
 
 export const CONSTANTS = {
@@ -36,6 +36,7 @@ export interface ThreeDViewCanvasProps {
   roomLength: number;
   diffuserHeight: number; 
   workZoneHeight: number;
+  viewMode?: '3d';
   placedDiffusers?: PlacedDiffuser[];
   probes?: Probe[];
 }
@@ -68,13 +69,49 @@ const getGlowColor = (t: number) => {
     return `255, 255, 255`;
 };
 
+const sampleRingEmitter = (radius: number) => {
+    const angle = Math.random() * Math.PI * 2;
+    return {
+        angle,
+        x: Math.cos(angle) * radius,
+        z: Math.sin(angle) * radius
+    };
+};
+
+const sampleDiskEmitter = (radius: number) => {
+    const angle = Math.random() * Math.PI * 2;
+    const localRadius = Math.sqrt(Math.random()) * radius;
+    return {
+        angle,
+        x: Math.cos(angle) * localRadius,
+        z: Math.sin(angle) * localRadius
+    };
+};
+
+const get3DDiffuserGeometry = (modelId: string, nominalDepth: number) => {
+    switch (modelId) {
+        case 'dpu-m':
+            return { bodyDepth: nominalDepth * 1.1, outletOffset: nominalDepth * 0.78, horizontalOffset: nominalDepth * 0.16 };
+        case 'dpu-k':
+            return { bodyDepth: nominalDepth * 0.95, outletOffset: nominalDepth * 0.72, horizontalOffset: nominalDepth * 0.14 };
+        case 'dpu-v':
+            return { bodyDepth: nominalDepth * 0.8, outletOffset: nominalDepth * 0.5, horizontalOffset: nominalDepth * 0.12 };
+        case 'dpu-s':
+            return { bodyDepth: nominalDepth * 1.2, outletOffset: nominalDepth * 1.05, horizontalOffset: nominalDepth * 0.18 };
+        default:
+            return { bodyDepth: nominalDepth, outletOffset: nominalDepth * 0.7, horizontalOffset: nominalDepth * 0.15 };
+    }
+};
+
 export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: number) => {
     // Determine Source
     let activeDiffuser: {
         x: number, 
         y: number, // Z in 3D logic
         performance: PerformanceResult,
-        modelId: string
+        modelId: string,
+        flowType?: string,
+        modeIdx?: number
     };
 
     if (state.placedDiffusers && state.placedDiffusers.length > 0) {
@@ -85,7 +122,9 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
             x: (d.x - state.roomWidth / 2) * ppm,
             y: (d.y - state.roomLength / 2) * ppm, // This corresponds to Z in 3D
             performance: d.performance,
-            modelId: d.modelId
+            modelId: d.modelId,
+            flowType: d.flowType,
+            modeIdx: d.modeIdx
         };
     } else {
         // Default single center
@@ -93,30 +132,31 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
             x: 0,
             y: 0,
             performance: state.physics,
-            modelId: state.modelId
+            modelId: state.modelId,
+            flowType: state.flowType
         };
     }
 
-    const { performance: physics, modelId, x: centerX, y: centerZ } = activeDiffuser;
-    const { temp, diffuserHeight } = state;
+    const { performance: physics, modelId, x: centerX, y: centerZ, flowType: explicitFlowType, modeIdx } = activeDiffuser;
+    const { temp, diffuserHeight, roomHeight } = state;
     
     if (physics.error) return;
     const spec = physics.spec;
     if (!spec || !spec.A) return;
 
-    const catalogItem = DIFFUSER_CATALOG.find(c => c.id === modelId);
-    const flowType = (catalogItem ? catalogItem.modes[0].flowType : state.flowType) || 'vertical';
+    const flowType = getDiffuserFlowType(modelId, modeIdx, explicitFlowType || state.flowType);
 
-    const scale = ppm / 1000;
     const nozzleW = (spec.A / 1000) * ppm;
-    
-    // In 3D logic: Y is UP. Diffuser is at Y = diffuserHeight * ppm.
-    const startY = diffuserHeight * ppm;
+    const nominalDepth = Math.max(16 * (ppm / 1000), (spec.D || 55) * (ppm / 1000));
+    const geometry = get3DDiffuserGeometry(modelId, nominalDepth);
+
+    const mountedHeight = Math.max(0, Math.min(diffuserHeight, roomHeight));
+    const startY = mountedHeight * ppm - geometry.outletOffset;
 
     const pxSpeed = (physics.v0 || 0) * ppm * 0.8;
 
     let pX = centerX;
-    let pY = startY; // <-- Убрали смещение! Теперь старт ровно в плоскости диффузора
+    let pY = startY;
     let pZ = centerZ;
 
     let vx = 0, vy = 0, vz = 0;
@@ -136,18 +176,34 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
         p.life = 3.0; 
         p.color = '150, 150, 150';
     } else {
-        if (flowType.includes('horizontal')) {
+        if (flowType === 'horizontal-fan') {
             isHorizontal = true;
             const angle = Math.random() * Math.PI * 2;
-            
-            pX += Math.cos(angle) * nozzleW * 0.55;
-            pZ += Math.sin(angle) * nozzleW * 0.55;
-            
-            vx = Math.cos(angle) * pxSpeed * 1.2;
-            vz = Math.sin(angle) * pxSpeed * 1.2;
-            vy = -Math.abs(pxSpeed * 0.2); // Slightly down initially
-            
-            if (flowType.includes('swirl')) { waveAmp = 15; waveFreq = 8; } else { waveAmp = 3; }
+            const radiusFactor = modelId === 'dpu-k' ? 0.4 : 0.48;
+            const speedFactor = modelId === 'dpu-k' ? 1.08 : 1.02;
+            const dropFactor = modelId === 'dpu-k' ? 0.018 : 0.04;
+            pY = mountedHeight * ppm - geometry.horizontalOffset;
+            pX += Math.cos(angle) * nozzleW * radiusFactor;
+            pZ += Math.sin(angle) * nozzleW * radiusFactor;
+            vx = Math.cos(angle) * pxSpeed * speedFactor;
+            vz = Math.sin(angle) * pxSpeed * speedFactor;
+            vy = -Math.abs(pxSpeed * dropFactor);
+            waveAmp = modelId === 'dpu-k' ? 0.9 : 1.2;
+            waveFreq = modelId === 'dpu-k' ? 6.2 : 5.5;
+            drag = modelId === 'dpu-k' ? 0.978 : 0.972;
+        } else if (flowType === 'horizontal-swirl') {
+            isHorizontal = true;
+            const angle = Math.random() * Math.PI * 2;
+            pY = mountedHeight * ppm - geometry.horizontalOffset;
+            pX += Math.cos(angle) * nozzleW * 0.45;
+            pZ += Math.sin(angle) * nozzleW * 0.45;
+            const tangentialSpeed = pxSpeed * 0.22;
+            vx = Math.cos(angle) * pxSpeed * 0.88 - Math.sin(angle) * tangentialSpeed;
+            vz = Math.sin(angle) * pxSpeed * 0.88 + Math.cos(angle) * tangentialSpeed;
+            vy = -Math.abs(pxSpeed * 0.03);
+            waveAmp = 6;
+            waveFreq = 7.2;
+            drag = 0.968;
         } else if (flowType === '4-way') {
             isHorizontal = true;
             const dir = Math.floor(Math.random() * 4);
@@ -160,81 +216,67 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
             vz = Math.sin(angle) * pxSpeed * 1.0;
             vy = -Math.abs(pxSpeed * 0.1);
         } else if (modelId === 'dpu-m' && flowType.includes('vertical')) {
-            const angle = Math.random() * Math.PI * 2;
-            const radius = nozzleW * (0.4 + Math.random() * 0.4);
-            pX += Math.cos(angle) * radius;
-            pZ += Math.sin(angle) * radius;
-            const coneAngle = (35 + Math.random() * 10) * (Math.PI / 180);
+            const emitter = sampleRingEmitter(nozzleW * (0.28 + Math.random() * 0.12));
+            pX += emitter.x;
+            pZ += emitter.z;
+            const coneAngle = (30 + Math.random() * 8) * (Math.PI / 180);
             const horizontalSpeed = Math.sin(coneAngle) * pxSpeed;
-            vx = Math.cos(angle) * horizontalSpeed;
-            vz = Math.sin(angle) * horizontalSpeed;
+            vx = Math.cos(emitter.angle) * horizontalSpeed;
+            vz = Math.sin(emitter.angle) * horizontalSpeed;
             vy = -Math.cos(coneAngle) * pxSpeed;
-            waveAmp = 5; drag = 0.95;
+            waveAmp = 3; drag = 0.955;
         } else if (modelId === 'dpu-k' && flowType.includes('vertical')) {
-            const angle = Math.random() * Math.PI * 2;
-            const radius = nozzleW * (0.4 + Math.random() * 0.4);
-            pX += Math.cos(angle) * radius;
-            pZ += Math.sin(angle) * radius;
-            const spreadAngle = (Math.random() - 0.5) * 60 * (Math.PI / 180); 
-            const horizontalSpeed = Math.sin(spreadAngle) * pxSpeed * 0.8;
-            vx = Math.cos(angle) * horizontalSpeed;
-            vz = Math.sin(angle) * horizontalSpeed;
-            vy = -Math.cos(spreadAngle) * pxSpeed;
-            waveAmp = 8; drag = 0.96;
+            const emitter = sampleRingEmitter(nozzleW * (0.18 + Math.random() * 0.18));
+            pX += emitter.x;
+            pZ += emitter.z;
+            const coneAngle = (18 + Math.random() * 18) * (Math.PI / 180);
+            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * 0.9;
+            vx = Math.cos(emitter.angle) * horizontalSpeed;
+            vz = Math.sin(emitter.angle) * horizontalSpeed;
+            vy = -Math.cos(coneAngle) * pxSpeed;
+            waveAmp = 5; drag = 0.958;
         } else if (modelId === 'dpu-v' && flowType === 'vertical-swirl') {
-            const numSlots = 10;
-            const slotIdx = Math.floor(Math.random() * numSlots);
-            const baseAngle = (slotIdx * Math.PI * 2) / numSlots;
-            const angle = baseAngle + (Math.random() * 0.2 - 0.1);
-            
-            const radius = nozzleW * (0.4 + Math.random() * 0.5);
-            pX += Math.cos(angle) * radius;
-            pZ += Math.sin(angle) * radius;
-            
-            const spread = (Math.random() - 0.5) * 1.5; 
-            const horizontalSpeed = Math.sin(spread) * pxSpeed * 0.5;
-            
-            const tangentialSpeed = pxSpeed * 0.3;
-            vx = Math.cos(angle) * horizontalSpeed - Math.sin(angle) * tangentialSpeed;
-            vz = Math.sin(angle) * horizontalSpeed + Math.cos(angle) * tangentialSpeed;
-            
-            vy = -Math.cos(spread) * pxSpeed;
-            waveAmp = 30 + Math.random() * 10; waveFreq = 6; drag = 0.94;
+            const emitter = sampleRingEmitter(nozzleW * (0.22 + Math.random() * 0.18));
+            pX += emitter.x;
+            pZ += emitter.z;
+            const coneAngle = (8 + Math.random() * 14) * (Math.PI / 180);
+            const radialSpeed = Math.sin(coneAngle) * pxSpeed * 0.35;
+            const tangentialSpeed = pxSpeed * (0.22 + Math.random() * 0.05);
+            vx = Math.cos(emitter.angle) * radialSpeed - Math.sin(emitter.angle) * tangentialSpeed;
+            vz = Math.sin(emitter.angle) * radialSpeed + Math.cos(emitter.angle) * tangentialSpeed;
+            vy = -Math.cos(coneAngle) * pxSpeed;
+            waveAmp = 14 + Math.random() * 4; waveFreq = 6.5; drag = 0.95;
         } else if (modelId === 'dpu-s' && flowType === 'vertical-compact') {
-            const angle = Math.random() * Math.PI * 2;
-            const radius = Math.random() * nozzleW * 0.15;
-            pX += Math.cos(angle) * radius;
-            pZ += Math.sin(angle) * radius;
-            const spread = (Math.random() - 0.5) * 0.05; 
-            const horizontalSpeed = Math.sin(spread) * pxSpeed * 0.3;
-            vx = Math.cos(angle) * horizontalSpeed;
-            vz = Math.sin(angle) * horizontalSpeed;
-            vy = -Math.cos(spread) * pxSpeed;
-            waveAmp = 2; drag = 0.98;
+            const emitter = sampleDiskEmitter(nozzleW * 0.08);
+            pX += emitter.x;
+            pZ += emitter.z;
+            const coneAngle = (2 + Math.random() * 4) * (Math.PI / 180);
+            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * 0.18;
+            vx = Math.cos(emitter.angle) * horizontalSpeed;
+            vz = Math.sin(emitter.angle) * horizontalSpeed;
+            vy = -Math.cos(coneAngle) * pxSpeed * 1.05;
+            waveAmp = 0.8; drag = 0.988;
         } else if (flowType === 'vertical-compact') {
-            const angle = Math.random() * Math.PI * 2;
-            const radius = Math.random() * nozzleW * 0.95;
-            pX += Math.cos(angle) * radius;
-            pZ += Math.sin(angle) * radius;
-            const spread = (Math.random() - 0.5) * 0.05; 
-            const horizontalSpeed = Math.sin(spread) * pxSpeed * 0.3;
-            vx = Math.cos(angle) * horizontalSpeed;
-            vz = Math.sin(angle) * horizontalSpeed;
-            vy = -Math.cos(spread) * pxSpeed * 1.3; 
+            const emitter = sampleDiskEmitter(nozzleW * 0.2);
+            pX += emitter.x;
+            pZ += emitter.z;
+            const coneAngle = (3 + Math.random() * 6) * (Math.PI / 180);
+            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * 0.22;
+            vx = Math.cos(emitter.angle) * horizontalSpeed;
+            vz = Math.sin(emitter.angle) * horizontalSpeed;
+            vy = -Math.cos(coneAngle) * pxSpeed * 1.15; 
             waveAmp = 1; drag = 0.985;
         } else {
             // Vertical
-            const angle = Math.random() * Math.PI * 2;
-            const radius = Math.random() * nozzleW * 0.5;
-            pX += Math.cos(angle) * radius;
-            pZ += Math.sin(angle) * radius;
-            
-            const spread = 0.2 + (Math.random()-0.5)*0.1;
-            vx = Math.cos(angle) * pxSpeed * spread;
-            vz = Math.sin(angle) * pxSpeed * spread;
-            vy = -pxSpeed; // Down
-            
-            waveAmp = 5; drag = 0.95;
+            const emitter = sampleDiskEmitter(nozzleW * 0.25);
+            pX += emitter.x;
+            pZ += emitter.z;
+            const coneAngle = (8 + Math.random() * 8) * (Math.PI / 180);
+            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * 0.28;
+            vx = Math.cos(emitter.angle) * horizontalSpeed;
+            vz = Math.sin(emitter.angle) * horizontalSpeed;
+            vy = -Math.cos(coneAngle) * pxSpeed;
+            waveAmp = 2; drag = 0.96;
         }
 
         p.life = 2.0 + Math.random() * 1.5;
@@ -249,19 +291,21 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
     p.active = true;
     p.lastHistoryTime = 0;
     p.history.length = 0; 
-    p.history.push({ x: pX, y: pY, z: pZ });
+    p.history.push({ x: pX, y: pY, z: pZ, age: 0 });
 };
 
 export const updateParticlePhysics = (p: Particle3D, dt: number, state: ThreeDViewCanvasProps, ppm: number) => {
+    const mountedHeight = Math.max(0, Math.min(state.diffuserHeight, state.roomHeight));
+
     if (p.isSuction) {
         p.x += p.vx * dt; 
         p.y += p.vy * dt;
         p.z += p.vz * dt;
-        const diffY = state.diffuserHeight * ppm;
+        const diffY = mountedHeight * ppm;
         if (p.y > diffY - 10) p.active = false; 
     } else {
         if (p.isHorizontal) {
-            const ceilingY = state.diffuserHeight * ppm;
+            const ceilingY = mountedHeight * ppm;
             const ceilingDist = ceilingY - p.y;
             const thresholdDist = state.roomHeight * ppm * 0.15;
             
@@ -283,21 +327,16 @@ export const updateParticlePhysics = (p: Particle3D, dt: number, state: ThreeDVi
         p.z += p.vz * dt;
     }
 
-    // Collisions
-    // Floor
-    if (p.y < 0) {
-        p.y = 0;
-        p.vy *= -0.5;
-        p.vx *= 0.8;
-        p.vz *= 0.8;
-    }
-    // Ceiling
     const ceilingY = state.roomHeight * ppm;
     if (p.y > ceilingY) {
         p.y = ceilingY;
-        p.vy *= -0.5;
-        p.vx *= 0.8;
-        p.vz *= 0.8;
+        p.vy = Math.min(0, p.vy * -0.05);
+    }
+    // Floor
+    if (p.y < 0) {
+        p.y = 0;
+        p.active = false;
+        return;
     }
     // Walls
     const halfW = (state.roomWidth * ppm) / 2;
@@ -305,25 +344,17 @@ export const updateParticlePhysics = (p: Particle3D, dt: number, state: ThreeDVi
     
     if (p.x < -halfW) {
         p.x = -halfW;
-        p.vx *= -0.5;
-        p.vy *= 0.8;
-        p.vz *= 0.8;
+        p.active = false;
     } else if (p.x > halfW) {
         p.x = halfW;
-        p.vx *= -0.5;
-        p.vy *= 0.8;
-        p.vz *= 0.8;
+        p.active = false;
     }
 
     if (p.z < -halfL) {
         p.z = -halfL;
-        p.vz *= -0.5;
-        p.vx *= 0.8;
-        p.vy *= 0.8;
+        p.active = false;
     } else if (p.z > halfL) {
         p.z = halfL;
-        p.vz *= -0.5;
-        p.vx *= 0.8;
-        p.vy *= 0.8;
+        p.active = false;
     }
 };
