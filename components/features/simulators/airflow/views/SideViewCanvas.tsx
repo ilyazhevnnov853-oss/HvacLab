@@ -160,8 +160,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         const scale = ppm / 1000;
         
         const diffuserYPos = offsetY + (roomHeight - diffuserHeight) * ppm;
-        const hD = (spec.D || 0) * scale;
-        const startY = diffuserYPos + hD;
+        const startY = diffuserYPos; // <-- Без дополнительных отступов
 
         const pxSpeed = (physics.v0 || 0) * ppm * 0.8;
 

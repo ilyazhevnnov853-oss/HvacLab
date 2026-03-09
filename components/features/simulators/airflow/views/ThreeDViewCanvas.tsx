@@ -43,109 +43,80 @@ const drawRealisticDiffuser3D = (
     ctx.strokeStyle = '#94a3b8'; 
     ctx.fillStyle = '#cbd5e1';
 
-    const h = radius * 0.5; // Depth of the diffuser
+    // ВАЖНО: h теперь откладывается ВВЕРХ (в запотолочное пространство)
+    const h = radius * 0.5; 
 
     switch (modelId) {
         case 'dpu-m':
-            // Outer casing
             drawFilledRing3D(radius, 0);
-            drawRing3D(radius, -h);
+            drawRing3D(radius, h); // Уходит в потолок
             
-            // Connect top and bottom rings of outer casing
             for (let i = 0; i < 8; i++) {
                 const angle = (i * Math.PI * 2) / 8;
                 const x = centerX + Math.cos(angle) * radius;
                 const z = centerZ + Math.sin(angle) * radius;
                 const p1 = p3d(x, centerY, z);
-                const p2 = p3d(x, centerY - h, z);
-                ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
+                const p2 = p3d(x, centerY + h, z);
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
             }
 
-            // Inner cone
             ctx.fillStyle = '#94a3b8';
-            drawFilledRing3D(radius * 0.6, -h * 0.8);
-            drawRing3D(0, -h * 1.5);
+            drawFilledRing3D(radius * 0.6, h * 0.8);
+            drawRing3D(0, h * 1.5);
             
-            // Central rod
             const rodTop = p3d(centerX, centerY, centerZ);
-            const rodBottom = p3d(centerX, centerY - h * 1.5, centerZ);
-            ctx.beginPath();
-            ctx.moveTo(rodTop.x, rodTop.y);
-            ctx.lineTo(rodBottom.x, rodBottom.y);
-            ctx.stroke();
+            const rodBottom = p3d(centerX, centerY + h * 1.5, centerZ);
+            ctx.beginPath(); ctx.moveTo(rodTop.x, rodTop.y); ctx.lineTo(rodBottom.x, rodBottom.y); ctx.stroke();
             break;
             
         case 'dpu-k':
-            // Outer casing
             drawFilledRing3D(radius, 0);
-            drawRing3D(radius, -h);
+            drawRing3D(radius, h);
             
-            // Connect top and bottom rings of outer casing
             for (let i = 0; i < 8; i++) {
                 const angle = (i * Math.PI * 2) / 8;
                 const x = centerX + Math.cos(angle) * radius;
                 const z = centerZ + Math.sin(angle) * radius;
                 const p1 = p3d(x, centerY, z);
-                const p2 = p3d(x, centerY - h, z);
-                ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
+                const p2 = p3d(x, centerY + h, z);
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
             }
 
-            // Concentric cones
             for (let i = 1; i <= 3; i++) {
                 const cr = radius * 0.8 * (i / 3);
-                const ch = -h * 0.8 - (3 - i) * (h * 0.2);
+                const ch = h * 0.8 + (3 - i) * (h * 0.2);
                 drawRing3D(cr, ch);
                 
-                // Connect to center
                 for (let j = 0; j < 3; j++) {
                     const angle = (j * 120 * Math.PI) / 180 - Math.PI / 2;
                     const x = centerX + Math.cos(angle) * cr;
                     const z = centerZ + Math.sin(angle) * cr;
                     const p1 = p3d(x, centerY + ch, z);
-                    const p2 = p3d(centerX, centerY + ch + h * 0.2, centerZ);
-                    ctx.beginPath();
-                    ctx.moveTo(p1.x, p1.y);
-                    ctx.lineTo(p2.x, p2.y);
-                    ctx.stroke();
+                    const p2 = p3d(centerX, centerY + ch - h * 0.2, centerZ);
+                    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
                 }
             }
             
-            // Central rod
             const rodTopK = p3d(centerX, centerY, centerZ);
-            const rodBottomK = p3d(centerX, centerY - h * 1.2, centerZ);
-            ctx.beginPath();
-            ctx.moveTo(rodTopK.x, rodTopK.y);
-            ctx.lineTo(rodBottomK.x, rodBottomK.y);
-            ctx.stroke();
+            const rodBottomK = p3d(centerX, centerY + h * 1.2, centerZ);
+            ctx.beginPath(); ctx.moveTo(rodTopK.x, rodTopK.y); ctx.lineTo(rodBottomK.x, rodBottomK.y); ctx.stroke();
             break;
             
         case 'dpu-v':
-            // Outer casing
             drawFilledRing3D(radius, 0);
-            drawRing3D(radius, -h);
+            drawRing3D(radius, h);
             
-            // Connect top and bottom rings of outer casing
             for (let i = 0; i < 8; i++) {
                 const angle = (i * Math.PI * 2) / 8;
                 const x = centerX + Math.cos(angle) * radius;
                 const z = centerZ + Math.sin(angle) * radius;
                 const p1 = p3d(x, centerY, z);
-                const p2 = p3d(x, centerY - h, z);
-                ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
+                const p2 = p3d(x, centerY + h, z);
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
             }
             
-            // Swirl element
             ctx.fillStyle = '#94a3b8';
-            drawFilledRing3D(radius * 0.4, -h * 0.5);
+            drawFilledRing3D(radius * 0.4, h * 0.5);
             
             ctx.beginPath();
             const numSlots = 10;
@@ -159,50 +130,39 @@ const drawRealisticDiffuser3D = (
                 const x2 = centerX + Math.cos(angle + 0.4) * endR;
                 const z2 = centerZ + Math.sin(angle + 0.4) * endR;
                 
-                const p1 = p3d(x1, centerY - h * 0.5, z1);
-                const p2 = p3d(x2, centerY - h * 0.5, z2);
+                const p1 = p3d(x1, centerY + h * 0.5, z1);
+                const p2 = p3d(x2, centerY + h * 0.5, z2);
                 
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
+                ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
             }
             ctx.stroke();
             break;
             
         case 'dpu-s':
-            // Outer casing
             drawFilledRing3D(radius, 0);
-            drawRing3D(radius, -h);
+            drawRing3D(radius, h);
             
-            // Connect top and bottom rings of outer casing
             for (let i = 0; i < 8; i++) {
                 const angle = (i * Math.PI * 2) / 8;
                 const x = centerX + Math.cos(angle) * radius;
                 const z = centerZ + Math.sin(angle) * radius;
                 const p1 = p3d(x, centerY, z);
-                const p2 = p3d(x, centerY - h, z);
-                ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
+                const p2 = p3d(x, centerY + h, z);
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
             }
             
-            // Inner nozzle
             ctx.lineWidth = 2;
-            drawRing3D(radius * 0.3, -h * 1.2);
+            drawRing3D(radius * 0.3, h * 1.2);
             
-            // Connect outer casing to inner nozzle
             for (let i = 0; i < 8; i++) {
                 const angle = (i * Math.PI * 2) / 8;
                 const x1 = centerX + Math.cos(angle) * radius;
                 const z1 = centerZ + Math.sin(angle) * radius;
                 const x2 = centerX + Math.cos(angle) * (radius * 0.3);
                 const z2 = centerZ + Math.sin(angle) * (radius * 0.3);
-                const p1 = p3d(x1, centerY - h, z1);
-                const p2 = p3d(x2, centerY - h * 1.2, z2);
-                ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
+                const p1 = p3d(x1, centerY + h, z1);
+                const p2 = p3d(x2, centerY + h * 1.2, z2);
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
             }
             break;
             

@@ -116,7 +116,7 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
     const pxSpeed = (physics.v0 || 0) * ppm * 0.8;
 
     let pX = centerX;
-    let pY = startY - (spec.D || 0) * scale; // Emit slightly below ceiling
+    let pY = startY; // <-- Убрали смещение! Теперь старт ровно в плоскости диффузора
     let pZ = centerZ;
 
     let vx = 0, vy = 0, vz = 0;
