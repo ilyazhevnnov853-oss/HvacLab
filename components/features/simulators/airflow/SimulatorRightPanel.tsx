@@ -175,34 +175,6 @@ export const SimulatorRightPanel = ({
 
     const content = (
         <div className="space-y-4">
-            <section className="rounded-[32px] border border-black/5 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(241,245,249,0.92))] p-5 shadow-[0_28px_60px_-30px_rgba(15,23,42,0.45)] ring-1 ring-black/5 dark:border-white/8 dark:bg-[linear-gradient(135deg,rgba(11,16,32,0.96),rgba(15,23,42,0.92))] dark:ring-white/5">
-                <div className="flex items-start justify-between gap-4">
-                    <div>
-                        <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-sky-600 dark:text-sky-300">Сводка</div>
-                        <div className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-white">Поток и комфорт</div>
-                        <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                            Срез рабочей зоны {formatNumber(params?.workZoneHeight || 0, 1)} м, вид {VIEW_LABELS[viewMode] || viewMode}
-                        </div>
-                    </div>
-                    <div className="rounded-[24px] bg-slate-950 px-4 py-3 text-right text-white shadow-[0_16px_30px_-20px_rgba(15,23,42,0.8)] dark:bg-white dark:text-slate-950">
-                        <div className="text-[9px] font-bold uppercase tracking-[0.22em] opacity-60">Диффузоры</div>
-                        <div className="mt-1 font-mono text-2xl font-black leading-none">{diffusers.length}</div>
-                    </div>
-                </div>
-
-                <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-                        {hasDiffusers ? 'активная сцена' : 'предпросмотр'}
-                    </span>
-                    <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-                        монтаж {params?.isCeilingMounted ? 'в потолке' : 'свободный'}
-                    </span>
-                    <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-                        помещение {formatNumber(roomArea, 1)} м²
-                    </span>
-                </div>
-            </section>
-
             <SectionCard title="Система" subtitle="Общие показатели по текущей конфигурации" icon={<ScanLine size={18} />}>
                 <div className="grid grid-cols-1 gap-3">
                     <MetricTile

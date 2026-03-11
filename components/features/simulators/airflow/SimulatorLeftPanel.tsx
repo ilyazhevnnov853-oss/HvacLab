@@ -21,15 +21,20 @@ export const SimulatorLeftPanel = ({
 }: any) => {
 
     const handleModelChange = (id: string) => {
-        const validDiameter = Object.keys(SPECS).find(d => {
-            const val = !isNaN(Number(d)) ? Number(d) : d;
-            const mode = getDiffuserMode(id, 0);
-            if (!mode) return false;
-            // Use a volume that is within the spec's min/max to ensure it's valid
-            const testVol = SPECS[d].min || 100;
-            return calculatePerformance(id, getDiffuserPerformanceFlowType(id, 0, mode.performanceFlowType), val, testVol) !== null;
-        });
-        const newDiameter = validDiameter ? (!isNaN(Number(validDiameter)) ? Number(validDiameter) : validDiameter) : '';
+        const mode = getDiffuserMode(id, 0);
+        if (!mode) return;
+        
+        const currentDiameterValid = calculatePerformance(id, getDiffuserPerformanceFlowType(id, 0, mode.performanceFlowType), params.diameter, params.volume) !== null;
+        
+        let newDiameter = params.diameter;
+        if (!currentDiameterValid) {
+            const validDiameter = Object.keys(SPECS).find(d => {
+                const val = !isNaN(Number(d)) ? Number(d) : d;
+                const testVol = SPECS[d].min || 100;
+                return calculatePerformance(id, getDiffuserPerformanceFlowType(id, 0, mode.performanceFlowType), val, testVol) !== null;
+            });
+            newDiameter = validDiameter ? (!isNaN(Number(validDiameter)) ? Number(validDiameter) : validDiameter) : params.diameter;
+        }
         
         let newVol = params.volume;
         if (newDiameter && SPECS[newDiameter]) {
@@ -42,12 +47,18 @@ export const SimulatorLeftPanel = ({
     };
 
     const handleModeChange = (nextModeIdx: number) => {
-        const validDiameter = Object.keys(SPECS).find(d => {
-            const val = !isNaN(Number(d)) ? Number(d) : d;
-            const testVol = SPECS[d].min || 100;
-            return calculatePerformance(params.modelId, getDiffuserPerformanceFlowType(params.modelId, nextModeIdx), val, testVol) !== null;
-        });
-        const newDiameter = validDiameter ? (!isNaN(Number(validDiameter)) ? Number(validDiameter) : validDiameter) : params.diameter;
+        const currentDiameterValid = calculatePerformance(params.modelId, getDiffuserPerformanceFlowType(params.modelId, nextModeIdx), params.diameter, params.volume) !== null;
+        
+        let newDiameter = params.diameter;
+        if (!currentDiameterValid) {
+            const validDiameter = Object.keys(SPECS).find(d => {
+                const val = !isNaN(Number(d)) ? Number(d) : d;
+                const testVol = SPECS[d].min || 100;
+                return calculatePerformance(params.modelId, getDiffuserPerformanceFlowType(params.modelId, nextModeIdx), val, testVol) !== null;
+            });
+            newDiameter = validDiameter ? (!isNaN(Number(validDiameter)) ? Number(validDiameter) : validDiameter) : params.diameter;
+        }
+        
         let newVol = params.volume;
         if (newDiameter && SPECS[newDiameter]) {
              const { min, max } = SPECS[newDiameter];

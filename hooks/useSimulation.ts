@@ -1,7 +1,7 @@
 
 import { useMemo } from 'react';
 import { SPECS, ENGINEERING_DATA, getDiffuserFlowType } from '../constants';
-import { isHorizontalFlowType } from '../components/features/simulators/airflow/utils/diffuserJetProfile';
+import { isHorizontalFlowType, getHorizontalJetProfile, getVerticalJetProfile } from '../components/features/simulators/airflow/utils/diffuserJetProfile';
 import { PerformanceResult, Spec, PlacedDiffuser, ProbeData, GridPoint } from '../types';
 
 // ==========================================
@@ -296,10 +296,14 @@ export const calculateProbeData = (
         const dTemp = d.temperature || supplyTemp;
 
         if (isHorizontal) {
+            const hProf = getHorizontalJetProfile(d.modelId, flowType);
+            const speedFactor = hProf ? hProf.speedFactor : 1.0;
+            const dropFactor = hProf ? hProf.dropFactor : 0.1;
+            
             const dt = dTemp - roomTemp;
             const dy = calculateVerticalDeflection(dist2D, d.performance.v0, dt, roomTemp);
             
-            const jetZ = diffZ + dy;
+            const jetZ = diffZ + dy - dist2D * dropFactor;
             const distZ = Math.abs(probe.z - jetZ);
             
             const jetThickness = 0.15 * (dist2D + 0.5); 
@@ -307,13 +311,17 @@ export const calculateProbeData = (
 
             const Ak_m = Math.sqrt(d.performance.spec.A / 1000000); 
             const decay = Math.min(1, (2.0 * Ak_m) / (dist2D + 0.1));
-            const vAxis = d.performance.v0 * decay;
+            const vAxis = d.performance.v0 * speedFactor * decay;
 
             vPoint = vAxis * vertFactor;
         } else {
-            const radius = d.performance.coverageRadius;
+            const vProf = getVerticalJetProfile(d.modelId, flowType);
+            const speedFactor = vProf ? vProf.speedFactor : 1.0;
+            const horizontalFactor = vProf ? vProf.horizontalFactor : 0.5;
+            
+            const radius = d.performance.coverageRadius * (0.5 + horizontalFactor);
             if (dist2D <= radius) {
-                const vCore = d.performance.workzoneVelocity;
+                const vCore = d.performance.workzoneVelocity * speedFactor;
                 vPoint = vCore * Math.max(0, 1 - Math.pow(dist2D / radius, 1.5));
             }
         }
@@ -401,7 +409,7 @@ export const calculateSimulationField = (
             const isHorizontal = isHorizontalFlowType(flowType);
             const specArea = d.performance.spec?.A || 0;
             const Ak_m = Math.sqrt(specArea / 1000000);
-            return { ...d, isHorizontal, Ak_m };
+            return { ...d, isHorizontal, Ak_m, flowType };
         });
 
     for (let r = 0; r < rows; r++) {
@@ -424,13 +432,17 @@ export const calculateSimulationField = (
                 const dTemp = d.temperature || supplyTemp;
 
                 if (d.isHorizontal) {
+                    const hProf = getHorizontalJetProfile(d.modelId, d.flowType);
+                    const speedFactor = hProf ? hProf.speedFactor : 1.0;
+                    const dropFactor = hProf ? hProf.dropFactor : 0.1;
+                    
                     const Ar = d.performance.Ar || calculateArchimedes(d.performance.v0, d.performance.spec.f0, dTemp, roomTemp); 
                     const g = 9.81;
                     const l0 = d.Ak_m;
                     const K = 5.0; 
                     // Approximation from Ar/dT - if Ar is missing from perf, use recalculated
                     const dy = K * (Ar / (g * l0)) * Math.pow(dist2D, 3);
-                    const jetZ = diffuserHeight + dy; 
+                    const jetZ = diffuserHeight + dy - dist2D * dropFactor; 
                     const distZ = Math.abs(z - jetZ);
                     const jetThickness = 0.15 * (dist2D + 0.5);
                     const vertFactor = Math.exp(-Math.pow(distZ, 2) / (2 * Math.pow(jetThickness, 2)));
@@ -439,11 +451,15 @@ export const calculateSimulationField = (
                     const coandaFactor = isCeilingMounted ? 1.4 : 1.0;
                     const decay = Math.min(1, (coandaFactor * 2.0 * d.Ak_m) / (dist2D + 0.1));
                     
-                    vPoint = d.performance.v0 * decay * vertFactor;
+                    vPoint = d.performance.v0 * speedFactor * decay * vertFactor;
                 } else {
-                    const radius = d.performance.coverageRadius;
+                    const vProf = getVerticalJetProfile(d.modelId, d.flowType);
+                    const speedFactor = vProf ? vProf.speedFactor : 1.0;
+                    const horizontalFactor = vProf ? vProf.horizontalFactor : 0.5;
+                    
+                    const radius = d.performance.coverageRadius * (0.5 + horizontalFactor);
                     if (dist2D <= radius) {
-                        const vCore = d.performance.workzoneVelocity;
+                        const vCore = d.performance.workzoneVelocity * speedFactor;
                         vPoint = vCore * Math.max(0, 1 - Math.pow(dist2D / radius, 1.5));
                     }
                 }
