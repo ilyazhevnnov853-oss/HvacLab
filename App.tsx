@@ -246,12 +246,14 @@ const AppContent = () => {
                 <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 dark:opacity-20 brightness-100 contrast-150 pointer-events-none"></div>
 
                 <div className="z-10 flex flex-col items-center gap-10 md:gap-16 w-full p-4 md:p-8 h-full pt-12 md:pt-8">
-                    <div className={`text-center space-y-2 md:space-y-6 transition-all duration-700 ${launcherSection !== 'main' ? 'scale-75 opacity-0 absolute -top-20' : ''}`}>
-                         <h1 className="text-5xl md:text-6xl lg:text-8xl font-black tracking-tighter text-slate-900 dark:text-white drop-shadow-2xl">
-                            HVAC<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 dark:from-blue-400 dark:via-purple-400 dark:to-emerald-400">LAB</span>
-                        </h1>
-                        <p className="text-slate-500 dark:text-blue-200/60 text-[10px] md:text-sm font-bold tracking-[0.3em] uppercase">Инженерный комплекс</p>
-                    </div>
+                    {launcherSection === 'main' && (
+                        <div className="text-center space-y-2 md:space-y-6">
+                             <h1 className="text-5xl md:text-6xl lg:text-8xl font-black tracking-tighter text-slate-900 dark:text-white drop-shadow-2xl">
+                                HVAC<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 dark:from-blue-400 dark:via-purple-400 dark:to-emerald-400">LAB</span>
+                            </h1>
+                            <p className="text-slate-500 dark:text-blue-200/60 text-[10px] md:text-sm font-bold tracking-[0.3em] uppercase">Инженерный комплекс</p>
+                        </div>
+                    )}
 
                     <div className="w-full flex justify-center flex-1">
                         {launcherSection === 'main' && renderMainLauncher()}
