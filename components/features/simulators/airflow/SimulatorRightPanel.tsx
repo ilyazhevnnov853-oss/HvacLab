@@ -214,21 +214,6 @@ export const SimulatorRightPanel = ({
                 subtitle={currentModel ? `${currentModel.series} ${currentModel.name}` : 'Текущая конфигурация'}
                 icon={<Fan size={18} />}
             >
-                <div className="mb-4 flex flex-wrap gap-2">
-                    <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-200">
-                        {activeDiffuser ? `диффузор #${activeDiffuser.index}` : 'предпросмотр'}
-                    </span>
-                    {currentMode ? (
-                        <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300">
-                            {currentMode.name} / {currentMode.subtitle}
-                        </span>
-                    ) : null}
-                    {currentMode?.b_text ? (
-                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-                            {currentMode.b_text}
-                        </span>
-                    ) : null}
-                </div>
                 <div>
                         <DetailRow label="Типоразмер" value={currentDiffuser?.diameter ? `${currentDiffuser.diameter} mm` : '-'} />
                         <DetailRow label="Расход" value={`${formatNumber(currentDiffuser?.volume || 0, 0)} м³/ч`} tone="info" />
