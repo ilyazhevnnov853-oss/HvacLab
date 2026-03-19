@@ -76,9 +76,9 @@ const getGlowColor = (t: number) => {
 
 const getSideLayout = (w: number, h: number, rh: number, rw: number) => {
     const padding = 60;
-    const availW = w - padding * 2;
-    const availH = h - padding * 2;
-    const ppm = Math.min(availW / rw, availH / rh);
+    const availW = Math.max(10, w - padding * 2);
+    const availH = Math.max(10, h - padding * 2);
+    const ppm = Math.max(0.1, Math.min(availW / rw, availH / rh));
     const offsetX = (w - rw * ppm) / 2;
     const offsetY = (h - rh * ppm) / 2;
     return { ppm, offsetX, offsetY };

@@ -46,101 +46,20 @@ const DEFAULT_GEOMETRY: DiffuserGeometry = {
 };
 
 const HORIZONTAL_PROFILES: Record<string, HorizontalJetProfile> = {
-    'dpu-m:horizontal-fan': {
-        anchor: 'horizontal',
-        offsetFactor: 1,
-        emitter: 'rim',
-        radiusFactor: 0.48,
-        speedFactor: 1.06,
-        dropFactor: 0.004,
-        tangentialFactor: 0,
-        waveAmp: 0.8,
-        waveFreq: 5.0,
-        drag: 0.978
-    },
-    'dpu-k:horizontal-fan': {
-        anchor: 'outlet',
-        offsetFactor: 0.82,
-        emitter: 'center',
-        radiusFactor: 0.06,
-        speedFactor: 0.98,
-        dropFactor: 0.18,
-        tangentialFactor: 0,
-        waveAmp: 0.9,
-        waveFreq: 5.8,
-        drag: 0.975
-    },
-    'dpu-v:horizontal-swirl': {
-        anchor: 'horizontal',
-        offsetFactor: 0.95,
-        emitter: 'rim',
-        radiusFactor: 0.42,
-        speedFactor: 0.78,
-        dropFactor: 0.02,
-        tangentialFactor: 0.22,
-        waveAmp: 9.0,
-        waveFreq: 8.2,
-        drag: 0.971
-    }
+    'dpu-m:horizontal-fan': { anchor: 'horizontal', offsetFactor: 1, emitter: 'rim', radiusFactor: 0.48, speedFactor: 1.06, dropFactor: 0.004, tangentialFactor: 0, waveAmp: 0.8, waveFreq: 5.0, drag: 0.978 },
+    'dpu-k:horizontal-fan': { anchor: 'outlet', offsetFactor: 0.82, emitter: 'center', radiusFactor: 0.06, speedFactor: 0.98, dropFactor: 0.18, tangentialFactor: 0, waveAmp: 0.9, waveFreq: 5.8, drag: 0.975 },
+    
+    // Вихревой ДПУ-В: сильная тангенциальная (закручивающая) составляющая
+    'dpu-v:horizontal-swirl': { anchor: 'horizontal', offsetFactor: 0.95, emitter: 'rim', radiusFactor: 0.42, speedFactor: 0.78, dropFactor: 0.02, tangentialFactor: 0.22, waveAmp: 9.0, waveFreq: 8.2, drag: 0.971 }
 };
 
 const VERTICAL_PROFILES: Record<string, VerticalJetProfile> = {
-    'dpu-m:vertical-conical': {
-        emitter: 'ring',
-        radiusFactor: 0.3,
-        radiusJitter: 0.05,
-        coneMinDeg: 18,
-        coneJitterDeg: 4,
-        horizontalFactor: 0.72,
-        inwardFactor: 1,
-        tangentialFactor: 0,
-        speedFactor: 1.0,
-        waveAmp: 1.4,
-        waveFreq: 4.6,
-        drag: 0.956
-    },
-    'dpu-k:vertical-conical': {
-        emitter: 'disk',
-        radiusFactor: 0.08,
-        radiusJitter: 0.06,
-        coneMinDeg: 10,
-        coneJitterDeg: 8,
-        horizontalFactor: 0.28,
-        inwardFactor: 0,
-        tangentialFactor: 0,
-        speedFactor: 1,
-        waveAmp: 2.0,
-        waveFreq: 4.8,
-        drag: 0.968
-    },
-    'dpu-v:vertical-swirl': {
-        emitter: 'disk',
-        radiusFactor: 0.24,
-        radiusJitter: 0.04,
-        coneMinDeg: 4,
-        coneJitterDeg: 6,
-        horizontalFactor: 0.1,
-        inwardFactor: 0,
-        tangentialFactor: 0.34,
-        speedFactor: 0.96,
-        waveAmp: 15,
-        waveFreq: 6.9,
-        drag: 0.954
-    },
-    'dpu-s:vertical-compact': {
-        emitter: 'disk',
-        radiusFactor: 0.05,
-        radiusJitter: 0.01,
-        coneMinDeg: 1,
-        coneJitterDeg: 2,
-        horizontalFactor: 0.09,
-        inwardFactor: 0,
-        tangentialFactor: 0,
-        speedFactor: 1.07,
-        waveAmp: 0.6,
-        waveFreq: 4.4,
-        drag: 0.99
-    }
+    'dpu-m:vertical-conical': { emitter: 'ring', radiusFactor: 0.3, radiusJitter: 0.05, coneMinDeg: 18, coneJitterDeg: 4, horizontalFactor: 0.72, inwardFactor: 1, tangentialFactor: 0, speedFactor: 1.0, waveAmp: 1.4, waveFreq: 4.6, drag: 0.956 },
+    'dpu-k:vertical-conical': { emitter: 'disk', radiusFactor: 0.08, radiusJitter: 0.06, coneMinDeg: 10, coneJitterDeg: 8, horizontalFactor: 0.28, inwardFactor: 0, tangentialFactor: 0, speedFactor: 1, waveAmp: 2.0, waveFreq: 4.8, drag: 0.968 },
+    'dpu-v:vertical-swirl': { emitter: 'disk', radiusFactor: 0.24, radiusJitter: 0.04, coneMinDeg: 4, coneJitterDeg: 6, horizontalFactor: 0.1, inwardFactor: 0, tangentialFactor: 0.34, speedFactor: 0.96, waveAmp: 15, waveFreq: 6.9, drag: 0.954 },
+    
+    // Сопловый ДПУ-С: самая компактная струя (coneMinDeg: 1)
+    'dpu-s:vertical-compact': { emitter: 'disk', radiusFactor: 0.05, radiusJitter: 0.01, coneMinDeg: 1, coneJitterDeg: 2, horizontalFactor: 0.09, inwardFactor: 0, tangentialFactor: 0, speedFactor: 1.07, waveAmp: 0.6, waveFreq: 4.4, drag: 0.99 }
 };
 
 const GENERIC_VERTICAL_PROFILES: Record<string, VerticalJetProfile> = {
