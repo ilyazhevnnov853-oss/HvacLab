@@ -1,4 +1,4 @@
-import { getDiffuserFlowType } from '../../../../../constants';
+import { getDiffuserFlowType, DIFFUSER_CATALOG } from '../../../../../constants';
 import { getDiffuserGeometry, getHorizontalJetProfile, getVerticalJetProfile, resolveHorizontalStartOffset } from './diffuserJetProfile';
 import { PerformanceResult, PlacedDiffuser, Probe } from '../../../../../types';
 
@@ -43,20 +43,15 @@ export interface ThreeDViewCanvasProps {
 }
 
 export const project = (x: number, y: number, z: number, width: number, height: number, rotX: number, rotY: number, scale: number, panX: number, panY: number) => {
-    // 3D Projection Logic
-    // Rotation Y
     const cx = Math.cos(rotY);
     const sx = Math.sin(rotY);
     const x1 = x * cx - z * sx;
     const z1 = x * sx + z * cx;
 
-    // Rotation X
     const cy = Math.cos(rotX);
     const sy = Math.sin(rotX);
     const y2 = y * cy - z1 * sy;
-    // const z2 = y * sy + z1 * cy;
 
-    // 2D projection
     const px = x1 * scale + width / 2 + panX;
     const py = y2 * scale + height / 2 + panY;
     
@@ -93,10 +88,9 @@ const getRenderableDiffusers = (state: ThreeDViewCanvasProps) =>
     (state.placedDiffusers || []).filter(d => !d.performance?.error && !!d.performance?.spec?.A);
 
 export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: number) => {
-    // Determine Source
     let activeDiffuser: {
         x: number, 
-        y: number, // Z in 3D logic
+        y: number,
         performance: PerformanceResult,
         modelId: string,
         flowType?: string,
@@ -111,14 +105,13 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
         
         activeDiffuser = {
             x: (d.x - state.roomWidth / 2) * ppm,
-            y: (d.y - state.roomLength / 2) * ppm, // This corresponds to Z in 3D
+            y: (d.y - state.roomLength / 2) * ppm,
             performance: d.performance,
             modelId: d.modelId,
             flowType: d.flowType,
             modeIdx: d.modeIdx
         };
     } else {
-        // Default single center
         activeDiffuser = {
             x: 0,
             y: 0,
@@ -135,7 +128,13 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
     const spec = physics.spec;
     if (!spec || !spec.A) return;
 
-    const flowType = getDiffuserFlowType(modelId, modeIdx, explicitFlowType || state.flowType);
+    // ИСПРАВЛЕНИЕ 1: Жесткая привязка к каталогу. Игнорируем UI-стейт, если он противоречит модели!
+    let flowType = explicitFlowType || 'vertical-conical';
+    const modelConfig = DIFFUSER_CATALOG.find(m => m.id === modelId);
+    if (modelConfig) {
+        const actualModeIdx = modeIdx !== undefined ? modeIdx : 0;
+        flowType = modelConfig.modes[actualModeIdx]?.flowType || flowType;
+    }
 
     const nozzleW = (spec.A / 1000) * ppm;
     const nominalDepth = Math.max(16 * (ppm / 1000), (spec.D || 55) * (ppm / 1000));
@@ -144,7 +143,8 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
     const mountedHeight = Math.max(0, Math.min(diffuserHeight, roomHeight));
     const startY = mountedHeight * ppm - geometry.outletOffset;
 
-    const pxSpeed = (physics.v0 || 0) * ppm * 0.8;
+    // ИСПРАВЛЕНИЕ 2: Увеличиваем стартовую скорость для более выраженного рисунка
+    const pxSpeed = (physics.v0 || 0) * ppm * 1.5;
 
     let pX = centerX;
     let pY = startY;
@@ -176,7 +176,9 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
             const emitter = horizontalProfile.emitter === 'rim'
                 ? sampleRingEmitter(emitterRadius)
                 : sampleDiskEmitter(emitterRadius);
-            const tangentialSpeed = pxSpeed * horizontalProfile.tangentialFactor;
+                
+            // Расширяем вихри для горизонтального разлета
+            const tangentialSpeed = pxSpeed * horizontalProfile.tangentialFactor * 2.0;
 
             pY = mountedHeight * ppm - resolveHorizontalStartOffset(geometry, horizontalProfile);
             pX += emitter.x;
@@ -204,9 +206,11 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
                 ? sampleRingEmitter(emitterRadius)
                 : sampleDiskEmitter(emitterRadius);
             const coneAngle = (verticalProfile.coneMinDeg + Math.random() * verticalProfile.coneJitterDeg) * (Math.PI / 180);
-            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * verticalProfile.horizontalFactor;
+            
+            // ИСПРАВЛЕНИЕ 3: Умножаем разлет конуса и вихрей в 2.5 раза
+            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * verticalProfile.horizontalFactor * 2.5;
             const radialDirection = 1 - 2 * verticalProfile.inwardFactor;
-            const tangentialSpeed = pxSpeed * verticalProfile.tangentialFactor;
+            const tangentialSpeed = pxSpeed * verticalProfile.tangentialFactor * 2.5;
 
             pX += emitter.x;
             pZ += emitter.z;
@@ -221,7 +225,7 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
             pX += emitter.x;
             pZ += emitter.z;
             const coneAngle = (8 + Math.random() * 8) * (Math.PI / 180);
-            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * 0.28;
+            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * 0.28 * 2.5;
             vx = Math.cos(emitter.angle) * horizontalSpeed;
             vz = Math.sin(emitter.angle) * horizontalSpeed;
             vy = -Math.cos(coneAngle) * pxSpeed;
@@ -234,7 +238,12 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
 
     p.x = pX; p.y = pY; p.z = pZ;
     p.vx = vx; p.vy = vy; p.vz = vz;
-    p.buoyancy = buoyancy; p.drag = drag; p.age = 0; 
+    p.buoyancy = buoyancy; 
+    
+    // ИСПРАВЛЕНИЕ 4: Смягчаем сопротивление воздуха, чтобы конус не сжимался
+    p.drag = drag + (1 - drag) * 0.4; 
+    
+    p.age = 0; 
     p.waveFreq = waveFreq; p.wavePhase = Math.random() * Math.PI * 2; p.waveAmp = waveAmp; p.waveAngle = Math.random() * Math.PI * 2;
     p.isHorizontal = isHorizontal; p.isSuction = isSuction;
     p.active = true;
@@ -246,6 +255,8 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
 export const updateParticlePhysics = (p: Particle3D, dt: number, state: ThreeDViewCanvasProps, ppm: number) => {
     const mountedHeight = Math.max(0, Math.min(state.diffuserHeight, state.roomHeight));
 
+    p.age += dt;
+
     if (p.isSuction) {
         p.x += p.vx * dt; 
         p.y += p.vy * dt;
@@ -253,6 +264,11 @@ export const updateParticlePhysics = (p: Particle3D, dt: number, state: ThreeDVi
         const diffY = mountedHeight * ppm;
         if (p.y > diffY - 10) p.active = false; 
     } else {
+        // ИСПРАВЛЕНИЕ 5: Усиливаем физику волн, компенсируя dt, чтобы вихри стали четко видимыми
+        const waveForce = Math.sin(p.age * p.waveFreq + p.wavePhase) * p.waveAmp;
+        p.vx += Math.cos(p.waveAngle) * waveForce * dt * 50;
+        p.vz += Math.sin(p.waveAngle) * waveForce * dt * 50;
+
         if (p.isHorizontal) {
             const ceilingY = mountedHeight * ppm;
             const ceilingDist = ceilingY - p.y;
@@ -281,13 +297,12 @@ export const updateParticlePhysics = (p: Particle3D, dt: number, state: ThreeDVi
         p.y = ceilingY;
         p.vy = Math.min(0, p.vy * -0.05);
     }
-    // Floor
     if (p.y < 0) {
         p.y = 0;
         p.active = false;
         return;
     }
-    // Walls
+    
     const halfW = (state.roomWidth * ppm) / 2;
     const halfL = (state.roomLength * ppm) / 2;
     
