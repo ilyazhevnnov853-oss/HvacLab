@@ -48,6 +48,15 @@ const drawRealisticDiffuser2D = (ctx: CanvasRenderingContext2D, cx: number, cy: 
     ctx.save();
     ctx.translate(cx, cy);
     
+    // Add glow effect
+    const glow = ctx.createRadialGradient(0, 0, radiusPx * 0.5, 0, 0, radiusPx * 1.5);
+    glow.addColorStop(0, 'rgba(100, 200, 255, 0.3)');
+    glow.addColorStop(1, 'rgba(100, 200, 255, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, 0, radiusPx * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
     const strokeColor = ctx.strokeStyle;
     
     ctx.lineWidth = 1.5;

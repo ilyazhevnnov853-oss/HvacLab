@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { PerformanceResult, PlacedDiffuser, Probe, ToolMode } from '../../../../../types';
 import { getDiffuserFlowType } from '../../../../../constants';
@@ -57,7 +56,6 @@ interface SideViewCanvasProps {
   viewType: 'front' | 'right';
   sliceDepth: number;
   isSliceMode?: boolean;
-  // Added Props
   activeTool?: ToolMode;
   probes?: Probe[];
   onAddProbe?: (x: number, y: number) => void;
@@ -244,7 +242,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         const spec = physics.spec;
         if (!spec || !spec.A) return;
 
-        const flowType = getDiffuserFlowType(modelId, modeIdx, explicitFlowType || state.flowType);
+        const flowType = explicitFlowType || state.flowType || 'vertical-conical';
 
         const nozzleW = (spec.A / 1000) * ppm;
         const nominalDepth = Math.max(16 * (ppm / 1000), (spec.D || 55) * (ppm / 1000));
@@ -324,12 +322,13 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 waveFreq = verticalProfile.waveFreq;
                 drag = verticalProfile.drag;
             } else {
-                const projection = sampleProjectedDisk(nozzleW * 0.25);
+                // Страховочный профиль (если нет данных)
+                const projection = sampleProjectedDisk(nozzleW * 0.8);
                 startX = centerX + projection.offset;
-                const coneAngle = (8 + Math.random() * 8) * (Math.PI / 180);
-                vx = projection.lateral * Math.sin(coneAngle) * pxSpeed * 0.28;
+                const coneAngle = (15 + Math.random() * 15) * (Math.PI / 180);
+                vx = projection.lateral * Math.sin(coneAngle) * pxSpeed * 0.6;
                 vy = Math.cos(coneAngle) * pxSpeed;
-                waveAmp = 2; drag = 0.96;
+                waveAmp = 4; drag = 0.98;
             }
 
             p.life = 2.0 + Math.random() * 1.5;

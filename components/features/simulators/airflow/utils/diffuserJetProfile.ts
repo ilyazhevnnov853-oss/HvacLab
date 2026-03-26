@@ -50,7 +50,7 @@ const HORIZONTAL_PROFILES: Record<string, HorizontalJetProfile> = {
     'dpu-k:horizontal-fan': { anchor: 'outlet', offsetFactor: 0.82, emitter: 'center', radiusFactor: 0.06, speedFactor: 0.98, dropFactor: 0.18, tangentialFactor: 0, waveAmp: 0.9, waveFreq: 5.8, drag: 0.975 },
     
     // Вихревой ДПУ-В: сильная тангенциальная (закручивающая) составляющая
-    'dpu-v:horizontal-swirl': { anchor: 'horizontal', offsetFactor: 0.95, emitter: 'rim', radiusFactor: 0.42, speedFactor: 0.78, dropFactor: 0.02, tangentialFactor: 0.22, waveAmp: 9.0, waveFreq: 8.2, drag: 0.971 }
+    'dpu-v:horizontal-swirl': { anchor: 'horizontal', offsetFactor: 0.95, emitter: 'rim', radiusFactor: 0.42, speedFactor: 0.78, dropFactor: 0.02, tangentialFactor: 0.45, waveAmp: 9.0, waveFreq: 8.2, drag: 0.971 }
 };
 
 const VERTICAL_PROFILES: Record<string, VerticalJetProfile> = {
@@ -79,31 +79,31 @@ const GENERIC_VERTICAL_PROFILES: Record<string, VerticalJetProfile> = {
     },
     'vertical-swirl': {
         emitter: 'ring',
-        radiusFactor: 0.22,
-        radiusJitter: 0.04,
-        coneMinDeg: 8,
-        coneJitterDeg: 14,
-        horizontalFactor: 0.25,
+        radiusFactor: 0.25,
+        radiusJitter: 0.05,
+        coneMinDeg: 12,
+        coneJitterDeg: 18,
+        horizontalFactor: 0.35,
         inwardFactor: 0,
-        tangentialFactor: 0.15,
-        speedFactor: 1,
-        waveAmp: 10,
-        waveFreq: 6.5,
-        drag: 0.95
+        tangentialFactor: 0.45,
+        speedFactor: 0.9,
+        waveAmp: 18,
+        waveFreq: 7.5,
+        drag: 0.94
     },
     'vertical-compact': {
         emitter: 'disk',
-        radiusFactor: 0.2,
-        radiusJitter: 0.03,
-        coneMinDeg: 3,
-        coneJitterDeg: 6,
-        horizontalFactor: 0.22,
+        radiusFactor: 0.18,
+        radiusJitter: 0.02,
+        coneMinDeg: 2,
+        coneJitterDeg: 4,
+        horizontalFactor: 0.15,
         inwardFactor: 0,
         tangentialFactor: 0,
-        speedFactor: 1.15,
-        waveAmp: 1,
-        waveFreq: 4.5,
-        drag: 0.985
+        speedFactor: 1.25,
+        waveAmp: 1.5,
+        waveFreq: 5.5,
+        drag: 0.988
     }
 };
 
@@ -119,11 +119,53 @@ export const getDiffuserGeometry = (modelId: string, nominalDepth: number): Diff
 export const isHorizontalFlowType = (flowType: string) =>
     flowType.includes('horizontal') || flowType === '4-way';
 
-export const getHorizontalJetProfile = (modelId: string, flowType: string) =>
-    HORIZONTAL_PROFILES[`${modelId}:${flowType}`] || null;
+export const getHorizontalJetProfile = (modelId: string, flowType: string) => {
+    const exactKey = `${modelId}:${flowType}`;
+    if (HORIZONTAL_PROFILES[exactKey]) return HORIZONTAL_PROFILES[exactKey];
+    
+    const match = Object.keys(HORIZONTAL_PROFILES).find(k => 
+        k.startsWith(`${modelId}:`) && (k.includes(flowType) || flowType.includes('horizontal'))
+    );
+    if (match) return HORIZONTAL_PROFILES[match];
 
-export const getVerticalJetProfile = (modelId: string, flowType: string) =>
-    VERTICAL_PROFILES[`${modelId}:${flowType}`] || GENERIC_VERTICAL_PROFILES[flowType] || null;
+    // Generic fallback for horizontal flow
+    if (flowType.includes('horizontal') || flowType === '4-way') {
+        return {
+            anchor: 'horizontal',
+            offsetFactor: 0.85,
+            emitter: 'rim',
+            radiusFactor: 0.45,
+            speedFactor: 0.82,
+            dropFactor: 0.04,
+            tangentialFactor: 0.12,
+            waveAmp: 6,
+            waveFreq: 7,
+            drag: 0.965
+        } as HorizontalJetProfile;
+    }
+    
+    return null;
+};
+
+export const getVerticalJetProfile = (modelId: string, flowType: string) => {
+    // 1. Пробуем найти точное совпадение
+    const exactKey = `${modelId}:${flowType}`;
+    if (VERTICAL_PROFILES[exactKey]) return VERTICAL_PROFILES[exactKey];
+    
+    // 2. Гибкий поиск: ищем профиль для этой модели, содержащий нужное слово
+    const match = Object.keys(VERTICAL_PROFILES).find(k => 
+        k.startsWith(`${modelId}:`) && (k.includes(flowType) || flowType.includes('vertical'))
+    );
+    if (match) return VERTICAL_PROFILES[match];
+
+    // 3. Если для самой модели профиля нет, ищем в общих (GENERIC)
+    const genericMatch = Object.keys(GENERIC_VERTICAL_PROFILES).find(k => 
+        k.includes(flowType) || flowType.includes('vertical')
+    );
+    
+    // Если вообще ничего не найдено, отдаем стандартный conical
+    return genericMatch ? GENERIC_VERTICAL_PROFILES[genericMatch] : GENERIC_VERTICAL_PROFILES['vertical-conical'];
+};
 
 export const resolveHorizontalStartOffset = (
     geometry: DiffuserGeometry,

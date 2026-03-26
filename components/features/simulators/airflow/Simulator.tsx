@@ -47,25 +47,24 @@ const INITIAL_PARAMS = {
 
 const Simulator = ({ onBack, onHome }: any) => {
     // --- STATE ---
-    const [params, setParams] = useLocalStorage<typeof INITIAL_PARAMS>('hvac-sim-params', INITIAL_PARAMS);
+    // Пресет для НОВЫХ диффузоров (инструмент Штамп/Массив)
+    const [defaultParams, setDefaultParams] = useLocalStorage<typeof INITIAL_PARAMS>('hvac-sim-default-params', INITIAL_PARAMS);
 
-    const [viewMode, setViewMode] = useState<'front' | 'right' | 'top' | '3d'>('front');
-    const [isPowerOn, setIsPowerOn] = useState(true);
-    const [isPlaying, setIsPlaying] = useState(true);
-    const [showGrid, setShowGrid] = useState(true);
-    const [snapToGrid, setSnapToGrid] = useState(true);
-    
-    // Tools
-    const [activeTool, setActiveTool] = useState<ToolMode>('select');
-    const [placementMode, setPlacementMode] = useState<'single' | 'multi'>('single');
-
-    // Objects
+    // Массив ID выделенных диффузоров (для мультивыделения)
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [placedDiffusers, setPlacedDiffusers] = useLocalStorage<PlacedDiffuser[]>('hvac-sim-diffusers', []);
-    const [selectedDiffuserId, setSelectedDiffuserId] = useState<string | null>(null);
     const [probes, setProbes] = useLocalStorage<Probe[]>('hvac-sim-probes', []);
     const [sliceX, setSliceX] = useLocalStorage<number>('hvac-sim-slicex', INITIAL_PARAMS.roomWidth / 2);
     const [sliceY, setSliceY] = useLocalStorage<number>('hvac-sim-slicey', INITIAL_PARAMS.roomLength / 2);
     const [isSliceMode, setIsSliceMode] = useLocalStorage<boolean>('hvac-sim-slicemode', false);
+
+    const [viewMode, setViewMode] = useLocalStorage<'front' | 'top' | 'right' | '3d'>('hvac-sim-viewmode', 'front');
+    const [isPowerOn, setIsPowerOn] = useState(true);
+    const [isPlaying, setIsPlaying] = useState(true);
+    const [showGrid, setShowGrid] = useLocalStorage('hvac-sim-grid', true);
+    const [snapToGrid, setSnapToGrid] = useLocalStorage('hvac-sim-snap', true);
+    const [activeTool, setActiveTool] = useState<ToolMode>('select');
+    const [placementMode, setPlacementMode] = useState<'single' | 'multi'>('single');
 
     // UI State
     const [openSection, setOpenSection] = useState<string | null>('distributor');
@@ -104,31 +103,31 @@ const Simulator = ({ onBack, onHome }: any) => {
     }, []);
 
     const currentModel = useMemo(
-        () => DIFFUSER_CATALOG.find(d => d.id === params.modelId),
-        [params.modelId]
+        () => DIFFUSER_CATALOG.find(d => d.id === defaultParams.modelId),
+        [defaultParams.modelId]
     );
     const currentMode = useMemo(
-        () => getDiffuserMode(params.modelId, params.modeIdx) || currentModel?.modes[0] || { flowType: 'vertical-conical' },
-        [currentModel, params.modelId, params.modeIdx]
+        () => getDiffuserMode(defaultParams.modelId, defaultParams.modeIdx) || currentModel?.modes[0] || { flowType: 'vertical-conical' },
+        [currentModel, defaultParams.modelId, defaultParams.modeIdx]
     );
     const visualFlowType = useMemo(
-        () => getDiffuserFlowType(params.modelId, params.modeIdx),
-        [params.modelId, params.modeIdx]
+        () => getDiffuserFlowType(defaultParams.modelId, defaultParams.modeIdx),
+        [defaultParams.modelId, defaultParams.modeIdx]
     );
     const performanceFlowType = useMemo(
-        () => getDiffuserPerformanceFlowType(params.modelId, params.modeIdx),
-        [params.modelId, params.modeIdx]
+        () => getDiffuserPerformanceFlowType(defaultParams.modelId, defaultParams.modeIdx),
+        [defaultParams.modelId, defaultParams.modeIdx]
     );
 
     const physics = useScientificSimulation(
-        params.modelId,
+        defaultParams.modelId,
         performanceFlowType,
-        params.diameter,
-        params.volume,
-        params.temperature,
-        params.roomTemp,
-        params.diffuserHeight,
-        params.workZoneHeight
+        defaultParams.diameter,
+        defaultParams.volume,
+        defaultParams.temperature,
+        defaultParams.roomTemp,
+        defaultParams.diffuserHeight,
+        defaultParams.workZoneHeight
     );
 
 
@@ -137,25 +136,25 @@ const Simulator = ({ onBack, onHome }: any) => {
         if (placedDiffusers.length === 0) return [];
 
         return calculateSimulationField(
-            params.roomWidth,
-            params.roomLength,
+            defaultParams.roomWidth,
+            defaultParams.roomLength,
             placedDiffusers,
-            params.diffuserHeight,
-            params.workZoneHeight,
+            defaultParams.diffuserHeight,
+            defaultParams.workZoneHeight,
             0.5,
-            params.temperature,
-            params.roomTemp,
-            params.isCeilingMounted
+            defaultParams.temperature,
+            defaultParams.roomTemp,
+            defaultParams.isCeilingMounted
         );
     }, [
         placedDiffusers,
-        params.roomWidth,
-        params.roomLength,
-        params.diffuserHeight,
-        params.workZoneHeight,
-        params.temperature,
-        params.roomTemp,
-        params.isCeilingMounted
+        defaultParams.roomWidth,
+        defaultParams.roomLength,
+        defaultParams.diffuserHeight,
+        defaultParams.workZoneHeight,
+        defaultParams.temperature,
+        defaultParams.roomTemp,
+        defaultParams.isCeilingMounted
     ]);
 
     // 3. Global Stats
@@ -172,7 +171,7 @@ const Simulator = ({ onBack, onHome }: any) => {
                 count++;
             }
         });
-        const avgTemp = count > 0 ? tSum / count : params.roomTemp;
+        const avgTemp = count > 0 ? tSum / count : defaultParams.roomTemp;
 
         return {
             maxNoise,
@@ -185,52 +184,11 @@ const Simulator = ({ onBack, onHome }: any) => {
             draftZones: analysis.draftZones,
             deadZones: analysis.deadZones
         };
-    }, [simulationField, placedDiffusers, params.roomTemp]);
-
-    // Initialize one diffuser if empty
-    useEffect(() => {
-        if (placedDiffusers.length === 0 && physics.v0 > 0 && !physics.error) {
-            setPlacedDiffusers([{
-                id: 'init-1',
-                index: 1,
-                x: params.roomWidth / 2,
-                y: params.roomLength / 2,
-                modelId: params.modelId,
-                flowType: visualFlowType,
-                modeIdx: params.modeIdx,
-                diameter: params.diameter,
-                volume: params.volume,
-                temperature: params.temperature,
-                performance: physics
-            }]);
-            setSelectedDiffuserId('init-1');
-            setSliceX(params.roomWidth / 2);
-            setSliceY(params.roomLength / 2);
-        }
-    }, [params.diameter, params.modeIdx, params.modelId, params.roomLength, params.roomWidth, params.temperature, physics, placedDiffusers.length, visualFlowType]);
-
-    useEffect(() => {
-        if (!selectedDiffuserId) return;
-
-        setPlacedDiffusers(prev => prev.map(d => (
-            d.id === selectedDiffuserId
-                ? {
-                    ...d,
-                    modelId: params.modelId,
-                    flowType: visualFlowType,
-                    modeIdx: params.modeIdx,
-                    diameter: params.diameter,
-                    volume: params.volume,
-                    temperature: params.temperature,
-                    performance: physics
-                }
-                : d
-        )));
-    }, [selectedDiffuserId, params.modelId, params.modeIdx, params.diameter, params.volume, params.temperature, visualFlowType, physics]);
+    }, [simulationField, placedDiffusers, defaultParams.roomTemp]);
 
     useEffect(() => {
         setPlacedDiffusers(prev => prev.map(d => {
-            if (selectedDiffuserId && d.id === selectedDiffuserId) {
+            if (selectedIds.includes(d.id)) {
                 return d;
             }
 
@@ -238,13 +196,13 @@ const Simulator = ({ onBack, onHome }: any) => {
                 ...d,
                 performance: buildPlacedDiffuserPerformance(
                     d,
-                    params.roomTemp,
-                    params.diffuserHeight,
-                    params.workZoneHeight
+                    defaultParams.roomTemp,
+                    defaultParams.diffuserHeight,
+                    defaultParams.workZoneHeight
                 )
             };
         }));
-    }, [params.roomTemp, params.diffuserHeight, params.workZoneHeight, selectedDiffuserId]);
+    }, [defaultParams.roomTemp, defaultParams.diffuserHeight, defaultParams.workZoneHeight, selectedIds]);
 
     // --- HANDLERS ---
 
@@ -254,46 +212,36 @@ const Simulator = ({ onBack, onHome }: any) => {
 
         setPlacedDiffusers(prev => prev.map(d => ({
             ...d,
-            x: Math.min(Math.max(d.x, margin), params.roomWidth - margin),
-            y: Math.min(Math.max(d.y, margin), params.roomLength - margin)
+            x: Math.min(Math.max(d.x, margin), defaultParams.roomWidth - margin),
+            y: Math.min(Math.max(d.y, margin), defaultParams.roomLength - margin)
         })));
 
         setProbes(prev => prev.map(p => ({
             ...p,
-            x: Math.min(Math.max(p.x, 0.1), params.roomWidth - 0.1),
-            y: Math.min(Math.max(p.y, 0.1), params.roomLength - 0.1)
+            x: Math.min(Math.max(p.x, 0.1), defaultParams.roomWidth - 0.1),
+            y: Math.min(Math.max(p.y, 0.1), defaultParams.roomLength - 0.1)
         })));
 
-        setSliceX(prev => Math.min(Math.max(prev, 0), params.roomWidth));
-        setSliceY(prev => Math.min(Math.max(prev, 0), params.roomLength));
-    }, [params.roomWidth, params.roomLength]);
+        setSliceX(prev => Math.min(Math.max(prev, 0), defaultParams.roomWidth));
+        setSliceY(prev => Math.min(Math.max(prev, 0), defaultParams.roomLength));
+    }, [defaultParams.roomWidth, defaultParams.roomLength]);
 
     const handleSelectDiffuser = (id: string) => {
         const nextSelectedId = id || null;
-        setSelectedDiffuserId(nextSelectedId);
-
-        if (!nextSelectedId) return;
-
-        const diffuser = placedDiffusers.find(item => item.id === nextSelectedId);
-        if (!diffuser) return;
-
-        setParams(prev => ({
-            ...prev,
-            modelId: diffuser.modelId,
-            diameter: diffuser.diameter,
-            volume: diffuser.volume,
-            temperature: diffuser.temperature,
-            modeIdx: diffuser.modeIdx ?? 0
-        }));
+        if (nextSelectedId) {
+            setSelectedIds([nextSelectedId]);
+        } else {
+            setSelectedIds([]);
+        }
     };
 
     const handleUpdateSlice = (axis: 'x' | 'y', value: number) => {
         if (axis === 'x') {
-            setSliceX(Math.max(0, Math.min(params.roomWidth, value)));
+            setSliceX(Math.max(0, Math.min(defaultParams.roomWidth, value)));
             return;
         }
 
-        setSliceY(Math.max(0, Math.min(params.roomLength, value)));
+        setSliceY(Math.max(0, Math.min(defaultParams.roomLength, value)));
     };
 
     const addDiffuserAt = (x: number, y: number) => {
@@ -303,34 +251,34 @@ const Simulator = ({ onBack, onHome }: any) => {
             index: placedDiffusers.length + 1,
             x,
             y,
-            modelId: params.modelId,
+            modelId: defaultParams.modelId,
             flowType: visualFlowType,
-            modeIdx: params.modeIdx,
-            diameter: params.diameter,
-            volume: params.volume,
-            temperature: params.temperature,
+            modeIdx: defaultParams.modeIdx,
+            diameter: defaultParams.diameter,
+            volume: defaultParams.volume,
+            temperature: defaultParams.temperature,
             performance: buildPlacedDiffuserPerformance(
                 {
-                    modelId: params.modelId,
-                    modeIdx: params.modeIdx,
-                    diameter: params.diameter,
-                    volume: params.volume,
-                    temperature: params.temperature
+                    modelId: defaultParams.modelId,
+                    modeIdx: defaultParams.modeIdx,
+                    diameter: defaultParams.diameter,
+                    volume: defaultParams.volume,
+                    temperature: defaultParams.temperature
                 },
-                params.roomTemp,
-                params.diffuserHeight,
-                params.workZoneHeight
+                defaultParams.roomTemp,
+                defaultParams.diffuserHeight,
+                defaultParams.workZoneHeight
             )
         };
 
         setPlacedDiffusers(prev => [...prev, newDiffuser]);
-        setSelectedDiffuserId(id);
+        setSelectedIds([id]);
     };
 
     const addDiffuser = () => {
         addDiffuserAt(
-            params.roomWidth / 2 + (Math.random() - 0.5),
-            params.roomLength / 2 + (Math.random() - 0.5)
+            defaultParams.roomWidth / 2 + (Math.random() - 0.5),
+            defaultParams.roomLength / 2 + (Math.random() - 0.5)
         );
         if (viewMode !== 'top') setViewMode('top');
     };
@@ -342,22 +290,7 @@ const Simulator = ({ onBack, onHome }: any) => {
     const removeDiffuser = (id: string) => {
         const nextDiffusers = placedDiffusers.filter(d => d.id !== id);
         setPlacedDiffusers(nextDiffusers);
-
-        if (selectedDiffuserId !== id) return;
-
-        const fallbackDiffuser = nextDiffusers[nextDiffusers.length - 1] || null;
-        setSelectedDiffuserId(fallbackDiffuser?.id || null);
-
-        if (!fallbackDiffuser) return;
-
-        setParams(prev => ({
-            ...prev,
-            modelId: fallbackDiffuser.modelId,
-            diameter: fallbackDiffuser.diameter,
-            volume: fallbackDiffuser.volume,
-            temperature: fallbackDiffuser.temperature,
-            modeIdx: fallbackDiffuser.modeIdx ?? 0
-        }));
+        setSelectedIds([]);
     };
 
     const duplicateDiffuser = (id: string) => {
@@ -373,29 +306,21 @@ const Simulator = ({ onBack, onHome }: any) => {
             index: placedDiffusers.length + 1,
             performance: buildPlacedDiffuserPerformance(
                 source,
-                params.roomTemp,
-                params.diffuserHeight,
-                params.workZoneHeight
+                defaultParams.roomTemp,
+                defaultParams.diffuserHeight,
+                defaultParams.workZoneHeight
             )
         };
 
         setPlacedDiffusers(prev => [...prev, duplicatedDiffuser]);
-        setSelectedDiffuserId(newId);
-        setParams(prev => ({
-            ...prev,
-            modelId: source.modelId,
-            diameter: source.diameter,
-            volume: source.volume,
-            temperature: source.temperature,
-            modeIdx: source.modeIdx ?? 0
-        }));
+        setSelectedIds([newId]);
     };
 
     // Probes
     const addProbeAtScreenClick = (clickX: number, clickY: number) => {
-        let startX = params.roomWidth / 2;
-        let startY = params.roomLength / 2;
-        let startZ = params.workZoneHeight; // Default to workzone
+        let startX = defaultParams.roomWidth / 2;
+        let startY = defaultParams.roomLength / 2;
+        let startZ = defaultParams.workZoneHeight; // Default to workzone
 
         if (viewMode === 'top') {
             startX = clickX;
@@ -432,14 +357,16 @@ const Simulator = ({ onBack, onHome }: any) => {
             {/* Left Panel */}
             <SimulatorLeftPanel 
                 openSection={openSection} toggleSection={toggleSection}
-                params={params} setParams={setParams}
+                defaultParams={defaultParams} setDefaultParams={setDefaultParams}
+                selectedIds={selectedIds}
+                placedDiffusers={placedDiffusers} setPlacedDiffusers={setPlacedDiffusers}
                 physics={physics} currentMode={currentMode}
                 isPowerOn={isPowerOn} togglePower={() => setIsPowerOn(!isPowerOn)}
                 viewMode={viewMode} isPlaying={isPlaying} setIsPlaying={setIsPlaying}
                 sizeSelected={sizeSelected} setSizeSelected={setSizeSelected}
                 onHome={onHome} onBack={onBack}
                 isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen}
-                onAddDiffuser={addDiffuser}
+                onAddDiffuser={() => setActiveTool('stamp')}
                 isHelpMode={isHelpMode}
                 placementMode={placementMode}
                 setPlacementMode={setPlacementMode}
@@ -463,23 +390,23 @@ const Simulator = ({ onBack, onHome }: any) => {
                         physics={physics} 
                         isPowerOn={isPowerOn} 
                         isPlaying={isPlaying} 
-                        temp={params.temperature} 
-                        roomTemp={params.roomTemp} 
+                        temp={defaultParams.temperature} 
+                        roomTemp={defaultParams.roomTemp} 
                         flowType={visualFlowType} 
-                        modelId={params.modelId}
+                        modelId={defaultParams.modelId}
                         showGrid={showGrid} 
-                        roomHeight={params.roomHeight} 
-                        roomWidth={params.roomWidth} 
-                        roomLength={params.roomLength}
-                        diffuserHeight={params.diffuserHeight} 
-                        workZoneHeight={params.workZoneHeight}
+                        roomHeight={defaultParams.roomHeight} 
+                        roomWidth={defaultParams.roomWidth} 
+                        roomLength={defaultParams.roomLength}
+                        diffuserHeight={defaultParams.diffuserHeight} 
+                        workZoneHeight={defaultParams.workZoneHeight}
                         viewMode={viewMode} 
                         placedDiffusers={placedDiffusers} 
                         onUpdateDiffuserPos={updateDiffuserPosition} 
                         onSelectDiffuser={handleSelectDiffuser}
                         onRemoveDiffuser={removeDiffuser} 
                         onDuplicateDiffuser={duplicateDiffuser} 
-                        selectedDiffuserId={selectedDiffuserId}
+                        selectedDiffuserId={selectedIds[0]}
                         simulationField={simulationField} 
                         gridStep={0.5}
                         snapToGrid={snapToGrid} 
@@ -496,6 +423,20 @@ const Simulator = ({ onBack, onHome }: any) => {
                         onAddProbe={addProbeAtScreenClick}
                         onRemoveProbe={removeProbe}
                         onUpdateProbePos={updateProbePos}
+                        defaultParams={defaultParams}
+                        onSyncToDefault={(id: string) => {
+                            const d = placedDiffusers.find(d => d.id === id);
+                            if (d) {
+                                setDefaultParams(prev => ({
+                                    ...prev,
+                                    modelId: d.modelId,
+                                    diameter: d.diameter,
+                                    volume: d.volume,
+                                    temperature: d.temperature,
+                                    modeIdx: d.modeIdx ?? 0
+                                }));
+                            }
+                        }}
                     />
 
                    {/* Desktop Toolbar (AutoCAD-like layout with Native App Style) */}
@@ -604,13 +545,13 @@ const Simulator = ({ onBack, onHome }: any) => {
             <SimulatorRightPanel 
                 viewMode={viewMode}
                 physics={physics}
-                params={params}
+                params={defaultParams}
                 placedDiffusers={placedDiffusers}
                 topViewStats={topViewStats}
                 isMobileStatsOpen={isMobileStatsOpen}
                 setIsMobileStatsOpen={setIsMobileStatsOpen}
                 isHelpMode={isHelpMode}
-                selectedDiffuserId={selectedDiffuserId}
+                selectedDiffuserId={selectedIds[0]}
                 probes={probes}
                 onRemoveProbe={removeProbe}
             />
