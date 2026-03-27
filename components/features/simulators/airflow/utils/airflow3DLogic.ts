@@ -218,12 +218,12 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
             const emitter = sampleDiskEmitter(nozzleW * 0.25);
             pX += emitter.x;
             pZ += emitter.z;
-            const coneAngle = (8 + Math.random() * 8) * (Math.PI / 180);
-            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * 0.28;
+            const coneAngle = (15 + Math.random() * 15) * (Math.PI / 180);
+            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * 0.6;
             vx = Math.cos(emitter.angle) * horizontalSpeed;
             vz = Math.sin(emitter.angle) * horizontalSpeed;
             vy = -Math.cos(coneAngle) * pxSpeed;
-            waveAmp = 2; drag = 0.96;
+            waveAmp = 4; drag = 0.98;
         }
 
         p.life = 2.0 + Math.random() * 1.5;
@@ -258,17 +258,12 @@ export const updateParticlePhysics = (p: Particle3D, dt: number, state: ThreeDVi
         const diffY = mountedHeight * ppm;
         if (p.y > diffY - 10) p.active = false; 
     } else {
-        // ИСПРАВЛЕНИЕ 5: Усиливаем физику волн, компенсируя dt, чтобы вихри стали четко видимыми
-        const waveForce = Math.sin(p.age * p.waveFreq + p.wavePhase) * p.waveAmp;
-        p.vx += Math.cos(p.waveAngle) * waveForce * dt * 5;
-        p.vz += Math.sin(p.waveAngle) * waveForce * dt * 5;
-
         if (p.isHorizontal) {
             const ceilingY = mountedHeight * ppm;
             const ceilingDist = ceilingY - p.y;
-            const thresholdDist = state.roomHeight * ppm * 0.15;
+            const thresholdDist = state.height * 0.15;
             
-            if (ceilingDist < thresholdDist && ceilingDist > -10 && (Math.abs(p.vx) > 0.3 || Math.abs(p.vz) > 0.3)) { 
+            if (ceilingDist < thresholdDist && ceilingDist > -10 && Math.hypot(p.vx, p.vz) > 0.3) { 
                 p.vy += ceilingDist * 5.0 * dt; 
             } else { 
                 p.vy += p.buoyancy * dt * 0.5; 

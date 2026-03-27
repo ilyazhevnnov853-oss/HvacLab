@@ -6,9 +6,9 @@ import { getDiffuserGeometry, getHorizontalJetProfile, getVerticalJetProfile, re
 const CONSTANTS = {
   BASE_TIME_STEP: 1/60, 
   HISTORY_RECORD_INTERVAL: 0.015,
-  MAX_PARTICLES: 4000, 
-  SPAWN_RATE_BASE: 5,
-  SPAWN_RATE_MULTIPLIER: 8
+  MAX_PARTICLES: 8000, 
+  SPAWN_RATE_BASE: 12,
+  SPAWN_RATE_MULTIPLIER: 0
 };
 
 const SLICE_PARTICLE_DISTANCE = 1.5;
@@ -625,14 +625,9 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
             const depthPos = getDepthPos(state.viewType, d);
             return Math.abs(depthPos - state.sliceDepth) <= SLICE_PARTICLE_DISTANCE && isRenderableDiffuser(d);
         });
-        const maxV0 = sliceDiffusers.length > 0
-            ? Math.max(...sliceDiffusers.map(d => d.performance.v0 || 0))
-            : 0;
-
         if (isPowerOn && isPlaying && sliceDiffusers.length > 0) {
             const diffusersCount = sliceDiffusers.length;
-            const baseRate = CONSTANTS.SPAWN_RATE_BASE + maxV0 / 2 * CONSTANTS.SPAWN_RATE_MULTIPLIER;
-            const spawnRate = Math.ceil(baseRate * diffusersCount);
+            const spawnRate = CONSTANTS.SPAWN_RATE_BASE * diffusersCount;
             
             let spawnedCount = 0;
             for (let i = 0; i < pool.length; i++) {

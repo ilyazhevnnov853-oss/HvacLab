@@ -484,15 +484,10 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
 
         // Logic to determine spawn rate based on MAX velocity of all valid diffusers
         const renderableDiffusers = (state.placedDiffusers || []).filter(d => !d.performance?.error && !!d.performance?.spec?.A);
-        const maxV0 = renderableDiffusers.length
-            ? Math.max(...renderableDiffusers.map(d => d.performance.v0 || 0))
-            : (state.physics.v0 || 0);
 
-        if (isPowerOn && isPlaying && maxV0 > 0) {
-            // Scale spawn rate by number of diffusers to maintain density per device
-            const diffusersCount = renderableDiffusers.length || 1;
-            const baseRate = CONSTANTS.SPAWN_RATE_BASE + maxV0 / 2 * CONSTANTS.SPAWN_RATE_MULTIPLIER;
-            const spawnRate = Math.ceil(baseRate * diffusersCount);
+        if (isPowerOn && isPlaying && renderableDiffusers.length > 0) {
+            const diffusersCount = renderableDiffusers.length;
+            const spawnRate = CONSTANTS.SPAWN_RATE_BASE * diffusersCount;
             
             let spawnedCount = 0;
             for (let i = 0; i < pool.length; i++) {
@@ -536,10 +531,10 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
             }
         }
 
-        // --- Single Pass Rendering ---
+        // --- ИДЕАЛЬНЫЙ РЕНДЕР: Тонкие линии + Аддитивное свечение (Screen) ---
         ctx.globalCompositeOperation = 'screen';
         ctx.lineCap = 'round';
-        ctx.lineWidth = 1.5; // Consistent line width
+        ctx.lineWidth = 0.8; // Ультратонкие линии для объема
 
         for (const key in batches) {
             const [color, alphaStr] = key.split('|');
@@ -553,35 +548,54 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
             ctx.beginPath();
             for (let k = 0; k < group.length; k++) {
                 const p = group[k];
-                const waveVal = (Math.sin(p.age * p.waveFreq + p.wavePhase) * p.waveAmp * Math.min(p.age, 1.0)) / finalScale;
-                let wx = 0, wy = 0, wz = 0;
-                if (p.isHorizontal && !p.isSuction) wy = waveVal;
-                else if (!p.isSuction) {
-                    wx = waveVal * Math.cos(p.waveAngle); 
-                    wz = waveVal * Math.sin(p.waveAngle);
-                }
-                const cur = p3d(p.x + wx, p.y + wy, p.z + wz);
+                
+                // Calculate wave displacement
+                const waveVal = Math.sin(p.age * p.waveFreq + p.wavePhase) * p.waveAmp * Math.min(p.age, 1.0);
+                // Apply wave displacement based on waveAngle
+                const wx = Math.cos(p.waveAngle) * waveVal;
+                const wz = Math.sin(p.waveAngle) * waveVal;
+                
+                const cur = p3d(p.x + wx, p.y, p.z + wz);
                 if (cur.s <= 0) continue;
+                
                 ctx.moveTo(cur.x, cur.y);
                 for (let j = p.history.length - 1; j >= 0; j--) {
                     const h = p.history[j];
-                    const hWave = (Math.sin(h.age * p.waveFreq + p.wavePhase) * p.waveAmp * Math.min(h.age, 1.0)) / finalScale;
-                    let hwx = 0, hwy = 0, hwz = 0;
-                    if (p.isHorizontal && !p.isSuction) hwy = hWave;
-                    else if (!p.isSuction) {
-                        hwx = hWave * Math.cos(p.waveAngle);
-                        hwz = hWave * Math.sin(p.waveAngle);
-                    }
-                    const prev = p3d(h.x + hwx, h.y + hwy, h.z + hwz);
+                    const hWave = Math.sin(h.age * p.waveFreq + p.wavePhase) * p.waveAmp * Math.min(h.age, 1.0);
+                    const hwx = Math.cos(p.waveAngle) * hWave;
+                    const hwz = Math.sin(p.waveAngle) * hWave;
+                    const prev = p3d(h.x + hwx, h.y, h.z + hwz);
                     ctx.lineTo(prev.x, prev.y);
                 }
             }
             ctx.stroke();
         }
-        ctx.globalAlpha = 1.0;
-
-        ctx.globalCompositeOperation = 'source-over';
         
+        ctx.globalAlpha = 1.0;
+        ctx.globalCompositeOperation = 'source-over';
+
+        // Draw Probes
+        if (probes) {
+            probes.forEach(p => {
+                const cx = (p.x - roomWidth/2) * PPM;
+                const cz = (p.y - roomLength/2) * PPM;
+                const cy = p.z * PPM;
+                
+                const pt = p3d(cx, cy, cz);
+                if (pt.s > 0) {
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = '#34d399';
+                    ctx.fill();
+                    
+                    // Text Label
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '10px Inter';
+                    ctx.fillText(`P: ${p.z.toFixed(1)}m`, pt.x + 8, pt.y);
+                }
+            });
+        }
+
         requestRef.current = requestAnimationFrame(animate);
     }, [camera]);
 
