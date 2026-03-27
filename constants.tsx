@@ -71,24 +71,64 @@ export const SPECS: SpecMap = {
 export const ENGINEERING_DATA: EngineeringData = {
   'dpu-v': {
     'swirl': {
-      100: [{vol:35, pa:18, db:20, throw:2.1}, {vol:60, pa:54, db:35, throw:3.6}, {vol:85, pa:109, db:45, throw:5.2}],
-      125: [{vol:45, pa:15, db:20, throw:2.1}, {vol:90, pa:62, db:35, throw:4.3}, {vol:120, pa:110, db:45, throw:5.7}],
-      160: [{vol:75, pa:20, db:20, throw:2.8}, {vol:160, pa:91, db:35, throw:6.0}, {vol:200, pa:143, db:45, throw:7.5}],
-      200: [{vol:130, pa:28, db:20, throw:3.8}, {vol:210, pa:73, db:35, throw:6.2}, {vol:245, pa:99, db:45, throw:7.2}],
-      250: [{vol:180, pa:25, db:20, throw:4.2}, {vol:300, pa:65, db:35, throw:7.0}, {vol:380, pa:95, db:45, throw:8.5}],
-      315: [{vol:250, pa:30, db:20, throw:5.0}, {vol:500, pa:70, db:35, throw:8.0}, {vol:700, pa:100, db:45, throw:10.0}],
-      400: [{vol:400, pa:35, db:20, throw:6.0}, {vol:800, pa:75, db:35, throw:9.5}, {vol:1100, pa:105, db:45, throw:12.0}]
+      100: [
+        { vol: 35, pa: 18, db: 35, throw: 2.1 },
+        { vol: 60, pa: 54, db: 45, throw: 3.6 },
+        { vol: 85, pa: 109, db: 50, throw: 5.2 },
+        { vol: 120, pa: 216, db: 60, throw: 7.25 }
+      ],
+      125: [
+        { vol: 45, pa: 15, db: 35, throw: 2.1 },
+        { vol: 90, pa: 62, db: 45, throw: 4.3 },
+        { vol: 120, pa: 110, db: 50, throw: 5.7 },
+        { vol: 170, pa: 221, db: 60, throw: 8.0 }
+      ],
+      160: [
+        { vol: 75, pa: 20, db: 35, throw: 2.8 },
+        { vol: 160, pa: 91, db: 45, throw: 6.0 },
+        { vol: 200, pa: 143, db: 50, throw: 7.5 },
+        { vol: 300, pa: 322, db: 60, throw: 11.25 }
+      ],
+      200: [
+        { vol: 130, pa: 28, db: 35, throw: 3.8 },
+        { vol: 210, pa: 73, db: 45, throw: 6.2 },
+        { vol: 245, pa: 99, db: 50, throw: 7.2 },
+        { vol: 335, pa: 185, db: 60, throw: 9.75 }
+      ]
     }
   },
   'dpu-m': {
     'compact': {
-      100: [{vol:80, pa:16, db:20, throw:2.0}, {vol:150, pa:55, db:35, throw:3.7}, {vol:200, pa:98, db:45, throw:5.0}],
-      125: [{vol:130, pa:17, db:20, throw:2.6}, {vol:250, pa:62, db:35, throw:5.0}, {vol:350, pa:122, db:45, throw:7.0}],
-      160: [{vol:180, pa:12, db:20, throw:2.8}, {vol:450, pa:75, db:35, throw:7.0}, {vol:620, pa:143, db:45, throw:9.6}],
-      200: [{vol:250, pa:9, db:20, throw:3.1}, {vol:600, pa:52, db:35, throw:7.3}, {vol:800, pa:92, db:45, throw:9.8}],
-      250: [{vol:350, pa:7, db:20, throw:3.4}, {vol:990, pa:56, db:35, throw:9.6}, {vol:1350, pa:104, db:45, throw:13.0}],
-      315: [{vol:500, pa:8, db:20, throw:4.0}, {vol:1500, pa:60, db:35, throw:11.0}, {vol:2000, pa:110, db:45, throw:15.0}],
-      400: [{vol:800, pa:10, db:20, throw:5.0}, {vol:2000, pa:65, db:35, throw:13.0}, {vol:3000, pa:115, db:45, throw:18.0}]
+      100: [
+        { vol: 80, pa: 16, db: 20, throw: 2.0 },
+        { vol: 100, pa: 25, db: 25, throw: 2.5 },
+        { vol: 150, pa: 55, db: 35, throw: 3.7 },
+        { vol: 200, pa: 98, db: 45, throw: 5.0 }
+      ],
+      125: [
+        { vol: 130, pa: 17, db: 20, throw: 2.6 },
+        { vol: 180, pa: 32, db: 25, throw: 3.6 },
+        { vol: 250, pa: 62, db: 35, throw: 5.0 },
+        { vol: 350, pa: 122, db: 45, throw: 7.0 }
+      ],
+      160: [
+        { vol: 180, pa: 12, db: 20, throw: 2.8 },
+        { vol: 330, pa: 40, db: 25, throw: 5.1 },
+        { vol: 450, pa: 75, db: 35, throw: 7.0 },
+        { vol: 620, pa: 143, db: 45, throw: 9.75 }
+      ],
+      200: [
+        { vol: 250, pa: 8.9, db: 20, throw: 3.1 },
+        { vol: 450, pa: 29, db: 25, throw: 5.5 },
+        { vol: 600, pa: 52, db: 35, throw: 7.3 },
+        { vol: 800, pa: 92, db: 45, throw: 9.75 }
+      ],
+      250: [
+        { vol: 350, pa: 7.0, db: 20, throw: 3.4 },
+        { vol: 720, pa: 29, db: 25, throw: 7.0 },
+        { vol: 990, pa: 56, db: 35, throw: 9.6 },
+        { vol: 1350, pa: 104, db: 45, throw: 13.0 }
+      ]
     }
   },
   'dpu-k': {
@@ -97,35 +137,64 @@ export const ENGINEERING_DATA: EngineeringData = {
         { vol: 90, pa: 17, db: 20, throw: 2.2 },
         { vol: 110, pa: 25, db: 25, throw: 2.7 },
         { vol: 150, pa: 47, db: 35, throw: 3.7 },
-        { vol: 210, pa: 92, db: 45, throw: 2.1 }
+        { vol: 210, pa: 92, db: 45, throw: 5.25 }
       ],
       125: [
         { vol: 110, pa: 10, db: 20, throw: 2.2 },
         { vol: 130, pa: 14, db: 25, throw: 2.6 },
         { vol: 190, pa: 30, db: 35, throw: 3.8 },
-        { vol: 260, pa: 57, db: 45, throw: 2.1 }
+        { vol: 260, pa: 57, db: 45, throw: 5.25 }
       ],
       160: [
         { vol: 180, pa: 10, db: 20, throw: 2.8 },
         { vol: 220, pa: 15, db: 25, throw: 3.4 },
         { vol: 320, pa: 32, db: 35, throw: 5.0 },
-        { vol: 460, pa: 67, db: 45, throw: 2.9 }
+        { vol: 460, pa: 67, db: 45, throw: 7.25 }
       ],
-      200: [{vol:280, pa:9, db:20, throw:3.4}, {vol:640, pa:50, db:45, throw:7.8}],
-      250: [{vol:390, pa:7, db:20, throw:3.8}, {vol:980, pa:46, db:45, throw:9.5}],
-      315: [{vol:500, pa:8, db:20, throw:4.5}, {vol:1500, pa:50, db:45, throw:11.5}],
-      400: [{vol:800, pa:10, db:20, throw:5.5}, {vol:2000, pa:55, db:45, throw:13.5}]
+      200: [
+        { vol: 280, pa: 9, db: 20, throw: 3.4 },
+        { vol: 340, pa: 14, db: 25, throw: 4.2 },
+        { vol: 470, pa: 27, db: 35, throw: 5.7 },
+        { vol: 640, pa: 50, db: 45, throw: 7.75 }
+      ],
+      250: [
+        { vol: 390, pa: 7, db: 20, throw: 3.8 },
+        { vol: 480, pa: 11, db: 25, throw: 4.7 },
+        { vol: 690, pa: 23, db: 35, throw: 6.7 },
+        { vol: 980, pa: 46, db: 45, throw: 9.5 }
+      ]
     }
   },
   'dpu-s': {
     'compact': {
-      100: [{vol:40, pa:12, db:20, throw:2.2}, {vol:100, pa:75, db:45, throw:5.5}],
-      125: [{vol:60, pa:14, db:20, throw:2.7}, {vol:150, pa:86, db:45, throw:6.8}],
-      160: [{vol:80, pa:9, db:20, throw:2.8}, {vol:220, pa:69, db:45, throw:7.7}],
-      200: [{vol:120, pa:8, db:20, throw:3.3}, {vol:330, pa:60, db:45, throw:9.2}],
-      250: [{vol:180, pa:7, db:20, throw:4.0}, {vol:480, pa:50, db:45, throw:11.0}],
-      315: [{vol:250, pa:8, db:20, throw:5.0}, {vol:700, pa:55, db:45, throw:13.0}],
-      400: [{vol:400, pa:9, db:20, throw:6.0}, {vol:1000, pa:60, db:45, throw:15.0}]
+      125: [
+        { vol: 60, pa: 14, db: 20, throw: 6.8 },
+        { vol: 90, pa: 31, db: 25, throw: 10.0 },
+        { vol: 120, pa: 55, db: 35, throw: 14.0 },
+        { vol: 150, pa: 86, db: 45, throw: 17.0 },
+        { vol: 220, pa: 185, db: 60, throw: 24.75 }
+      ],
+      160: [
+        { vol: 80, pa: 9.1, db: 20, throw: 7.0 },
+        { vol: 120, pa: 21, db: 25, throw: 11.0 },
+        { vol: 170, pa: 41, db: 35, throw: 15.0 },
+        { vol: 220, pa: 69, db: 45, throw: 19.25 },
+        { vol: 350, pa: 175, db: 60, throw: 30.0 }
+      ],
+      200: [
+        { vol: 120, pa: 7.9, db: 20, throw: 8.3 },
+        { vol: 170, pa: 16, db: 25, throw: 12.0 },
+        { vol: 240, pa: 32, db: 35, throw: 17.0 },
+        { vol: 330, pa: 60, db: 45, throw: 23.0 },
+        { vol: 520, pa: 149, db: 60, throw: 35.0 }
+      ],
+      250: [
+        { vol: 180, pa: 7.1, db: 20, throw: 9.9 },
+        { vol: 240, pa: 13, db: 25, throw: 13.0 },
+        { vol: 350, pa: 27, db: 35, throw: 19.0 },
+        { vol: 480, pa: 50, db: 45, throw: 27.5 },
+        { vol: 680, pa: 101, db: 60, throw: 37.5 }
+      ]
     }
   }
 };
