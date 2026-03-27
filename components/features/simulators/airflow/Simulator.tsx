@@ -242,9 +242,11 @@ const Simulator = ({ onBack, onHome }: any) => {
     }, [selectedDiffuserIds]);
 
     const handleParameterChange = (key: keyof typeof INITIAL_PARAMS, value: any) => {
-        if (selectedDiffuserIds.length === 0) {
-            setParams(prev => ({ ...prev, [key]: value }));
-        } else {
+        // 1. Всегда обновляем UI-стейт панели
+        setParams(prev => ({ ...prev, [key]: value }));
+
+        // 2. Если есть выделенные объекты — применяем изменения к ним
+        if (selectedDiffuserIds.length > 0) {
             setPlacedDiffusers(prev => prev.map(d => {
                 if (selectedDiffuserIds.includes(d.id)) {
                     const updatedDiffuser = { ...d, [key]: value };
@@ -332,6 +334,7 @@ const Simulator = ({ onBack, onHome }: any) => {
     };
 
     const addDiffuser = () => {
+        setSelectedDiffuserIds([]); // Сбрасываем выделение, переходим в режим "Новых"
         // Активируем инструмент Штамп вместо случайного спавна
         setActiveTool('stamp' as ToolMode);
         if (viewMode !== 'top') setViewMode('top');
@@ -406,7 +409,6 @@ const Simulator = ({ onBack, onHome }: any) => {
         }
 
         setProbes([...probes, { id: `p-${Date.now()}`, x: startX, y: startY, z: startZ }]);
-        setActiveTool('select');
     };
     
     const updateProbePos = (id: string, pos: {x?: number, y?: number, z?: number}) => {

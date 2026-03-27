@@ -685,10 +685,8 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             props.onRemoveDiffuser(contextMenu.id);
         } else if (action === 'duplicate' && props.onDuplicateDiffuser) {
             props.onDuplicateDiffuser(contextMenu.id);
-            setIsDragging(true);
-            setIsStickyDrag(true);
-            props.onDragStart && props.onDragStart();
-            setDragOffset({ x: 0, y: 0 }); 
+            // Убрали авто-захват (isDragging), так как мы не знаем ID нового объекта в этом контексте.
+            // Объект просто появится рядом, и пользователь сможет сам его захватить.
         }
         setContextMenu(null);
     };
