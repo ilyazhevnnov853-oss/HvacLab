@@ -128,14 +128,14 @@ export const SimulatorRightPanel = ({
     isMobileStatsOpen,
     setIsMobileStatsOpen,
     isHelpMode,
-    selectedDiffuserId,
+    selectedDiffuserIds,
     probes,
     onRemoveProbe
 }: any) => {
     const diffusers = placedDiffusers || [];
     const hasDiffusers = diffusers.length > 0;
-    const activeDiffuser = selectedDiffuserId
-        ? diffusers.find((d: any) => d.id === selectedDiffuserId) || diffusers[diffusers.length - 1] || null
+    const activeDiffuser = selectedDiffuserIds && selectedDiffuserIds.length > 0
+        ? diffusers.find((d: any) => d.id === selectedDiffuserIds[selectedDiffuserIds.length - 1]) || diffusers[diffusers.length - 1] || null
         : diffusers[diffusers.length - 1] || null;
 
     const previewDiffuser = {

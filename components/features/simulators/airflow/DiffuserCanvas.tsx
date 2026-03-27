@@ -30,7 +30,7 @@ interface DiffuserCanvasProps {
   onDuplicateDiffuser?: (id: string) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
-  selectedDiffuserId?: string | null;
+  selectedDiffuserIds?: string[];
   simulationField?: GridPoint[][];
   dragPreview?: {x: number, y: number, width: number, height: number} | null;
   snapToGrid?: boolean;
@@ -83,7 +83,7 @@ const DiffuserCanvas: React.FC<DiffuserCanvasProps> = (props) => {
                 roomLength={props.roomLength || 6}
                 roomHeight={props.roomHeight}
                 placedDiffusers={props.placedDiffusers}
-                selectedDiffuserId={props.selectedDiffuserId}
+                selectedDiffuserIds={props.selectedDiffuserIds}
                 showGrid={props.showGrid}
                 simulationField={props.simulationField}
                 snapToGrid={props.snapToGrid}
