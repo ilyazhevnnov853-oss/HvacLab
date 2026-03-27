@@ -190,8 +190,8 @@ export const SimulatorLeftPanel = ({
                                 </div>
                             </div>
                             <div className="space-y-6">
-                                <GlassSlider label="Расход воздуха" icon={<Wind size={14}/>} val={params.volume} min={physics.spec.min || 50} max={(physics.spec.max || 1000) * 1.5} step={10} unit=" м³/ч" onChange={(v: number) => setParams(p => ({...p, volume: v}))}/>
-                                <GlassSlider label="Т° Притока" icon={<Thermometer size={14}/>} val={params.temperature} min={15} max={35} step={1} unit="°C" onChange={(v: number) => setParams(p => ({...p, temperature: v}))} color="temp"/>
+                                <GlassSlider label="Расход воздуха" icon={<Wind size={14}/>} val={params.volume} min={physics.spec.min || 50} max={(physics.spec.max || 1000) * 1.5} step={10} unit=" м³/ч" onChange={(v: number) => handleParameterChange('volume', v)}/>
+                                <GlassSlider label="Т° Притока" icon={<Thermometer size={14}/>} val={params.temperature} min={15} max={35} step={1} unit="°C" onChange={(v: number) => handleParameterChange('temperature', v)} color="temp"/>
                             </div>
                         </AccordionItem>
 

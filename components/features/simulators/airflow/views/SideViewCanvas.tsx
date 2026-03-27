@@ -120,35 +120,7 @@ const isRenderableDiffuser = (diffuser: PlacedDiffuser) =>
 
 const buildSideFlowResetKey = (state: SideViewCanvasProps) => JSON.stringify({
     viewType: state.viewType,
-    room: [state.roomWidth, state.roomLength, state.roomHeight, state.diffuserHeight, state.workZoneHeight, state.sliceDepth],
-    source: [state.modelId, state.flowType, state.temp, state.roomTemp],
-    physics: [
-        state.physics.v0,
-        state.physics.throwDist,
-        state.physics.workzoneVelocity,
-        state.physics.coverageRadius,
-        state.physics.Ar,
-        state.physics.spec?.A,
-        state.physics.spec?.D
-    ],
-    diffusers: (state.placedDiffusers || []).map(d => [
-        d.id,
-        d.x,
-        d.y,
-        d.modelId,
-        d.flowType,
-        d.modeIdx ?? 0,
-        d.diameter,
-        d.volume,
-        d.temperature,
-        d.performance.v0,
-        d.performance.throwDist,
-        d.performance.workzoneVelocity,
-        d.performance.coverageRadius,
-        d.performance.Ar,
-        d.performance.spec?.A,
-        d.performance.spec?.D
-    ])
+    room: [state.roomWidth, state.roomLength, state.roomHeight, state.sliceDepth]
 });
 
 const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {

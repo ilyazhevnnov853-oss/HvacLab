@@ -209,6 +209,21 @@ const Simulator = ({ onBack, onHome }: any) => {
         }
     }, [params.diameter, params.modeIdx, params.modelId, params.roomLength, params.roomWidth, params.temperature, physics, placedDiffusers.length, visualFlowType]);
 
+    // Динамический пересчет физики всех диффузоров при изменении параметров помещения
+    useEffect(() => {
+        if (placedDiffusers.length === 0) return;
+        
+        setPlacedDiffusers(prev => prev.map(d => ({
+            ...d,
+            performance: buildPlacedDiffuserPerformance(
+                d, // диффузор сохраняет свои личные настройки температуры, расхода и модели
+                params.roomTemp, // новая глобальная температура комнаты
+                params.diffuserHeight, // новая высота
+                params.workZoneHeight
+            )
+        })));
+    }, [params.roomTemp, params.diffuserHeight, params.workZoneHeight]);
+
     // --- HANDLERS ---
     // Clamp placed objects and section lines to room bounds
     useEffect(() => {

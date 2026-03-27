@@ -203,35 +203,7 @@ const drawRealisticDiffuser3D = (
 };
 
 const buildThreeDFlowResetKey = (state: ThreeDViewCanvasProps) => JSON.stringify({
-    room: [state.roomWidth, state.roomLength, state.roomHeight, state.diffuserHeight, state.workZoneHeight],
-    source: [state.modelId, state.flowType, state.temp, state.roomTemp],
-    physics: [
-        state.physics.v0,
-        state.physics.throwDist,
-        state.physics.workzoneVelocity,
-        state.physics.coverageRadius,
-        state.physics.Ar,
-        state.physics.spec?.A,
-        state.physics.spec?.D
-    ],
-    diffusers: (state.placedDiffusers || []).map(d => [
-        d.id,
-        d.x,
-        d.y,
-        d.modelId,
-        d.flowType,
-        d.modeIdx ?? 0,
-        d.diameter,
-        d.volume,
-        d.temperature,
-        d.performance.v0,
-        d.performance.throwDist,
-        d.performance.workzoneVelocity,
-        d.performance.coverageRadius,
-        d.performance.Ar,
-        d.performance.spec?.A,
-        d.performance.spec?.D
-    ])
+    room: [state.roomWidth, state.roomLength, state.roomHeight]
 });
 
 const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
