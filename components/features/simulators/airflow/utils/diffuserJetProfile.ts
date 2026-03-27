@@ -66,9 +66,9 @@ export const getVerticalJetProfile = (modelId: string, flowType: string): Vertic
             emitter: 'disk',
             radiusFactor: 0.35,
             radiusJitter: 0.15,
-            coneMinDeg: 5,
+            coneMinDeg: 18, // Увеличено с 5 до 18 для широкого торнадо
             coneJitterDeg: 10,
-            horizontalFactor: 0.3,
+            horizontalFactor: 0.4, // Немного поднято для разлета в стороны
             inwardFactor: 0,
             tangentialFactor: 0.6, // Высокая закрутка
             speedFactor: 0.85,     // Часть энергии уходит в закрутку
@@ -81,10 +81,10 @@ export const getVerticalJetProfile = (modelId: string, flowType: string): Vertic
     // ДПУ-К (Веерный в режиме компактной струи) - Умеренная конусность
     if (modelId === 'dpu-k') {
         return {
-            emitter: 'ring',
+            emitter: 'disk', // Изменено с ring на disk
             radiusFactor: 0.4,
             radiusJitter: 0.1,
-            coneMinDeg: 12,
+            coneMinDeg: 16, // Увеличено с 12 до 16 для широкой струи
             coneJitterDeg: 8,
             horizontalFactor: 0.45,
             inwardFactor: 0.2,
@@ -102,10 +102,10 @@ export const getVerticalJetProfile = (modelId: string, flowType: string): Vertic
             emitter: 'ring',
             radiusFactor: 0.3,
             radiusJitter: 0.1,
-            coneMinDeg: 15,
+            coneMinDeg: 11, // Уменьшено с 15 до 11 для более сфокусированной струи
             coneJitterDeg: 5,
             horizontalFactor: 0.5,
-            inwardFactor: 0.3,
+            inwardFactor: 0.05, // Сведено к минимуму (было 0.3)
             tangentialFactor: 0,
             speedFactor: 1.0,
             drag: 0.96,
