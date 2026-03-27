@@ -245,6 +245,24 @@ const Simulator = ({ onBack, onHome }: any) => {
         setSliceY(prev => Math.min(Math.max(prev, 0), params.roomLength));
     }, [params.roomWidth, params.roomLength]);
 
+    // Удаление выделенных объектов клавишей Delete / Backspace
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Игнорируем нажатия, если пользователь печатает в input
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (selectedDiffuserIds.length > 0) {
+                    setPlacedDiffusers(prev => prev.filter(d => !selectedDiffuserIds.includes(d.id)));
+                    setSelectedDiffuserIds([]);
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedDiffuserIds]);
+
     const handleParameterChange = (key: keyof typeof INITIAL_PARAMS, value: any) => {
         if (selectedDiffuserIds.length === 0) {
             setParams(prev => ({ ...prev, [key]: value }));
@@ -265,11 +283,30 @@ const Simulator = ({ onBack, onHome }: any) => {
         }
     };
 
-    const handleSelectDiffuser = (id: string, multi: boolean = false) => {
+    const handleSelectDiffuser = (id: string | null, multi: boolean = false) => {
+        if (!id) {
+            // Клик в пустоту - снимаем выделение
+            setSelectedDiffuserIds([]);
+            return;
+        }
+
         if (multi) {
             setSelectedDiffuserIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
         } else {
             setSelectedDiffuserIds([id]);
+            
+            // Синхронизация левой панели с выбранным объектом
+            const selected = placedDiffusers.find(d => d.id === id);
+            if (selected) {
+                setParams(prev => ({
+                    ...prev,
+                    modelId: selected.modelId,
+                    modeIdx: selected.modeIdx ?? 0,
+                    diameter: selected.diameter,
+                    volume: selected.volume,
+                    temperature: selected.temperature
+                }));
+            }
         }
     };
 

@@ -20,7 +20,7 @@ interface TopViewCanvasProps {
   gridStep?: number;
   dragPreview?: {x: number, y: number, width: number, height: number} | null;
   onUpdateDiffuserPos?: (id: string, x: number, y: number) => void;
-  onSelectDiffuser?: (id: string) => void;
+  onSelectDiffuser?: (id: string | null, multi?: boolean) => void;
   onRemoveDiffuser?: (id: string) => void;
   onDuplicateDiffuser?: (id: string) => void;
   onDragStart?: () => void;
@@ -579,7 +579,7 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
                 }
 
                 if (hitId) {
-                    props.onSelectDiffuser && props.onSelectDiffuser(hitId);
+                    props.onSelectDiffuser && props.onSelectDiffuser(hitId, 'shiftKey' in e ? e.shiftKey : false);
                     setIsDragging(true);
                     props.onDragStart && props.onDragStart();
                     dragTargetRef.current = { type: 'diffuser', id: hitId };
@@ -590,7 +590,7 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
                         setDragOffset({ x: mouseX - cx, y: mouseY - cy });
                     }
                 } else {
-                    props.onSelectDiffuser && props.onSelectDiffuser(''); 
+                    props.onSelectDiffuser && props.onSelectDiffuser(null); 
                 }
                 break;
             }

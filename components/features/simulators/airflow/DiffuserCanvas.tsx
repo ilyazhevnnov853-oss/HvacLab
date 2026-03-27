@@ -25,7 +25,7 @@ interface DiffuserCanvasProps {
   viewMode?: 'front' | 'right' | 'top' | '3d';
   placedDiffusers?: PlacedDiffuser[];
   onUpdateDiffuserPos?: (id: string, x: number, y: number) => void;
-  onSelectDiffuser?: (id: string) => void;
+  onSelectDiffuser?: (id: string | null, multi?: boolean) => void;
   onRemoveDiffuser?: (id: string) => void;
   onDuplicateDiffuser?: (id: string) => void;
   onDragStart?: () => void;
