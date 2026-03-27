@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, ChevronLeft } from 'lucide-react';
+import { Home, ChevronLeft, ChevronDown } from 'lucide-react';
 
 // --- HEADER ---
 export const AppHeader = ({ title, subtitle, icon, onBack, onHome, rightContent }: any) => (
@@ -76,6 +76,58 @@ export const GlassButton = ({ onClick, icon, label, active, secondary, customCla
         </button>
     );
 };
+
+// --- GLASS INPUT ---
+export const GlassInput = ({ label, value, onChange, type = "number", placeholder, unit, icon, className }: any) => (
+    <div className={`group space-y-2 ${className}`}>
+        {label && (
+            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                {icon} {label}
+            </label>
+        )}
+        <div className="relative flex items-center">
+            <input 
+                type={type}
+                value={value}
+                onChange={e => onChange(type === 'number' ? Number(e.target.value) : e.target.value)}
+                placeholder={placeholder}
+                className="w-full h-12 bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl px-4 font-mono text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600"
+            />
+            {unit && (
+                <div className="absolute right-4 text-[10px] font-bold text-slate-400 uppercase tracking-tight pointer-events-none">
+                    {unit}
+                </div>
+            )}
+        </div>
+    </div>
+);
+
+// --- GLASS SELECT ---
+export const GlassSelect = ({ label, value, onChange, options, icon, className }: any) => (
+    <div className={`group space-y-2 ${className}`}>
+        {label && (
+            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                {icon} {label}
+            </label>
+        )}
+        <div className="relative">
+            <select 
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                className="w-full h-12 bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/10 rounded-2xl px-4 pr-10 font-bold text-xs text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all appearance-none cursor-pointer"
+            >
+                {options.map((opt: any) => (
+                    <option key={opt.value} value={opt.value} className="bg-white dark:bg-[#0f172a] text-slate-800 dark:text-white">
+                        {opt.label}
+                    </option>
+                ))}
+            </select>
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <ChevronDown size={16} />
+            </div>
+        </div>
+    </div>
+);
 
 // --- LIQUID SLIDER (THICK TUBE STYLE) ---
 export const GlassSlider = ({ label, icon, val, min, max, step, unit, onChange, gradient, color }: any) => {

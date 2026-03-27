@@ -8,7 +8,7 @@ import SimulatorHelpOverlay from './SimulatorHelpOverlay';
 import { useScientificSimulation, calculateScientificPerformanceResult, calculateSimulationField, analyzeField } from '../../../../hooks/useSimulation';
 import { PlacedDiffuser, Probe, ToolMode } from '../../../../types';
 import { GlassButton } from '../../../ui/Shared';
-import { DIFFUSER_CATALOG, getDiffuserMode, getDiffuserFlowType, getDiffuserPerformanceFlowType } from '../../../../constants';
+import { DIFFUSER_CATALOG, getDiffuserFlowType, getDiffuserPerformanceFlowType } from '../../../../constants';
 import { useLocalStorage } from '../../../../hooks/useLocalStorage';
 
 const buildPlacedDiffuserPerformance = (
@@ -103,14 +103,6 @@ const Simulator = ({ onBack, onHome }: any) => {
         };
     }, []);
 
-    const currentModel = useMemo(
-        () => DIFFUSER_CATALOG.find(d => d.id === params.modelId),
-        [params.modelId]
-    );
-    const currentMode = useMemo(
-        () => getDiffuserMode(params.modelId, params.modeIdx) || currentModel?.modes[0] || { flowType: 'vertical-conical' },
-        [currentModel, params.modelId, params.modeIdx]
-    );
     const visualFlowType = useMemo(
         () => getDiffuserFlowType(params.modelId, params.modeIdx),
         [params.modelId, params.modeIdx]
@@ -300,6 +292,17 @@ const Simulator = ({ onBack, onHome }: any) => {
     };
 
     const addDiffuserAt = (x: number, y: number) => {
+        const MIN_DIST = 0.05;
+        
+        // Защита от двойных кликов в одну точку (ближе 5 см)
+        const hasCollision = placedDiffusers.some(d => Math.hypot(d.x - x, d.y - y) < MIN_DIST);
+        if (hasCollision) return;
+
+        // Читаем актуальные глобальные настройки прямо из localStorage
+        const rawSettings = localStorage.getItem('hvac-global-settings');
+        const parsedSettings = rawSettings ? JSON.parse(rawSettings) : null;
+        const defaultParticleLimit = parsedSettings?.particleLimit || 8000;
+
         const id = `diff-${Date.now()}`;
         const newDiffuser: PlacedDiffuser = {
             id,
@@ -312,14 +315,10 @@ const Simulator = ({ onBack, onHome }: any) => {
             diameter: params.diameter,
             volume: params.volume,
             temperature: params.temperature,
+            // Применяем глобальный лимит к новому объекту:
+            particleLimit: defaultParticleLimit, 
             performance: buildPlacedDiffuserPerformance(
-                {
-                    modelId: params.modelId,
-                    modeIdx: params.modeIdx,
-                    diameter: params.diameter,
-                    volume: params.volume,
-                    temperature: params.temperature
-                },
+                params,
                 params.roomTemp,
                 params.diffuserHeight,
                 params.workZoneHeight
@@ -350,7 +349,37 @@ const Simulator = ({ onBack, onHome }: any) => {
     }, []);
 
     const updateDiffuserPosition = (id: string, x: number, y: number) => {
-        setPlacedDiffusers(prev => prev.map(d => d.id === id ? { ...d, x, y } : d));
+        setPlacedDiffusers(prev => {
+            const MIN_DIST = 0.05; // Минимальное расстояние 5 см
+            
+            const hasCollision = prev.some(d => 
+                d.id !== id && Math.hypot(d.x - x, d.y - y) < MIN_DIST
+            );
+
+            if (hasCollision) return prev; // Блокируем слияние центров
+
+            // Если перемещается мультивыделение
+            if (selectedDiffuserIds.includes(id) && selectedDiffuserIds.length > 1) {
+                const target = prev.find(d => d.id === id);
+                if (!target) return prev;
+                
+                const deltaX = x - target.x;
+                const deltaY = y - target.y;
+
+                return prev.map(d => {
+                    if (selectedDiffuserIds.includes(d.id)) {
+                        return { 
+                            ...d, 
+                            x: Math.max(0, Math.min(params.roomWidth, d.x + deltaX)), 
+                            y: Math.max(0, Math.min(params.roomLength, d.y + deltaY)) 
+                        };
+                    }
+                    return d;
+                });
+            } else {
+                return prev.map(d => d.id === id ? { ...d, x, y } : d);
+            }
+        });
     };
 
     const removeDiffuser = (id: string) => {
@@ -364,12 +393,28 @@ const Simulator = ({ onBack, onHome }: any) => {
         const source = placedDiffusers.find(d => d.id === id);
         if (!source) return;
 
+        const MIN_DIST = 0.05;
+        const VISUAL_STEP = 0.5; // Шаг для красивого визуального смещения
+        let newX = source.x + VISUAL_STEP;
+        let newY = source.y;
+
+        // Ищем свободную точку (чтобы в радиусе 5 см никого не было)
+        while (placedDiffusers.some(d => Math.hypot(d.x - newX, d.y - newY) < MIN_DIST)) {
+            newX += VISUAL_STEP;
+            if (newX > params.roomWidth - 0.5) {
+                newX = 0.5;
+                newY += VISUAL_STEP;
+            }
+        }
+
+        if (newY > params.roomLength - 0.5) newY = source.y; 
+
         const newId = `diff-${Date.now()}`;
         const duplicatedDiffuser: PlacedDiffuser = {
             ...source,
             id: newId,
-            x: source.x + 0.5,
-            y: source.y + 0.5,
+            x: newX,
+            y: newY,
             index: placedDiffusers.length + 1,
             performance: buildPlacedDiffuserPerformance(
                 source,
@@ -422,6 +467,18 @@ const Simulator = ({ onBack, onHome }: any) => {
     // UI Helpers
     const toggleSection = (id: string) => setOpenSection(openSection === id ? null : id);
     
+    const resetAll = () => {
+        setParams(INITIAL_PARAMS);
+        setPlacedDiffusers([]);
+        setSelectedDiffuserIds([]);
+        setProbes([]);
+        setIsPowerOn(true);
+        setIsPlaying(true);
+        setActiveTool('select');
+        setPlacementMode('single');
+        setOpenSection('distributor');
+    };
+
     // Derived current flow type for passing to Canvas
     return (
         <div className="flex w-full min-h-screen bg-[#F5F5F7] dark:bg-[#020205] flex-col lg:flex-row relative font-sans text-slate-900 dark:text-slate-200 overflow-hidden selection:bg-blue-500/30">
@@ -433,13 +490,14 @@ const Simulator = ({ onBack, onHome }: any) => {
                 openSection={openSection} toggleSection={toggleSection}
                 params={params} setParams={setParams}
                 handleParameterChange={handleParameterChange}
-                physics={physics} currentMode={currentMode}
+                physics={physics}
                 isPowerOn={isPowerOn} togglePower={() => setIsPowerOn(!isPowerOn)}
                 viewMode={viewMode} isPlaying={isPlaying} setIsPlaying={setIsPlaying}
                 sizeSelected={sizeSelected} setSizeSelected={setSizeSelected}
                 onHome={onHome} onBack={onBack}
                 isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen}
                 onAddDiffuser={addDiffuser}
+                onReset={resetAll}
                 isHelpMode={isHelpMode}
                 placementMode={placementMode}
                 setPlacementMode={setPlacementMode}
@@ -502,24 +560,15 @@ const Simulator = ({ onBack, onHome }: any) => {
                    {/* Desktop Toolbar (AutoCAD-like layout with Native App Style) */}
                     <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 p-1.5 rounded-2xl bg-white/90 dark:bg-[#0a0a0c]/90 backdrop-blur-2xl border border-black/10 dark:border-white/10 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.5)] pointer-events-auto transition-all duration-500">
                         
-                        {/* Power & Play */}
+                        {/* Play/Pause */}
                         <div className="flex items-center gap-1 pr-2 border-r border-black/10 dark:border-white/10">
                             <button 
-                                onClick={() => setIsPowerOn(!isPowerOn)} 
-                                className={`w-16 h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${isPowerOn ? 'bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'text-slate-400 hover:bg-black/5 dark:hover:bg-white/10'}`}
+                                onClick={() => setIsPlaying(!isPlaying)} 
+                                className={`w-16 h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${!isPlaying ? 'text-amber-500 bg-amber-500/10' : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10'}`}
                             >
-                                <Power size={18} />
-                                <span className="text-[9px] font-bold uppercase tracking-wider">Питание</span>
+                                {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+                                <span className="text-[9px] font-bold uppercase tracking-wider">{isPlaying ? 'Пауза' : 'Пуск'}</span>
                             </button>
-                            {isPowerOn && (
-                                <button 
-                                    onClick={() => setIsPlaying(!isPlaying)} 
-                                    className={`w-16 h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${!isPlaying ? 'text-amber-500 bg-amber-500/10' : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10'}`}
-                                >
-                                    {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
-                                    <span className="text-[9px] font-bold uppercase tracking-wider">{isPlaying ? 'Пауза' : 'Пуск'}</span>
-                                </button>
-                            )}
                         </div>
 
                         {/* View Modes */}
@@ -542,8 +591,7 @@ const Simulator = ({ onBack, onHome }: any) => {
                         </div>
 
                         {/* Tools */}
-                        {isPowerOn && (
-                            <div className="flex items-center gap-1 pl-2 border-l border-black/10 dark:border-white/10 overflow-hidden transition-all duration-500">
+                        <div className="flex items-center gap-1 pl-2 border-l border-black/10 dark:border-white/10 overflow-hidden transition-all duration-500">
                                 <button 
                                     onClick={() => setActiveTool('select')} 
                                     disabled={viewMode === '3d'}
@@ -588,7 +636,6 @@ const Simulator = ({ onBack, onHome }: any) => {
                                     <span className="text-[9px] font-bold uppercase tracking-wider">Срез</span>
                                 </button>
                             </div>
-                        )}
 
                         {/* Help Button */}
                         <div className="flex items-center pl-2 border-l border-black/10 dark:border-white/10">

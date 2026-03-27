@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Users, Box, Home, ChevronLeft, Menu, X, Wind, Ruler, Activity } from 'lucide-react';
-import { SectionHeader, GlassSlider } from '../../../ui/Shared';
+import React, { useState, useMemo } from 'react';
+import { Users, Box, Wind, Ruler, Activity, RotateCcw } from 'lucide-react';
+import { GlassButton, GlassSlider } from '../../../ui/Shared';
 import { useLocalStorage } from '../../../../hooks/useLocalStorage';
 
 interface AirExchangeState {
@@ -13,7 +13,6 @@ interface AirExchangeState {
 }
 
 const AirExchangeCalculator = ({ onBack, onHome }: any) => {
-    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [calcState, setCalcState] = useLocalStorage<AirExchangeState>('hvac-calc-air-exchange', {
         mode: 'room',
         area: 20,
@@ -25,211 +24,118 @@ const AirExchangeCalculator = ({ onBack, onHome }: any) => {
 
     const { mode, area, height, multiplicity, peopleCount, normPerPerson } = calcState;
 
-    // Room Parameters
-    const setMode = (nextMode: AirExchangeState['mode']) => setCalcState(prev => ({ ...prev, mode: nextMode }));
-    const setArea = (nextArea: number) => setCalcState(prev => ({ ...prev, area: nextArea }));
-    const setHeight = (nextHeight: number) => setCalcState(prev => ({ ...prev, height: nextHeight }));
-    const setMultiplicity = (nextMultiplicity: number) => setCalcState(prev => ({ ...prev, multiplicity: nextMultiplicity }));
-
-    // People Parameters
-    const setPeopleCount = (nextPeopleCount: number) => setCalcState(prev => ({ ...prev, peopleCount: nextPeopleCount }));
-    const setNormPerPerson = (nextNormPerPerson: number) => setCalcState(prev => ({ ...prev, normPerPerson: nextNormPerPerson }));
-
-    const [resultFlow, setResultFlow] = useState(0);
-
-    useEffect(() => {
+    const resultFlow = useMemo(() => {
         if (mode === 'room') {
-            // L = S * h * n
-            setResultFlow(area * height * multiplicity);
+            return area * height * multiplicity;
         } else {
-            // L = N * Lnorm
-            setResultFlow(peopleCount * normPerPerson);
+            return peopleCount * normPerPerson;
         }
     }, [mode, area, height, multiplicity, peopleCount, normPerPerson]);
 
-    // Theme Colors
-    const themeColor = mode === 'room' ? 'blue' : 'emerald';
-    const gradient = mode === 'room' ? 'from-blue-500 to-indigo-600' : 'from-emerald-400 to-teal-600';
-    const textColor = mode === 'room' ? 'text-blue-400' : 'text-emerald-400';
+    const handleReset = () => {
+        setCalcState({
+            mode: 'room',
+            area: 20,
+            height: 3.0,
+            multiplicity: 1,
+            peopleCount: 5,
+            normPerPerson: 60
+        });
+    };
 
     return (
-        <div className="flex w-full min-h-screen bg-[#020205] flex-col lg:flex-row relative font-sans text-slate-200 overflow-hidden selection:bg-blue-500/30">
-            {/* AMBIENT BACKGROUND */}
-            <div className={`absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[150px] pointer-events-none opacity-40 animate-pulse bg-${themeColor}-600/20`} style={{animationDuration: '8s'}} />
-            <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 rounded-full blur-[150px] pointer-events-none opacity-40 animate-pulse" style={{animationDuration: '10s'}} />
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] brightness-100 contrast-150 pointer-events-none"></div>
+        <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in zoom-in-95 duration-300 pb-20 px-4">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+                <h1 className="text-2xl font-black text-slate-800 dark:text-white flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-blue-500 text-white shadow-lg shadow-blue-500/20">
+                        <Wind size={24} />
+                    </div>
+                    Воздухообмен
+                </h1>
+                <div className="flex items-center gap-2">
+                    <GlassButton secondary onClick={onBack} label="Назад" />
+                    <GlassButton secondary onClick={onHome} label="Главная" />
+                </div>
+            </div>
 
-            {/* LEFT PANEL (Controls) */}
-             <div className={`
-                fixed inset-0 z-50 bg-black/95 backdrop-blur-xl lg:static lg:bg-transparent
-                flex flex-col lg:w-[420px] h-screen shrink-0 transition-transform duration-300
-                ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-                relative z-30 p-4 pl-0 lg:pl-4
-            `}>
-                <div className="flex-1 flex flex-col rounded-[32px] bg-[#0a0a0f]/80 backdrop-blur-2xl border border-white/5 overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
-                    {/* Header */}
-                    <div className="p-6 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent relative pt-safe-top">
-                         <div className="flex justify-between items-center lg:hidden mb-4">
-                            <h2 className="text-lg font-bold text-white">Меню</h2>
-                            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-white/10 rounded-lg text-white"><X size={20} /></button>
-                        </div>
-                        
-                        <div className="flex items-center gap-4 mb-6">
-                            <div className="flex gap-2">
-                                <button onClick={onHome} className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors border border-white/5 text-slate-400 hover:text-white group" title="На главную">
-                                    <Home size={18} />
-                                </button>
-                                <button onClick={onBack} className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors border border-white/5 text-slate-400 hover:text-white group" title="Назад">
-                                    <ChevronLeft size={18} />
-                                </button>
-                            </div>
-                            <div className="h-8 w-px bg-white/10"></div>
-                            
-                            <div className={`flex items-center gap-3`}>
-                                <div className={`p-2 rounded-xl bg-gradient-to-tr ${gradient} shadow-lg shadow-${themeColor}-500/20 text-white`}>
-                                    <Wind size={20} />
-                                </div>
-                                <div>
-                                    <h2 className="text-lg font-black text-white leading-none tracking-tight">HVACLAB</h2>
-                                    <p className={`text-[9px] font-bold ${textColor} uppercase tracking-widest mt-0.5`}>Калькулятор</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Mode Switcher */}
-                        <div className="flex p-1 bg-black/40 rounded-xl border border-white/5">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Main Content Card */}
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-white/60 dark:bg-[#0a0a0f]/60 backdrop-blur-xl border border-black/5 dark:border-white/5 rounded-3xl p-6 lg:p-8 shadow-sm">
+                        <div className="flex flex-wrap gap-2 mb-8 p-1 bg-black/5 dark:bg-white/5 rounded-2xl w-fit">
                             <button 
-                                onClick={() => setMode('room')}
-                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${mode === 'room' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-white'}`}
+                                onClick={() => setCalcState(prev => ({ ...prev, mode: 'room' }))}
+                                className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${
+                                    mode === 'room' 
+                                        ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' 
+                                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                                }`}
                             >
                                 <Box size={14} /> По помещению
                             </button>
                             <button 
-                                onClick={() => setMode('people')}
-                                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${mode === 'people' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-500 hover:text-white'}`}
+                                onClick={() => setCalcState(prev => ({ ...prev, mode: 'people' }))}
+                                className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${
+                                    mode === 'people' 
+                                        ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+                                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                                }`}
                             >
                                 <Users size={14} /> По людям
                             </button>
                         </div>
-                    </div>
 
-                    {/* Controls Content */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-8">
                         {mode === 'room' ? (
-                            <div className="space-y-6 animate-in slide-in-from-left-4 fade-in duration-300">
-                                <SectionHeader icon={<Ruler size={14}/>} title="Параметры помещения" />
-                                
-                                <div className="bg-black/20 p-4 rounded-2xl border border-white/5 space-y-6">
-                                    {/* Area Input */}
-                                    <div>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Площадь (S)</span>
-                                            <div className="flex items-baseline gap-1">
-                                                <input 
-                                                    type="number" 
-                                                    value={area} 
-                                                    onChange={(e) => setArea(Math.max(0, Number(e.target.value)))} 
-                                                    className="bg-transparent text-right text-lg font-bold font-mono text-white outline-none w-24 border-b border-transparent focus:border-white/20 transition-colors"
-                                                />
-                                                <span className="text-[10px] font-bold text-slate-500">м²</span>
-                                            </div>
-                                        </div>
-                                        <GlassSlider 
-                                            val={area} min={0} max={200} step={1} 
-                                            onChange={setArea} 
-                                            gradient="from-blue-600 to-indigo-500"
-                                            icon={<Box size={14}/>}
-                                            label=""
-                                        />
-                                    </div>
-
-                                    {/* Height Input */}
-                                    <div>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Высота (H)</span>
-                                            <div className="flex items-baseline gap-1">
-                                                <span className="text-lg font-bold font-mono text-white">{height}</span>
-                                                <span className="text-[10px] font-bold text-slate-500">м</span>
-                                            </div>
-                                        </div>
-                                        <GlassSlider 
-                                            val={height} min={2} max={10} step={0.1} 
-                                            onChange={setHeight} 
-                                            gradient="from-blue-600 to-cyan-500"
-                                            icon={<Ruler size={14} className="rotate-90"/>}
-                                            label=""
-                                        />
-                                    </div>
-
-                                    {/* Multiplicity Input */}
-                                    <div>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Кратность (n)</span>
-                                            <div className="flex items-baseline gap-1">
-                                                <span className="text-lg font-bold font-mono text-white">{multiplicity}</span>
-                                                <span className="text-[10px] font-bold text-slate-500">раз/ч</span>
-                                            </div>
-                                        </div>
-                                        <GlassSlider 
-                                            val={multiplicity} min={0.5} max={20} step={0.5} 
-                                            onChange={setMultiplicity} 
-                                            gradient="from-indigo-500 to-purple-500"
-                                            icon={<Activity size={14}/>}
-                                            label=""
-                                        />
-                                    </div>
+                            <div className="space-y-8 animate-in slide-in-from-left-4 duration-300">
+                                <h2 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <Ruler size={16} className="text-blue-500" /> Параметры помещения
+                                </h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <GlassSlider 
+                                        label="Площадь (м²)" 
+                                        val={area} min={1} max={500} step={1} 
+                                        onChange={(v) => setCalcState(prev => ({ ...prev, area: v }))} 
+                                    />
+                                    <GlassSlider 
+                                        label="Высота (м)" 
+                                        val={height} min={2} max={15} step={0.1} 
+                                        onChange={(v) => setCalcState(prev => ({ ...prev, height: v }))} 
+                                    />
+                                    <GlassSlider 
+                                        label="Кратность (раз/ч)" 
+                                        val={multiplicity} min={0.5} max={30} step={0.5} 
+                                        onChange={(v) => setCalcState(prev => ({ ...prev, multiplicity: v }))} 
+                                    />
                                 </div>
                             </div>
                         ) : (
-                            <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-                                <SectionHeader icon={<Users size={14}/>} title="Люди и нормы" />
-                                
-                                <div className="bg-black/20 p-4 rounded-2xl border border-white/5 space-y-6">
-                                    {/* People Count Input */}
-                                    <div>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Количество людей</span>
-                                            <div className="flex items-baseline gap-1">
-                                                <input 
-                                                    type="number" 
-                                                    value={peopleCount} 
-                                                    onChange={(e) => setPeopleCount(Math.max(0, Number(e.target.value)))} 
-                                                    className="bg-transparent text-right text-lg font-bold font-mono text-white outline-none w-24 border-b border-transparent focus:border-white/20 transition-colors"
-                                                />
-                                                <span className="text-[10px] font-bold text-slate-500">чел</span>
-                                            </div>
-                                        </div>
+                            <div className="space-y-8 animate-in slide-in-from-right-4 duration-300">
+                                <h2 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <Users size={16} className="text-emerald-500" /> Люди и нормы
+                                </h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <GlassSlider 
+                                        label="Количество людей" 
+                                        val={peopleCount} min={1} max={200} step={1} 
+                                        onChange={(v) => setCalcState(prev => ({ ...prev, peopleCount: v }))} 
+                                    />
+                                    <div className="space-y-4">
                                         <GlassSlider 
-                                            val={peopleCount} min={1} max={100} step={1} 
-                                            onChange={setPeopleCount} 
-                                            gradient="from-emerald-600 to-teal-500"
-                                            icon={<Users size={14}/>}
-                                            label=""
+                                            label="Норма (м³/ч на чел)" 
+                                            val={normPerPerson} min={10} max={120} step={5} 
+                                            onChange={(v) => setCalcState(prev => ({ ...prev, normPerPerson: v }))} 
                                         />
-                                    </div>
-
-                                    {/* Norm Input */}
-                                    <div>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Норма на человека</span>
-                                            <div className="flex items-baseline gap-1">
-                                                <span className="text-lg font-bold font-mono text-white">{normPerPerson}</span>
-                                                <span className="text-[10px] font-bold text-slate-500">м³/ч</span>
-                                            </div>
-                                        </div>
-                                        <GlassSlider 
-                                            val={normPerPerson} min={20} max={100} step={5} 
-                                            onChange={setNormPerPerson} 
-                                            gradient="from-teal-500 to-cyan-500"
-                                            icon={<Wind size={14}/>}
-                                            label=""
-                                        />
-                                        <div className="flex gap-2 mt-3 overflow-x-auto pb-1 no-scrollbar">
+                                        <div className="flex flex-wrap gap-2">
                                             {[20, 30, 40, 60, 80].map(n => (
                                                 <button 
                                                     key={n}
-                                                    onClick={() => setNormPerPerson(n)}
-                                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-colors ${normPerPerson === n ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-white/5 border-white/5 text-slate-500 hover:bg-white/10 hover:text-slate-300'}`}
+                                                    onClick={() => setCalcState(prev => ({ ...prev, normPerPerson: n }))}
+                                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                                        normPerPerson === n 
+                                                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-600 dark:text-emerald-400' 
+                                                            : 'bg-black/5 dark:bg-white/5 border-black/5 dark:border-white/5 text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                                                    }`}
                                                 >
                                                     {n}
                                                 </button>
@@ -239,104 +145,92 @@ const AirExchangeCalculator = ({ onBack, onHome }: any) => {
                                 </div>
                             </div>
                         )}
+
+                        <div className="flex items-center justify-end gap-3 pt-6 mt-10 border-t border-black/5 dark:border-white/5">
+                            <GlassButton secondary icon={<RotateCcw size={16}/>} label="Сбросить" onClick={handleReset} />
+                        </div>
                     </div>
-                </div>
-            </div>
 
-            {/* RIGHT CONTENT (Visualization) */}
-            <div className="flex-1 flex flex-col relative h-[100dvh] lg:h-screen overflow-hidden p-0 lg:p-4 lg:pl-0">
-                <div className="flex-1 lg:rounded-[48px] overflow-hidden relative shadow-2xl bg-[#030304] border-t lg:border border-white/5 ring-1 ring-white/5 group flex flex-col">
-                    <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-5 pointer-events-none mix-blend-overlay"></div>
-                    <div className={`absolute inset-0 bg-gradient-to-b from-${themeColor}-900/10 to-transparent pointer-events-none transition-colors duration-700`}></div>
-
-                    {/* Mobile Toggle */}
-                    <button onClick={() => setIsMobileMenuOpen(true)} className={`lg:hidden absolute top-4 left-4 z-30 p-3 rounded-full bg-${themeColor}-600 text-white shadow-lg pt-safe-top mt-2`}>
-                        <Menu size={20} />
-                    </button>
-
-                    {/* Main Display */}
-                    <div className="flex-1 flex flex-col items-center justify-center p-4 lg:p-8 relative z-10 overflow-y-auto custom-scrollbar">
+                    {/* Results Block */}
+                    <div className="bg-white/60 dark:bg-[#0a0a0f]/60 backdrop-blur-xl border border-black/5 dark:border-white/5 rounded-3xl p-6 lg:p-8 shadow-sm">
+                        <h2 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider mb-6 flex items-center gap-2">
+                            <Activity size={16} className="text-blue-500" /> Результаты расчета
+                        </h2>
                         
-                        {/* Glow Effect */}
-                        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 md:w-96 h-64 md:h-96 bg-${themeColor}-500/10 rounded-full blur-[80px] md:blur-[100px] animate-pulse`}></div>
-
-                        <div className="text-center space-y-2 mb-8 md:mb-12 mt-10 md:mt-0">
-                            <span className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-[0.3em]">Необходимый воздухообмен</span>
-                            <div className="flex items-baseline justify-center gap-2">
-                                <span className={`text-6xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-b ${mode === 'room' ? 'from-white to-blue-200' : 'from-white to-emerald-200'} tracking-tighter drop-shadow-2xl`}>
-                                    {resultFlow.toFixed(0)}
-                                </span>
-                                <span className={`text-xl md:text-2xl font-black ${textColor} uppercase`}>м³/ч</span>
-                            </div>
+                        <div className={`p-8 rounded-2xl flex flex-col items-center justify-center text-center transition-colors ${
+                            mode === 'room' ? 'bg-blue-50 dark:bg-blue-500/10' : 'bg-emerald-50 dark:bg-emerald-500/10'
+                        }`}>
+                            <span className={`text-sm font-bold uppercase tracking-wide mb-2 ${
+                                mode === 'room' ? 'text-blue-600/70 dark:text-blue-400/70' : 'text-emerald-600/70 dark:text-emerald-400/70'
+                            }`}>
+                                Необходимый воздухообмен
+                            </span>
+                            <span className={`text-6xl lg:text-8xl font-black font-mono ${
+                                mode === 'room' ? 'text-blue-600 dark:text-blue-400' : 'text-emerald-600 dark:text-emerald-400'
+                            }`}>
+                                {resultFlow.toFixed(0)} <span className="text-2xl opacity-50 uppercase">м³/ч</span>
+                            </span>
                         </div>
 
-                        {/* Secondary Metrics Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-6 w-full max-w-2xl">
-                             {mode === 'room' ? (
-                                 <>
-                                    <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl md:rounded-3xl p-4 md:p-6 flex items-center justify-between group hover:bg-white/10 transition-colors">
-                                        <div className="flex items-center gap-3 md:gap-4">
-                                            <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-blue-500/20 text-blue-400">
-                                                <Box size={20} className="md:w-6 md:h-6"/>
-                                            </div>
-                                            <div>
-                                                <div className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase tracking-wider">Объем помещения</div>
-                                                <div className="text-xs md:text-sm text-slate-400">{area} м² × {height} м</div>
-                                            </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                            {mode === 'room' ? (
+                                <>
+                                    <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 border border-black/5 dark:border-white/5 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500"><Box size={18}/></div>
+                                            <span className="text-xs font-bold text-slate-500 uppercase">Объем помещения</span>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="text-xl md:text-3xl font-black text-white">{(area * height).toFixed(1)} <span className="text-xs md:text-sm text-slate-500">м³</span></div>
-                                        </div>
+                                        <span className="text-lg font-black text-slate-800 dark:text-white">{(area * height).toFixed(1)} <span className="text-[10px] text-slate-500">м³</span></span>
                                     </div>
-                                    
-                                    <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl md:rounded-3xl p-4 md:p-6 flex items-center justify-between group hover:bg-white/10 transition-colors">
-                                        <div className="flex items-center gap-3 md:gap-4">
-                                            <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-indigo-500/20 text-indigo-400">
-                                                <Activity size={20} className="md:w-6 md:h-6"/>
-                                            </div>
-                                            <div>
-                                                <div className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase tracking-wider">Смен в час</div>
-                                                <div className="text-xs md:text-sm text-slate-400">Кратность</div>
-                                            </div>
+                                    <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 border border-black/5 dark:border-white/5 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500"><Activity size={18}/></div>
+                                            <span className="text-xs font-bold text-slate-500 uppercase">Кратность</span>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="text-xl md:text-3xl font-black text-white">{multiplicity} <span className="text-xs md:text-sm text-slate-500">раз</span></div>
-                                        </div>
+                                        <span className="text-lg font-black text-slate-800 dark:text-white">{multiplicity} <span className="text-[10px] text-slate-500">раз/ч</span></span>
                                     </div>
-                                 </>
-                             ) : (
-                                 <>
-                                    <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl md:rounded-3xl p-4 md:p-6 flex items-center justify-between group hover:bg-white/10 transition-colors">
-                                        <div className="flex items-center gap-3 md:gap-4">
-                                            <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-emerald-500/20 text-emerald-400">
-                                                <Users size={20} className="md:w-6 md:h-6"/>
-                                            </div>
-                                            <div>
-                                                <div className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase tracking-wider">Люди</div>
-                                                <div className="text-xs md:text-sm text-slate-400">Посетители</div>
-                                            </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 border border-black/5 dark:border-white/5 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500"><Users size={18}/></div>
+                                            <span className="text-xs font-bold text-slate-500 uppercase">Количество людей</span>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="text-xl md:text-3xl font-black text-white">{peopleCount} <span className="text-xs md:text-sm text-slate-500">чел</span></div>
-                                        </div>
+                                        <span className="text-lg font-black text-slate-800 dark:text-white">{peopleCount} <span className="text-[10px] text-slate-500">чел</span></span>
                                     </div>
-                                    
-                                    <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl md:rounded-3xl p-4 md:p-6 flex items-center justify-between group hover:bg-white/10 transition-colors">
-                                        <div className="flex items-center gap-3 md:gap-4">
-                                            <div className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-teal-500/20 text-teal-400">
-                                                <Wind size={20} className="md:w-6 md:h-6"/>
-                                            </div>
-                                            <div>
-                                                <div className="text-[9px] md:text-[10px] font-bold text-slate-500 uppercase tracking-wider">Норма</div>
-                                                <div className="text-xs md:text-sm text-slate-400">Санитарная</div>
-                                            </div>
+                                    <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 border border-black/5 dark:border-white/5 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 rounded-xl bg-teal-500/10 text-teal-500"><Wind size={18}/></div>
+                                            <span className="text-xs font-bold text-slate-500 uppercase">Норма на чел.</span>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="text-xl md:text-3xl font-black text-white">{normPerPerson} <span className="text-xs md:text-sm text-slate-500">м³/ч</span></div>
-                                        </div>
+                                        <span className="text-lg font-black text-slate-800 dark:text-white">{normPerPerson} <span className="text-[10px] text-slate-500">м³/ч</span></span>
                                     </div>
-                                 </>
-                             )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Sidebar Info */}
+                <div className="space-y-6">
+                    <div className="bg-white/60 dark:bg-[#0a0a0f]/60 backdrop-blur-xl border border-black/5 dark:border-white/5 rounded-3xl p-6 lg:p-8 shadow-sm">
+                        <h2 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                            <Activity size={16} className="text-blue-500" /> Справочная информация
+                        </h2>
+                        <div className="space-y-4">
+                            <div className="p-4 bg-blue-500/5 rounded-2xl border border-blue-500/10">
+                                <h3 className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">Офисные помещения</h3>
+                                <p className="text-xs text-slate-600 dark:text-slate-400">Норма: 60 м³/ч на чел. или кратность 1-2.</p>
+                            </div>
+                            <div className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
+                                <h3 className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Жилые комнаты</h3>
+                                <p className="text-xs text-slate-600 dark:text-slate-400">Норма: 30 м³/ч на чел. или кратность 0.5-1.</p>
+                            </div>
+                            <div className="p-4 bg-amber-500/5 rounded-2xl border border-amber-500/10">
+                                <h3 className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">Кухни / Санузлы</h3>
+                                <p className="text-xs text-slate-600 dark:text-slate-400">Рекомендуется расчет по кратности (от 5 до 10).</p>
+                            </div>
                         </div>
                     </div>
                 </div>

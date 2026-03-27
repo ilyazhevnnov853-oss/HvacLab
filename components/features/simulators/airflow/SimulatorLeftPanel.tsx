@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Fan, ScanLine, Wind, Thermometer, Home, AlertTriangle, Power, PlusCircle, X, ChevronLeft, CheckCircle2, Shapes, Layers } from 'lucide-react';
+import { Fan, ScanLine, Wind, Thermometer, Home, AlertTriangle, Power, PlusCircle, X, ChevronLeft, CheckCircle2, Shapes, Layers, Trash2 } from 'lucide-react';
 import { SPECS, DIFFUSER_CATALOG, getDiffuserMode, getDiffuserPerformanceFlowType } from '../../../../constants';
 import { calculatePerformance } from '../../../../hooks/useSimulation';
 import { GlassButton, GlassSlider } from '../../../ui/Shared';
@@ -9,12 +9,13 @@ import { AccordionItem } from './SimulatorUI';
 export const SimulatorLeftPanel = ({ 
     openSection, toggleSection, 
     params, setParams, handleParameterChange,
-    physics, currentMode,
+    physics,
     isPowerOn, togglePower, 
     viewMode, isPlaying, setIsPlaying, 
     sizeSelected, setSizeSelected,
     onHome, onBack, isMobileMenuOpen, setIsMobileMenuOpen,
     onAddDiffuser,
+    onReset,
     isHelpMode,
     placementMode,
     setPlacementMode,
@@ -45,31 +46,6 @@ export const SimulatorLeftPanel = ({
         }
         handleParameterChange('modelId', id);
         handleParameterChange('modeIdx', 0);
-        handleParameterChange('diameter', newDiameter);
-        handleParameterChange('volume', newVol);
-        setSizeSelected(!!newDiameter);
-    };
-
-    const handleModeChange = (nextModeIdx: number) => {
-        const currentDiameterValid = calculatePerformance(params.modelId, getDiffuserPerformanceFlowType(params.modelId, nextModeIdx), params.diameter, params.volume) !== null;
-        
-        let newDiameter = params.diameter;
-        if (!currentDiameterValid) {
-            const validDiameter = Object.keys(SPECS).find(d => {
-                const val = !isNaN(Number(d)) ? Number(d) : d;
-                const testVol = SPECS[d].min || 100;
-                return calculatePerformance(params.modelId, getDiffuserPerformanceFlowType(params.modelId, nextModeIdx), val, testVol) !== null;
-            });
-            newDiameter = validDiameter ? (!isNaN(Number(validDiameter)) ? Number(validDiameter) : validDiameter) : params.diameter;
-        }
-        
-        let newVol = params.volume;
-        if (newDiameter && SPECS[newDiameter]) {
-             const { min, max } = SPECS[newDiameter];
-             if (newVol < min) newVol = min;
-             if (newVol > max) newVol = max;
-        }
-        handleParameterChange('modeIdx', nextModeIdx);
         handleParameterChange('diameter', newDiameter);
         handleParameterChange('volume', newVol);
         setSizeSelected(!!newDiameter);
@@ -177,24 +153,6 @@ export const SimulatorLeftPanel = ({
                             </div>
                             <div className="mb-6 p-4 rounded-2xl bg-black/5 dark:bg-black/20 border border-black/5 dark:border-white/5">
                                 <div className="flex justify-between items-baseline mb-3">
-                                    <label className="text-[9px] font-bold text-slate-500 uppercase">Mode</label>
-                                    <span className="text-[9px] text-slate-400 font-bold">{currentMode?.b_text}</span>
-                                </div>
-                                <div className="grid grid-cols-1 gap-2">
-                                    {(DIFFUSER_CATALOG.find(m => m.id === params.modelId)?.modes || []).map((mode, idx) => (
-                                        <button
-                                            key={mode.id}
-                                            onClick={() => handleModeChange(idx)}
-                                            className={`px-3 py-2.5 rounded-xl border text-left transition-all ${params.modeIdx === idx ? 'bg-blue-600 text-white border-blue-500/50 shadow-[0_8px_20px_rgba(37,99,235,0.25)]' : 'bg-white/70 dark:bg-white/5 text-slate-600 dark:text-slate-300 border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/10'}`}
-                                        >
-                                            <div className="text-[10px] font-bold">{mode.name} / {mode.subtitle}</div>
-                                            <div className={`text-[9px] mt-1 ${params.modeIdx === idx ? 'text-blue-100' : 'text-slate-400'}`}>{mode.b_text}</div>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="mb-6 p-4 rounded-2xl bg-black/5 dark:bg-black/20 border border-black/5 dark:border-white/5">
-                                <div className="flex justify-between items-baseline mb-3">
                                     <label className="text-[9px] font-bold text-slate-500 uppercase">Типоразмер</label>
                                     {!sizeSelected && <span className="text-[9px] text-amber-500 font-bold animate-pulse flex items-center gap-1"><AlertTriangle size={10}/> Выберите размер</span>}
                                 </div>
@@ -293,8 +251,9 @@ export const SimulatorLeftPanel = ({
 
                     {/* Footer Controls */}
                     <div className="p-5 bg-white/60 dark:bg-[#050508]/60 border-t border-black/5 dark:border-white/5 backdrop-blur-xl absolute bottom-0 left-0 right-0 lg:relative">
-                            <div className="grid grid-cols-1 gap-3">
+                            <div className="grid grid-cols-2 gap-3">
                                 <GlassButton onClick={() => { onAddDiffuser(); }} icon={<PlusCircle size={18} />} label="Добавить" secondary={true} disabled={!sizeSelected || !!physics.error} customClass="w-full bg-white/50 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-black/5 dark:border-white/5 hover:bg-white dark:hover:bg-white/10" />
+                                <GlassButton onClick={onReset} icon={<Trash2 size={18} />} label="Сброс" secondary={true} customClass="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20" />
                             </div>
                     </div>
                 </div>

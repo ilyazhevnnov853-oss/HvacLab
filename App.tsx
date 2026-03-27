@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Wind, Calculator, BookOpen, ArrowRight, ChevronLeft, Zap, Users, Gauge, Volume2, GitMerge, CloudRain, Thermometer, Flame, ScrollText, Shapes, ArrowRightLeft } from 'lucide-react';
+import { Settings, Wind, Box, X, AlertTriangle, CheckCircle2, Calculator, BookOpen, ArrowRight, ChevronLeft, Zap, Users, Gauge, Volume2, GitMerge, CloudRain, Thermometer, Flame, ScrollText, Shapes, ArrowRightLeft } from 'lucide-react';
+import { useLocalStorage } from './hooks/useLocalStorage';
 import Simulator from './components/features/simulators/airflow/Simulator';
 import VelocityCalculator from './components/features/calculators/velocity/VelocityCalculator';
 import HeaterCalculator from './components/features/calculators/heater/HeaterCalculator';
@@ -15,6 +16,11 @@ import SmokeCalculator from './components/features/calculators/smoke/SmokeCalcul
 const AppContent = () => {
     const [appMode, setAppMode] = useState('launcher'); 
     const [launcherSection, setLauncherSection] = useState('main'); 
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [activeSettingsTab, setActiveSettingsTab] = useState('airflow');
+    const [globalSettings, setGlobalSettings] = useLocalStorage('hvac-global-settings', {
+        particleLimit: 8000
+    });
 
     useEffect(() => {
         // Init logic if needed
@@ -247,12 +253,22 @@ const AppContent = () => {
 
                 <div className="z-10 flex flex-col items-center gap-10 md:gap-16 w-full p-4 md:p-8 h-full pt-12 md:pt-8">
                     {launcherSection === 'main' && (
-                        <div className="text-center space-y-2 md:space-y-6">
-                             <h1 className="text-5xl md:text-6xl lg:text-8xl font-black tracking-tighter text-slate-900 dark:text-white drop-shadow-2xl">
-                                HVAC<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 dark:from-blue-400 dark:via-purple-400 dark:to-emerald-400">LAB</span>
-                            </h1>
-                            <p className="text-slate-500 dark:text-blue-200/60 text-[10px] md:text-sm font-bold tracking-[0.3em] uppercase">Инженерный комплекс</p>
-                        </div>
+                        <header className="flex items-center justify-between w-full max-w-7xl mb-8 md:mb-12">
+                            <div className="flex flex-col items-start gap-1">
+                                <h1 className="text-5xl md:text-6xl lg:text-8xl font-black tracking-tighter text-slate-900 dark:text-white drop-shadow-2xl">
+                                    HVAC<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 dark:from-blue-400 dark:via-purple-400 dark:to-emerald-400">LAB</span>
+                                </h1>
+                                <p className="text-slate-500 dark:text-blue-200/60 text-[10px] md:text-sm font-bold tracking-[0.3em] uppercase">Инженерный комплекс</p>
+                            </div>
+                            
+                            {/* Кнопка настроек */}
+                            <button 
+                                onClick={() => setIsSettingsOpen(true)}
+                                className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white/50 dark:bg-white/5 border border-black/5 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white dark:hover:bg-white/10 transition-all shadow-sm hover:shadow-md"
+                            >
+                                <Settings size={22} className="hover:animate-spin-slow" />
+                            </button>
+                        </header>
                     )}
 
                     <div className="w-full flex justify-center flex-1">
@@ -269,6 +285,60 @@ const AppContent = () => {
     return (
         <div className="relative w-full min-h-screen bg-[#F5F5F7] dark:bg-[#020205] text-slate-900 dark:text-slate-200 font-sans transition-colors duration-500 ease-in-out">
             {renderContent()}
+
+            {/* Global Settings Modal */}
+            {isSettingsOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 dark:bg-black/80 backdrop-blur-sm p-4">
+                    <div className="bg-[#F5F5F7] dark:bg-[#0f0f13] w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-black/10 dark:border-white/10 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="px-6 py-4 border-b border-black/5 dark:border-white/5 flex justify-between items-center bg-white dark:bg-white/5">
+                            <h2 className="text-lg font-black flex items-center gap-2 text-slate-800 dark:text-white">
+                                <Settings size={20} className="text-blue-500"/> Настройки HVACLAB
+                            </h2>
+                            <button onClick={() => setIsSettingsOpen(false)} className="p-2 hover:bg-black/5 dark:hover:bg-white/10 rounded-xl text-slate-500 transition-colors">
+                                <X size={20}/>
+                            </button>
+                        </div>
+                        
+                        <div className="flex h-[50vh] min-h-[400px] flex-col md:flex-row">
+                            <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-black/5 dark:border-white/5 p-4 space-y-1.5 bg-white/50 dark:bg-transparent">
+                                <button onClick={() => setActiveSettingsTab('airflow')} className={`w-full text-left px-4 py-3 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${activeSettingsTab === 'airflow' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`}>
+                                    <Wind size={16}/> Симулятор потоков
+                                </button>
+                                <button className="w-full text-left px-4 py-3 rounded-xl text-slate-400 dark:text-slate-600 font-bold text-xs flex items-center gap-2 cursor-not-allowed opacity-60">
+                                    <Box size={16}/> Прочие разделы...
+                                </button>
+                            </div>
+                            
+                            <div className="w-full md:w-2/3 p-6 overflow-y-auto custom-scrollbar">
+                                {activeSettingsTab === 'airflow' && (
+                                    <div className="animate-in fade-in duration-300">
+                                        <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 uppercase tracking-wider">Графика и Производительность</h3>
+                                        
+                                        <div className="bg-white dark:bg-white/5 p-5 rounded-2xl border border-black/5 dark:border-white/5 shadow-sm">
+                                            <div className="flex justify-between items-baseline mb-3">
+                                                <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Базовый лимит частиц</label>
+                                                <span className="text-xs font-mono font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-md">{globalSettings.particleLimit} шт</span>
+                                            </div>
+                                            <input 
+                                                type="range" min={2000} max={30000} step={1000}
+                                                value={globalSettings.particleLimit}
+                                                onChange={(e) => setGlobalSettings({...globalSettings, particleLimit: Number(e.target.value)})}
+                                                className="w-full h-1.5 bg-black/10 dark:bg-white/10 rounded-full appearance-none cursor-pointer accent-blue-600"
+                                            />
+                                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-4 leading-relaxed font-medium">
+                                                Определяет густоту 3D-потока по умолчанию для новых диффузоров.
+                                                <br/><br/>
+                                                <span className="flex items-center gap-1"><AlertTriangle size={10} className="text-amber-500"/> Слабые ПК: 2000 - 5000</span>
+                                                <span className="flex items-center gap-1 mt-1"><CheckCircle2 size={10} className="text-emerald-500"/> Мощные ПК: до 30 000</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

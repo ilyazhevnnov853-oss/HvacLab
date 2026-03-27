@@ -83,6 +83,7 @@ export interface PlacedDiffuser {
   volume: number;
   temperature: number; // Supply temperature
   performance: PerformanceResult;
+  particleLimit?: number;
 }
 
 export interface Probe {
