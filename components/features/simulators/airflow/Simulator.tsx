@@ -203,7 +203,7 @@ const Simulator = ({ onBack, onHome }: any) => {
                 temperature: params.temperature,
                 performance: physics
             }]);
-            setSelectedDiffuserId('init-1');
+            setSelectedDiffuserIds(['init-1']);
             setSliceX(params.roomWidth / 2);
             setSliceY(params.roomLength / 2);
         }
@@ -310,7 +310,7 @@ const Simulator = ({ onBack, onHome }: any) => {
         };
 
         setPlacedDiffusers(prev => [...prev, newDiffuser]);
-        setSelectedDiffuserId(id);
+        setSelectedDiffuserIds([id]);
     };
 
     const addDiffuser = () => {

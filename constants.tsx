@@ -70,7 +70,7 @@ export const SPECS: SpecMap = {
 
 export const ENGINEERING_DATA: EngineeringData = {
   'dpu-v': {
-    'vertical-swirl': {
+    'swirl': {
       100: [{vol:35, pa:18, db:20, throw:2.1}, {vol:60, pa:54, db:35, throw:3.6}, {vol:85, pa:109, db:45, throw:5.2}],
       125: [{vol:45, pa:15, db:20, throw:2.1}, {vol:90, pa:62, db:35, throw:4.3}, {vol:120, pa:110, db:45, throw:5.7}],
       160: [{vol:75, pa:20, db:20, throw:2.8}, {vol:160, pa:91, db:35, throw:6.0}, {vol:200, pa:143, db:45, throw:7.5}],
@@ -81,7 +81,7 @@ export const ENGINEERING_DATA: EngineeringData = {
     }
   },
   'dpu-m': {
-    'vertical-conical': {
+    'compact': {
       100: [{vol:80, pa:16, db:20, throw:2.0}, {vol:150, pa:55, db:35, throw:3.7}, {vol:200, pa:98, db:45, throw:5.0}],
       125: [{vol:130, pa:17, db:20, throw:2.6}, {vol:250, pa:62, db:35, throw:5.0}, {vol:350, pa:122, db:45, throw:7.0}],
       160: [{vol:180, pa:12, db:20, throw:2.8}, {vol:450, pa:75, db:35, throw:7.0}, {vol:620, pa:143, db:45, throw:9.6}],
@@ -92,39 +92,7 @@ export const ENGINEERING_DATA: EngineeringData = {
     }
   },
   'dpu-k': {
-    'horizontal-fan': {
-      100: [
-        { vol: 90, pa: 21, db: 20, throw: 1.5 },
-        { vol: 110, pa: 31, db: 25, throw: 1.8 },
-        { vol: 150, pa: 57, db: 35, throw: 2.4 },
-        { vol: 210, pa: 113, db: 45, throw: 1.4 }
-      ],
-      125: [
-        { vol: 110, pa: 13, db: 20, throw: 1.4 },
-        { vol: 130, pa: 17, db: 25, throw: 1.7 },
-        { vol: 190, pa: 37, db: 35, throw: 2.5 },
-        { vol: 260, pa: 70, db: 45, throw: 1.3 }
-      ],
-      160: [
-        { vol: 180, pa: 13, db: 20, throw: 1.8 },
-        { vol: 220, pa: 19, db: 25, throw: 2.2 },
-        { vol: 320, pa: 40, db: 35, throw: 3.2 },
-        { vol: 460, pa: 82, db: 45, throw: 1.9 }
-      ],
-      200: [
-        { vol: 280, pa: 12, db: 20, throw: 2.2 },
-        { vol: 340, pa: 17, db: 25, throw: 2.7 },
-        { vol: 470, pa: 33, db: 35, throw: 3.8 },
-        { vol: 640, pa: 61, db: 45, throw: 2.0 }
-      ],
-      250: [
-        { vol: 390, pa: 9, db: 20, throw: 2.5 },
-        { vol: 480, pa: 14, db: 25, throw: 3.0 },
-        { vol: 690, pa: 28, db: 35, throw: 4.4 },
-        { vol: 980, pa: 57, db: 45, throw: 2.5 }
-      ]
-    },
-    'vertical-conical': {
+    'compact': {
       100: [
         { vol: 90, pa: 17, db: 20, throw: 2.2 },
         { vol: 110, pa: 25, db: 25, throw: 2.7 },
@@ -150,7 +118,7 @@ export const ENGINEERING_DATA: EngineeringData = {
     }
   },
   'dpu-s': {
-    'vertical-compact': {
+    'compact': {
       100: [{vol:40, pa:12, db:20, throw:2.2}, {vol:100, pa:75, db:45, throw:5.5}],
       125: [{vol:60, pa:14, db:20, throw:2.7}, {vol:150, pa:86, db:45, throw:6.8}],
       160: [{vol:80, pa:9, db:20, throw:2.8}, {vol:220, pa:69, db:45, throw:7.7}],
@@ -159,109 +127,42 @@ export const ENGINEERING_DATA: EngineeringData = {
       315: [{vol:250, pa:8, db:20, throw:5.0}, {vol:700, pa:55, db:45, throw:13.0}],
       400: [{vol:400, pa:9, db:20, throw:6.0}, {vol:1000, pa:60, db:45, throw:15.0}]
     }
-  },
-  'amn-adn': { 
-    'horizontal-compact': {
-      "200x100": [{vol:100, pa:10, db:20, throw:3.0}, {vol:200, pa:30, db:35, throw:6.0}],
-      "300x100": [{vol:150, pa:10, db:20, throw:3.5}, {vol:300, pa:35, db:35, throw:7.0}],
-      "400x150": [{vol:300, pa:12, db:25, throw:5.0}, {vol:600, pa:40, db:40, throw:10.0}],
-      "500x200": [{vol:500, pa:15, db:25, throw:6.0}, {vol:1000, pa:45, db:40, throw:12.0}],
-      "600x300": [{vol:1000, pa:15, db:25, throw:8.0}, {vol:2000, pa:50, db:45, throw:16.0}]
-    }
-  },
-  '4ap': {
-    '4-way': {
-      "450x450": [{vol:300, pa:8, db:25, throw:2.0}, {vol:600, pa:30, db:35, throw:4.0}],
-      "600x600": [{vol:500, pa:10, db:25, throw:2.5}, {vol:1000, pa:35, db:40, throw:5.0}]
-    }
   }
 };
 
 export const DIFFUSER_CATALOG: DiffuserModel[] = [
-    {
-        id: 'dpu-m',
-        series: 'ДПУ-М',
-        name: 'Универсальный диффузор',
-        modes: [
-            {
-                id: 'm-horiz',
-                name: 'Горизонтальный веерный',
-                subtitle: 'b = 0.1A ÷ 0.15A',
-                b_text: 'b = 0.1A ÷ 0.15A', // Обтекатель выдвинут [cite: 325]
-                flowType: 'horizontal-fan',
-                icon: <IconDpuM size={16}/>
-            },
-            {
-                id: 'm-vert',
-                name: 'Вертикальный конический',
-                subtitle: 'b = 0.2A',
-                b_text: 'b = 0.2A', // Обтекатель выдвинут сильнее [cite: 332]
-                flowType: 'vertical-conical',
-                icon: <IconDpuM size={16}/>
-            }
-        ]
-    },
-    {
-        id: 'dpu-k',
-        series: 'ДПУ-К',
-        name: 'Веерный диффузор',
-        modes: [
-            {
-                id: 'k-horiz',
-                name: 'Горизонтальный настилающийся',
-                subtitle: 'b = 0.05A',
-                b_text: 'b = 0.05A', // Вставка почти вровень [cite: 327]
-                flowType: 'horizontal-fan',
-                icon: <IconDpuM size={16}/>
-            },
-            {
-                id: 'k-vert',
-                name: 'Вертикальный конический',
-                subtitle: 'b = 0.1A ÷ 0.15A',
-                b_text: 'b = 0.1A ÷ 0.15A', // Вставка выдвинута [cite: 335]
-                flowType: 'vertical-conical',
-                icon: <IconDpuM size={16}/>
-            }
-        ]
-    },
-    {
-        id: 'dpu-v',
-        series: 'ДПУ-В',
-        name: 'Вихревой диффузор',
-        modes: [
-            {
-                id: 'v-horiz',
-                name: 'Горизонтальный закрученный',
-                subtitle: 'b = -20 мм',
-                b_text: 'b = -20 мм', // Кольцо утоплено внутрь [cite: 330]
-                flowType: 'horizontal-swirl',
-                icon: <IconDpuV size={16}/>
-            },
-            {
-                id: 'v-vert',
-                name: 'Вертикальный закрученный',
-                subtitle: 'b = 0 мм',
-                b_text: 'b = 0 мм', // Заподлицо [cite: 336]
-                flowType: 'vertical-swirl',
-                icon: <IconDpuV size={16}/>
-            }
-        ]
-    },
-    {
-        id: 'dpu-s',
-        series: 'ДПУ-С',
-        name: 'Сопловый диффузор',
-        modes: [
-            {
-                id: 's-vert',
-                name: 'Компактная струя',
-                subtitle: 'b = const',
-                b_text: 'Фиксированное', // Вставка неподвижна [cite: 338]
-                flowType: 'vertical-compact',
-                icon: <IconDpuS size={16}/>
-            }
-        ]
-    }
+  {
+    id: 'dpu-m',
+    series: 'ДПУ-М',
+    name: 'Диффузор универсальный',
+    modes: [
+      { id: 'm-compact', name: 'Компактная струя', subtitle: 'Обтекатель выдвинут', flowType: 'vertical-conical', performanceFlowType: 'compact', b_text: 'b = 0.05A', icon: <IconDpuM size={16}/> }
+    ]
+  },
+  {
+    id: 'dpu-k',
+    series: 'ДПУ-К',
+    name: 'Диффузор веерный',
+    modes: [
+      { id: 'k-compact', name: 'Компактная струя', subtitle: 'Вставка выдвинута', flowType: 'vertical-conical', performanceFlowType: 'compact', b_text: 'Вставка вниз', icon: <IconDpuM size={16}/> }
+    ]
+  },
+  {
+    id: 'dpu-v',
+    series: 'ДПУ-В',
+    name: 'Диффузор вихревой',
+    modes: [
+      { id: 'v-vertical', name: 'Вертикальная струя', subtitle: 'Закрученный поток', flowType: 'vertical-swirl', performanceFlowType: 'swirl', b_text: 'Кольцо выдвинуто', icon: <IconDpuV size={16}/> }
+    ]
+  },
+  {
+    id: 'dpu-s',
+    series: 'ДПУ-С',
+    name: 'Диффузор сопловый',
+    modes: [
+      { id: 's-compact', name: 'Дальнобойная струя', subtitle: 'Прямой поток', flowType: 'vertical-compact', performanceFlowType: 'compact', b_text: 'Прямо', icon: <IconDpuS size={16}/> }
+    ]
+  }
 ];
 
 export const getDiffuserFlowType = (

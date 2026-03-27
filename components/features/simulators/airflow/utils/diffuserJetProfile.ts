@@ -4,19 +4,6 @@ export interface DiffuserGeometry {
     horizontalOffset: number;
 }
 
-export interface HorizontalJetProfile {
-    anchor: 'horizontal' | 'outlet';
-    offsetFactor: number;
-    emitter: 'center' | 'rim';
-    radiusFactor: number;
-    speedFactor: number;
-    dropFactor: number;
-    tangentialFactor: number;
-    waveAmp: number;
-    waveFreq: number;
-    drag: number;
-}
-
 export interface VerticalJetProfile {
     emitter: 'ring' | 'disk';
     radiusFactor: number;
@@ -45,68 +32,6 @@ const DEFAULT_GEOMETRY: DiffuserGeometry = {
     horizontalOffset: 0.15
 };
 
-const HORIZONTAL_PROFILES: Record<string, HorizontalJetProfile> = {
-    'dpu-m:horizontal-fan': { anchor: 'horizontal', offsetFactor: 1, emitter: 'rim', radiusFactor: 0.48, speedFactor: 1.06, dropFactor: 0.004, tangentialFactor: 0, waveAmp: 0.8, waveFreq: 5.0, drag: 0.978 },
-    'dpu-k:horizontal-fan': { anchor: 'outlet', offsetFactor: 0.82, emitter: 'center', radiusFactor: 0.06, speedFactor: 0.98, dropFactor: 0.18, tangentialFactor: 0, waveAmp: 0.9, waveFreq: 5.8, drag: 0.975 },
-    
-    // Вихревой ДПУ-В: сильная тангенциальная (закручивающая) составляющая
-    'dpu-v:horizontal-swirl': { anchor: 'horizontal', offsetFactor: 0.95, emitter: 'rim', radiusFactor: 0.42, speedFactor: 0.78, dropFactor: 0.02, tangentialFactor: 0.45, waveAmp: 9.0, waveFreq: 8.2, drag: 0.971 }
-};
-
-const VERTICAL_PROFILES: Record<string, VerticalJetProfile> = {
-    'dpu-m:vertical-conical': { emitter: 'ring', radiusFactor: 0.3, radiusJitter: 0.05, coneMinDeg: 18, coneJitterDeg: 4, horizontalFactor: 0.72, inwardFactor: 1, tangentialFactor: 0, speedFactor: 1.0, waveAmp: 1.4, waveFreq: 4.6, drag: 0.956 },
-    'dpu-k:vertical-conical': { emitter: 'disk', radiusFactor: 0.08, radiusJitter: 0.06, coneMinDeg: 10, coneJitterDeg: 8, horizontalFactor: 0.28, inwardFactor: 0, tangentialFactor: 0, speedFactor: 1, waveAmp: 2.0, waveFreq: 4.8, drag: 0.968 },
-    'dpu-v:vertical-swirl': { emitter: 'disk', radiusFactor: 0.24, radiusJitter: 0.04, coneMinDeg: 4, coneJitterDeg: 6, horizontalFactor: 0.1, inwardFactor: 0, tangentialFactor: 0.34, speedFactor: 0.96, waveAmp: 15, waveFreq: 6.9, drag: 0.954 },
-    
-    // Сопловый ДПУ-С: самая компактная струя (coneMinDeg: 1)
-    'dpu-s:vertical-compact': { emitter: 'disk', radiusFactor: 0.05, radiusJitter: 0.01, coneMinDeg: 1, coneJitterDeg: 2, horizontalFactor: 0.09, inwardFactor: 0, tangentialFactor: 0, speedFactor: 1.07, waveAmp: 0.6, waveFreq: 4.4, drag: 0.99 }
-};
-
-const GENERIC_VERTICAL_PROFILES: Record<string, VerticalJetProfile> = {
-    'vertical-conical': {
-        emitter: 'disk',
-        radiusFactor: 0.22,
-        radiusJitter: 0.04,
-        coneMinDeg: 8,
-        coneJitterDeg: 8,
-        horizontalFactor: 0.28,
-        inwardFactor: 0,
-        tangentialFactor: 0,
-        speedFactor: 1,
-        waveAmp: 2,
-        waveFreq: 4.8,
-        drag: 0.96
-    },
-    'vertical-swirl': {
-        emitter: 'ring',
-        radiusFactor: 0.25,
-        radiusJitter: 0.05,
-        coneMinDeg: 12,
-        coneJitterDeg: 18,
-        horizontalFactor: 0.35,
-        inwardFactor: 0,
-        tangentialFactor: 0.45,
-        speedFactor: 0.9,
-        waveAmp: 18,
-        waveFreq: 7.5,
-        drag: 0.94
-    },
-    'vertical-compact': {
-        emitter: 'disk',
-        radiusFactor: 0.18,
-        radiusJitter: 0.02,
-        coneMinDeg: 2,
-        coneJitterDeg: 4,
-        horizontalFactor: 0.15,
-        inwardFactor: 0,
-        tangentialFactor: 0,
-        speedFactor: 1.25,
-        waveAmp: 1.5,
-        waveFreq: 5.5,
-        drag: 0.988
-    }
-};
-
 export const getDiffuserGeometry = (modelId: string, nominalDepth: number): DiffuserGeometry => {
     const factors = MODEL_GEOMETRY_FACTORS[modelId] || DEFAULT_GEOMETRY;
     return {
@@ -116,61 +41,78 @@ export const getDiffuserGeometry = (modelId: string, nominalDepth: number): Diff
     };
 };
 
-export const isHorizontalFlowType = (flowType: string) =>
-    flowType.includes('horizontal') || flowType === '4-way';
-
-export const getHorizontalJetProfile = (modelId: string, flowType: string) => {
-    const exactKey = `${modelId}:${flowType}`;
-    if (HORIZONTAL_PROFILES[exactKey]) return HORIZONTAL_PROFILES[exactKey];
-    
-    const match = Object.keys(HORIZONTAL_PROFILES).find(k => 
-        k.startsWith(`${modelId}:`) && (k.includes(flowType) || flowType.includes('horizontal'))
-    );
-    if (match) return HORIZONTAL_PROFILES[match];
-
-    // Generic fallback for horizontal flow
-    if (flowType.includes('horizontal') || flowType === '4-way') {
+export const getVerticalJetProfile = (modelId: string, flowType: string): VerticalJetProfile | null => {
+    // ДПУ-С (Сопловый) - Максимально узкая, быстрая и дальнобойная струя
+    if (modelId === 'dpu-s') {
         return {
-            anchor: 'horizontal',
-            offsetFactor: 0.85,
-            emitter: 'rim',
-            radiusFactor: 0.45,
-            speedFactor: 0.82,
-            dropFactor: 0.04,
-            tangentialFactor: 0.12,
-            waveAmp: 6,
-            waveFreq: 7,
-            drag: 0.965
-        } as HorizontalJetProfile;
+            emitter: 'disk',
+            radiusFactor: 0.25,
+            radiusJitter: 0.1,
+            coneMinDeg: 1,
+            coneJitterDeg: 3,
+            horizontalFactor: 0.15,
+            inwardFactor: 0,
+            tangentialFactor: 0,
+            speedFactor: 1.0,  // Бьет сильно вниз
+            drag: 0.99,        // Почти не тормозится
+            waveAmp: 0.5,      // Почти без волн (прямая струя)
+            waveFreq: 2
+        };
     }
-    
+
+    // ДПУ-В (Вихревой) - Сильное закручивание, среднее расширение
+    if (modelId === 'dpu-v') {
+        return {
+            emitter: 'disk',
+            radiusFactor: 0.35,
+            radiusJitter: 0.15,
+            coneMinDeg: 5,
+            coneJitterDeg: 10,
+            horizontalFactor: 0.3,
+            inwardFactor: 0,
+            tangentialFactor: 0.6, // Высокая закрутка
+            speedFactor: 0.85,     // Часть энергии уходит в закрутку
+            drag: 0.96,
+            waveAmp: 8.0,          // Сильные пульсации
+            waveFreq: 6
+        };
+    }
+
+    // ДПУ-К (Веерный в режиме компактной струи) - Умеренная конусность
+    if (modelId === 'dpu-k') {
+        return {
+            emitter: 'ring',
+            radiusFactor: 0.4,
+            radiusJitter: 0.1,
+            coneMinDeg: 12,
+            coneJitterDeg: 8,
+            horizontalFactor: 0.45,
+            inwardFactor: 0.2,
+            tangentialFactor: 0,
+            speedFactor: 0.95,
+            drag: 0.97,
+            waveAmp: 2.0,
+            waveFreq: 4
+        };
+    }
+
+    // ДПУ-М (Универсальный в режиме компактной струи) - Стандартная коническая струя
+    if (modelId === 'dpu-m') {
+        return {
+            emitter: 'ring',
+            radiusFactor: 0.3,
+            radiusJitter: 0.1,
+            coneMinDeg: 15,
+            coneJitterDeg: 5,
+            horizontalFactor: 0.5,
+            inwardFactor: 0.3,
+            tangentialFactor: 0,
+            speedFactor: 1.0,
+            drag: 0.96,
+            waveAmp: 1.5,
+            waveFreq: 4.5
+        };
+    }
+
     return null;
-};
-
-export const getVerticalJetProfile = (modelId: string, flowType: string) => {
-    // 1. Пробуем найти точное совпадение
-    const exactKey = `${modelId}:${flowType}`;
-    if (VERTICAL_PROFILES[exactKey]) return VERTICAL_PROFILES[exactKey];
-    
-    // 2. Гибкий поиск: ищем профиль для этой модели, содержащий нужное слово
-    const match = Object.keys(VERTICAL_PROFILES).find(k => 
-        k.startsWith(`${modelId}:`) && (k.includes(flowType) || flowType.includes('vertical'))
-    );
-    if (match) return VERTICAL_PROFILES[match];
-
-    // 3. Если для самой модели профиля нет, ищем в общих (GENERIC)
-    const genericMatch = Object.keys(GENERIC_VERTICAL_PROFILES).find(k => 
-        k.includes(flowType) || flowType.includes('vertical')
-    );
-    
-    // Если вообще ничего не найдено, отдаем стандартный conical
-    return genericMatch ? GENERIC_VERTICAL_PROFILES[genericMatch] : GENERIC_VERTICAL_PROFILES['vertical-conical'];
-};
-
-export const resolveHorizontalStartOffset = (
-    geometry: DiffuserGeometry,
-    profile: HorizontalJetProfile
-) => {
-    const baseOffset = profile.anchor === 'outlet' ? geometry.outletOffset : geometry.horizontalOffset;
-    return baseOffset * profile.offsetFactor;
 };

@@ -42,6 +42,7 @@ interface TopViewCanvasProps {
   
   roomTemp?: number;
   supplyTemp?: number;
+  workZoneHeight?: number;
 }
 
 const drawRealisticDiffuser2D = (ctx: CanvasRenderingContext2D, cx: number, cy: number, radiusPx: number, modelId: string) => {

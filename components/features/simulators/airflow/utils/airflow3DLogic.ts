@@ -1,5 +1,5 @@
 import { getDiffuserFlowType, DIFFUSER_CATALOG } from '../../../../../constants';
-import { getDiffuserGeometry, getHorizontalJetProfile, getVerticalJetProfile, resolveHorizontalStartOffset } from './diffuserJetProfile';
+import { getDiffuserGeometry, getVerticalJetProfile } from './diffuserJetProfile';
 import { PerformanceResult, PlacedDiffuser, Probe } from '../../../../../types';
 
 export const CONSTANTS = {
@@ -161,40 +161,9 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
         p.life = 3.0; 
         p.color = '150, 150, 150';
     } else {
-        const horizontalProfile = getHorizontalJetProfile(modelId, flowType);
         const verticalProfile = getVerticalJetProfile(modelId, flowType);
 
-        if (horizontalProfile) {
-            isHorizontal = true;
-            const emitterRadius = nozzleW * horizontalProfile.radiusFactor;
-            const emitter = horizontalProfile.emitter === 'rim'
-                ? sampleRingEmitter(emitterRadius)
-                : sampleDiskEmitter(emitterRadius);
-                
-            // Расширяем вихри для горизонтального разлета
-            const tangentialSpeed = pxSpeed * horizontalProfile.tangentialFactor;
-
-            pY = mountedHeight * ppm - resolveHorizontalStartOffset(geometry, horizontalProfile);
-            pX += emitter.x;
-            pZ += emitter.z;
-            vx = Math.cos(emitter.angle) * pxSpeed * horizontalProfile.speedFactor - Math.sin(emitter.angle) * tangentialSpeed;
-            vz = Math.sin(emitter.angle) * pxSpeed * horizontalProfile.speedFactor + Math.cos(emitter.angle) * tangentialSpeed;
-            vy = -Math.abs(pxSpeed * horizontalProfile.dropFactor);
-            waveAmp = horizontalProfile.waveAmp;
-            waveFreq = horizontalProfile.waveFreq;
-            drag = horizontalProfile.drag;
-        } else if (flowType === '4-way') {
-            isHorizontal = true;
-            const dir = Math.floor(Math.random() * 4);
-            const angle = dir * (Math.PI/2) + (Math.random()-0.5)*0.5;
-            
-            pX += Math.cos(angle) * nozzleW * 0.55;
-            pZ += Math.sin(angle) * nozzleW * 0.55;
-            
-            vx = Math.cos(angle) * pxSpeed * 1.0;
-            vz = Math.sin(angle) * pxSpeed * 1.0;
-            vy = -Math.abs(pxSpeed * 0.1);
-        } else if (verticalProfile) {
+        if (verticalProfile) {
             const emitterRadius = nozzleW * (verticalProfile.radiusFactor + Math.random() * verticalProfile.radiusJitter);
             const emitter = verticalProfile.emitter === 'ring'
                 ? sampleRingEmitter(emitterRadius)
@@ -258,19 +227,7 @@ export const updateParticlePhysics = (p: Particle3D, dt: number, state: ThreeDVi
         const diffY = mountedHeight * ppm;
         if (p.y > diffY - 10) p.active = false; 
     } else {
-        if (p.isHorizontal) {
-            const ceilingY = mountedHeight * ppm;
-            const ceilingDist = ceilingY - p.y;
-            const thresholdDist = state.height * 0.15;
-            
-            if (ceilingDist < thresholdDist && ceilingDist > -10 && Math.hypot(p.vx, p.vz) > 0.3) { 
-                p.vy += ceilingDist * 5.0 * dt; 
-            } else { 
-                p.vy += p.buoyancy * dt * 0.5; 
-            }
-        } else {
-            p.vy += p.buoyancy * dt;
-        }
+        p.vy += p.buoyancy * dt;
         
         p.vx *= p.drag;
         p.vy *= p.drag;

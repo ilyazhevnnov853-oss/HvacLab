@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { PerformanceResult, PlacedDiffuser, Probe, ToolMode } from '../../../../../types';
 import { getDiffuserFlowType } from '../../../../../constants';
-import { getDiffuserGeometry, getHorizontalJetProfile, getVerticalJetProfile, resolveHorizontalStartOffset } from '../utils/diffuserJetProfile';
+import { getDiffuserGeometry, getVerticalJetProfile } from '../utils/diffuserJetProfile';
 
 const CONSTANTS = {
   BASE_TIME_STEP: 1/60, 
@@ -255,30 +255,9 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
             p.life = 3.0; 
             p.color = '150, 150, 150';
         } else {
-            const horizontalProfile = getHorizontalJetProfile(modelId, flowType);
             const verticalProfile = getVerticalJetProfile(modelId, flowType);
 
-            if (horizontalProfile) {
-                isHorizontal = true;
-                const side = Math.random() > 0.5 ? 1 : -1;
-                const emitterRadius = nozzleW * horizontalProfile.radiusFactor;
-                const lateralOffset = horizontalProfile.emitter === 'center'
-                    ? emitterRadius * Math.random()
-                    : emitterRadius;
-                startY = diffuserYPos + resolveHorizontalStartOffset(geometry, horizontalProfile);
-                startX = centerX + side * lateralOffset;
-                vx = side * pxSpeed * horizontalProfile.speedFactor;
-                vy = pxSpeed * horizontalProfile.dropFactor;
-                waveAmp = horizontalProfile.waveAmp;
-                waveFreq = horizontalProfile.waveFreq;
-                drag = horizontalProfile.drag;
-            } else if (flowType === '4-way') {
-                isHorizontal = true;
-                const side = Math.random() > 0.5 ? 1 : -1;
-                startX = centerX + side * (nozzleW * 0.55);
-                vx = side * pxSpeed * 1.0;
-                vy = pxSpeed * 0.1;
-            } else if (verticalProfile) {
+            if (verticalProfile) {
                 const emitterRadius = nozzleW * (verticalProfile.radiusFactor + Math.random() * verticalProfile.radiusJitter);
                 const projection = verticalProfile.emitter === 'ring'
                     ? sampleProjectedRing(emitterRadius)
@@ -633,16 +612,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                     const diffY = offsetY + (state.roomHeight - mountedHeight) * ppm;
                     if (p.y > diffY - 10) p.active = false; 
                 } else {
-                    if (p.isHorizontal) {
-                        const ceilingY = offsetY + (state.roomHeight - mountedHeight) * ppm;
-                        if (p.y < ceilingY + (height * 0.15) && Math.abs(p.vx) > 0.3) { 
-                            p.vy += (ceilingY - p.y) * 5.0 * dt; 
-                        } else { 
-                            p.vy += p.buoyancy * dt * 0.5; 
-                        }
-                    } else {
-                        p.vy += p.buoyancy * dt;
-                    }
+                    p.vy += p.buoyancy * dt;
                     p.vx *= p.drag;
                     p.vy *= p.drag;
                     p.x += p.vx * dt; p.y += p.vy * dt;
