@@ -187,28 +187,6 @@ const Simulator = ({ onBack, onHome }: any) => {
         };
     }, [simulationField, placedDiffusers, params.roomTemp]);
 
-    // Initialize one diffuser if empty
-    useEffect(() => {
-        if (placedDiffusers.length === 0 && physics.v0 > 0 && !physics.error) {
-            setPlacedDiffusers([{
-                id: 'init-1',
-                index: 1,
-                x: params.roomWidth / 2,
-                y: params.roomLength / 2,
-                modelId: params.modelId,
-                flowType: visualFlowType,
-                modeIdx: params.modeIdx,
-                diameter: params.diameter,
-                volume: params.volume,
-                temperature: params.temperature,
-                performance: physics
-            }]);
-            setSelectedDiffuserIds(['init-1']);
-            setSliceX(params.roomWidth / 2);
-            setSliceY(params.roomLength / 2);
-        }
-    }, [params.diameter, params.modeIdx, params.modelId, params.roomLength, params.roomWidth, params.temperature, physics, placedDiffusers.length, visualFlowType]);
-
     // Динамический пересчет физики всех диффузоров при изменении параметров помещения
     useEffect(() => {
         if (placedDiffusers.length === 0) return;
@@ -347,16 +325,26 @@ const Simulator = ({ onBack, onHome }: any) => {
         };
 
         setPlacedDiffusers(prev => [...prev, newDiffuser]);
-        setSelectedDiffuserIds([id]);
+        // ВАЖНО: Мы НЕ выделяем новый диффузор, чтобы пользователь мог кликать дальше (ставить штампы)
+        if (activeTool !== 'stamp') {
+            setSelectedDiffuserIds([id]);
+        }
     };
 
     const addDiffuser = () => {
-        addDiffuserAt(
-            params.roomWidth / 2 + (Math.random() - 0.5),
-            params.roomLength / 2 + (Math.random() - 0.5)
-        );
+        // Активируем инструмент Штамп вместо случайного спавна
+        setActiveTool('stamp' as ToolMode);
         if (viewMode !== 'top') setViewMode('top');
     };
+
+    // Добавляем выход из инструмента по Escape
+    useEffect(() => {
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setActiveTool('select');
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
 
     const updateDiffuserPosition = (id: string, x: number, y: number) => {
         setPlacedDiffusers(prev => prev.map(d => d.id === id ? { ...d, x, y } : d));
@@ -453,6 +441,7 @@ const Simulator = ({ onBack, onHome }: any) => {
                 isHelpMode={isHelpMode}
                 placementMode={placementMode}
                 setPlacementMode={setPlacementMode}
+                selectedIds={selectedDiffuserIds}
             />
 
             {/* Center Content */}

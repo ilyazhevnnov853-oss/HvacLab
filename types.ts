@@ -1,7 +1,7 @@
 
 import { ReactNode } from 'react';
 
-export type ToolMode = 'select' | 'probe' | 'measure' | 'pipette' | 'stamp' | 'array';
+export type ToolMode = 'select' | 'probe' | 'measure' | 'pipette' | 'stamp';
 
 export interface GridPoint {
   v: number;   // Velocity Magnitude

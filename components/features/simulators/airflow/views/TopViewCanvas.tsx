@@ -595,6 +595,24 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
                 break;
             }
 
+            case 'stamp': {
+                if (props.onAddDiffuserAt) {
+                    let newX = (mouseX - originX) / ppm;
+                    let newY = (mouseY - originY) / ppm;
+                    
+                    if (props.snapToGrid && props.gridSnapSize) {
+                        newX = Math.round(newX / props.gridSnapSize) * props.gridSnapSize;
+                        newY = Math.round(newY / props.gridSnapSize) * props.gridSnapSize;
+                    }
+                    
+                    if (newX >= 0 && newX <= props.roomWidth && newY >= 0 && newY <= props.roomLength) {
+                        props.onAddDiffuserAt(newX, newY);
+                        // Не сбрасываем activeTool, позволяем ставить еще
+                    }
+                }
+                break;
+            }
+
             case 'measure': {
                 console.log('Measure tool clicked at', mouseX, mouseY);
                 break;

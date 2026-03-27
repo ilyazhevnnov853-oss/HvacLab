@@ -17,7 +17,8 @@ export const SimulatorLeftPanel = ({
     onAddDiffuser,
     isHelpMode,
     placementMode,
-    setPlacementMode
+    setPlacementMode,
+    selectedIds
 }: any) => {
 
     const handleModelChange = (id: string) => {
@@ -141,6 +142,23 @@ export const SimulatorLeftPanel = ({
                     {/* Content */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-5 space-y-2 pb-24 lg:pb-5">
                         
+                        {/* Контекстный бейдж */}
+                        <div className="mb-2 px-1">
+                            {selectedIds?.length === 0 ? (
+                                <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-2 py-1 rounded-md uppercase tracking-wider">
+                                    Настройки для новых
+                                </span>
+                            ) : selectedIds?.length === 1 ? (
+                                <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-md uppercase tracking-wider">
+                                    Редактирование объекта
+                                </span>
+                            ) : (
+                                <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded-md uppercase tracking-wider">
+                                    Мультивыделение: {selectedIds?.length} шт.
+                                </span>
+                            )}
+                        </div>
+
                         <AccordionItem title="Воздухораспределитель" icon={<Fan size={18}/>} isOpen={openSection === 'distributor'} onClick={() => toggleSection('distributor')}>
                             <div className="mb-5">
                                 <div className="grid grid-cols-2 gap-2.5">
