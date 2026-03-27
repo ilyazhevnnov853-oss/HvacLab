@@ -5,9 +5,9 @@ import { PerformanceResult, PlacedDiffuser, Probe } from '../../../../../types';
 export const CONSTANTS = {
   BASE_TIME_STEP: 1/60, 
   HISTORY_RECORD_INTERVAL: 0.015,
-  MAX_PARTICLES: 4000, 
-  SPAWN_RATE_BASE: 5,
-  SPAWN_RATE_MULTIPLIER: 8
+  MAX_PARTICLES: 8000, 
+  SPAWN_RATE_BASE: 12,
+  SPAWN_RATE_MULTIPLIER: 0
 };
 
 export interface Particle3D {
@@ -20,8 +20,6 @@ export interface Particle3D {
     color: string; 
     waveFreq: number; wavePhase: number; waveAmp: number; waveAngle: number;
     isHorizontal: boolean; isSuction: boolean;
-    tangentialFactor: number;
-    centerX: number; centerZ: number;
 }
 
 export interface ThreeDViewCanvasProps {
@@ -123,14 +121,14 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
         };
     }
 
-    const { performance: physics, modelId, x: centerX, y: centerZ, flowType: dFlowType, modeIdx } = activeDiffuser;
+    const { performance: physics, modelId, x: centerX, y: centerZ, flowType: explicitFlowType, modeIdx } = activeDiffuser;
     const { temp, diffuserHeight, roomHeight } = state;
     
     if (physics.error) return;
     const spec = physics.spec;
     if (!spec || !spec.A) return;
 
-    const flowType = dFlowType || state.flowType || 'vertical-conical';
+    const flowType = explicitFlowType || state.flowType || 'vertical-conical';
 
     const nozzleW = (spec.A / 1000) * ppm;
     const nominalDepth = Math.max(16 * (ppm / 1000), (spec.D || 55) * (ppm / 1000));
@@ -140,14 +138,11 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
     const startY = mountedHeight * ppm - geometry.outletOffset;
 
     // ИСПРАВЛЕНИЕ 2: Увеличиваем стартовую скорость для более выраженного рисунка
-    const pxSpeed = (physics.v0 || 0) * ppm * 1.5;
+    const pxSpeed = (physics.v0 || 0) * ppm * 0.8;
 
     let pX = centerX;
     let pY = startY;
     let pZ = centerZ;
-
-    const basePX = pX;
-    const basePZ = pZ;
 
     let vx = 0, vy = 0, vz = 0;
     let drag = 0.96;
@@ -155,7 +150,6 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
     let waveFreq = 4 + Math.random() * 4;
     let isHorizontal = false;
     let isSuction = false;
-    let tangentialFactor = 0;
 
     const physicsAr = physics.Ar || 0; 
     const visualGain = 50.0; 
@@ -178,8 +172,7 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
                 : sampleDiskEmitter(emitterRadius);
                 
             // Расширяем вихри для горизонтального разлета
-            tangentialFactor = horizontalProfile.tangentialFactor || 0;
-            const tangentialSpeed = pxSpeed * tangentialFactor * 2.0;
+            const tangentialSpeed = pxSpeed * horizontalProfile.tangentialFactor;
 
             pY = mountedHeight * ppm - resolveHorizontalStartOffset(geometry, horizontalProfile);
             pX += emitter.x;
@@ -209,10 +202,9 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
             const coneAngle = (verticalProfile.coneMinDeg + Math.random() * verticalProfile.coneJitterDeg) * (Math.PI / 180);
             
             // ИСПРАВЛЕНИЕ 3: Умножаем разлет конуса и вихрей в 2.5 раза
-            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * verticalProfile.horizontalFactor * 2.5;
+            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * verticalProfile.horizontalFactor;
             const radialDirection = 1 - 2 * verticalProfile.inwardFactor;
-            tangentialFactor = verticalProfile.tangentialFactor || 0;
-            const tangentialSpeed = pxSpeed * tangentialFactor * 2.5;
+            const tangentialSpeed = pxSpeed * verticalProfile.tangentialFactor;
 
             pX += emitter.x;
             pZ += emitter.z;
@@ -227,7 +219,7 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
             pX += emitter.x;
             pZ += emitter.z;
             const coneAngle = (8 + Math.random() * 8) * (Math.PI / 180);
-            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * 0.28 * 2.5;
+            const horizontalSpeed = Math.sin(coneAngle) * pxSpeed * 0.28;
             vx = Math.cos(emitter.angle) * horizontalSpeed;
             vz = Math.sin(emitter.angle) * horizontalSpeed;
             vy = -Math.cos(coneAngle) * pxSpeed;
@@ -243,7 +235,7 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
     p.buoyancy = buoyancy; 
     
     // ИСПРАВЛЕНИЕ 4: Смягчаем сопротивление воздуха, чтобы конус не сжимался
-    p.drag = drag + (1 - drag) * 0.4; 
+    p.drag = drag; 
     
     p.age = 0; 
     p.waveFreq = waveFreq; p.wavePhase = Math.random() * Math.PI * 2; p.waveAmp = waveAmp; p.waveAngle = Math.random() * Math.PI * 2;
@@ -252,9 +244,6 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
     p.lastHistoryTime = 0;
     p.history.length = 0; 
     p.history.push({ x: pX, y: pY, z: pZ, age: 0 });
-    p.tangentialFactor = tangentialFactor;
-    p.centerX = basePX;
-    p.centerZ = basePZ;
 };
 
 export const updateParticlePhysics = (p: Particle3D, dt: number, state: ThreeDViewCanvasProps, ppm: number) => {
@@ -269,25 +258,10 @@ export const updateParticlePhysics = (p: Particle3D, dt: number, state: ThreeDVi
         const diffY = mountedHeight * ppm;
         if (p.y > diffY - 10) p.active = false; 
     } else {
-        // Усиливаем вихревой эффект (swirl) в реальном времени
-        if (p.tangentialFactor > 0) {
-            const dx = p.x - p.centerX;
-            const dz = p.z - p.centerZ;
-            const dist = Math.sqrt(dx * dx + dz * dz);
-            if (dist > 5) {
-                const tx = -dz / dist;
-                const tz = dx / dist;
-                // Сила закручивания затухает с расстоянием, но остается значимой
-                const swirlForce = p.tangentialFactor * (1 / (1 + dist * 0.005)) * 150;
-                p.vx += tx * swirlForce * dt;
-                p.vz += tz * swirlForce * dt;
-            }
-        }
-
         // ИСПРАВЛЕНИЕ 5: Усиливаем физику волн, компенсируя dt, чтобы вихри стали четко видимыми
         const waveForce = Math.sin(p.age * p.waveFreq + p.wavePhase) * p.waveAmp;
-        p.vx += Math.cos(p.waveAngle) * waveForce * dt * 50;
-        p.vz += Math.sin(p.waveAngle) * waveForce * dt * 50;
+        p.vx += Math.cos(p.waveAngle) * waveForce * dt * 5;
+        p.vz += Math.sin(p.waveAngle) * waveForce * dt * 5;
 
         if (p.isHorizontal) {
             const ceilingY = mountedHeight * ppm;

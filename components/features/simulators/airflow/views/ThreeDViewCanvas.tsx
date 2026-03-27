@@ -13,8 +13,7 @@ const drawRealisticDiffuser3D = (
     bodyDepth: number,
     modelId: string, 
     p3d: (x: number, y: number, z: number) => {x: number, y: number, s: number},
-    rotY: number,
-    rotX: number
+    rotY: number
 ) => {
     const getShadedColor = (hex: string, factor: number) => {
         const r = parseInt(hex.slice(1, 3), 16);
@@ -36,10 +35,7 @@ const drawRealisticDiffuser3D = (
         ctx.stroke();
     };
 
-    const drawFilledRing3D = (r: number, yOffset: number = 0, segments: number = 32, fill?: string, normalY: number = 1) => {
-        const nz_final = normalY * Math.sin(rotX);
-        if (nz_final > 0) return; // Skip if pointing away
-
+    const drawFilledRing3D = (r: number, yOffset: number = 0, segments: number = 32, fill?: string) => {
         ctx.beginPath();
         if (fill) ctx.fillStyle = fill;
         for (let i = 0; i <= segments; i++) {
@@ -66,18 +62,8 @@ const drawRealisticDiffuser3D = (
             const a0 = (i * Math.PI * 2) / segments;
             const a1 = ((i + 1) * Math.PI * 2) / segments;
 
-            const midAngle = (a0 + a1) / 2;
-            
-            // Backface culling
-            const nx = Math.cos(midAngle);
-            const nz = Math.sin(midAngle);
-            const nx_rot = nx * Math.cos(rotY) - nz * Math.sin(rotY);
-            const nz_rot = nx * Math.sin(rotY) + nz * Math.cos(rotY);
-            const nz_final = nz_rot * Math.cos(rotX); // Simplified normal Z after rotations
-            
-            if (nz_final > 0) continue; // Skip faces pointing away from camera
-
             // Shading based on angle relative to camera/light
+            const midAngle = (a0 + a1) / 2;
             const shadeFactor = 0.75 + 0.25 * Math.cos(midAngle + rotY + Math.PI/4);
             ctx.fillStyle = getShadedColor(fill, shadeFactor);
 
@@ -168,28 +154,13 @@ const drawRealisticDiffuser3D = (
 
             drawFilledRing3D(radius * 0.62, top - h * 0.32, 32, accentFill);
 
-            const numSlots = 16;
+            ctx.strokeStyle = '#f8fafc';
+            const numSlots = 12;
             for (let i = 0; i < numSlots; i++) {
                 const angle = (i * Math.PI * 2) / numSlots;
-                const nextAngle = angle + 0.5;
-                const p1 = p3d(centerX + Math.cos(angle) * radius * 0.35, centerY + top - h * 0.32, centerZ + Math.sin(angle) * radius * 0.35);
-                const p2 = p3d(centerX + Math.cos(nextAngle) * radius * 0.92, centerY + top - h * 0.32, centerZ + Math.sin(nextAngle) * radius * 0.92);
-                
-                // Blade glow
-                ctx.beginPath();
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-                ctx.lineWidth = 3 * p1.s;
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
-
-                // Blade core
-                ctx.beginPath();
-                ctx.strokeStyle = '#f8fafc';
-                ctx.lineWidth = 1.5 * p1.s;
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
+                const p1 = p3d(centerX + Math.cos(angle) * radius * 0.4, centerY + top - h * 0.32, centerZ + Math.sin(angle) * radius * 0.4);
+                const p2 = p3d(centerX + Math.cos(angle + 0.4) * radius * 0.9, centerY + top - h * 0.32, centerZ + Math.sin(angle + 0.4) * radius * 0.9);
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
             }
             break;
             
@@ -202,13 +173,11 @@ const drawRealisticDiffuser3D = (
             fillBand3D(radius * 0.6, top - h * 0.2, radius * 0.25, top - h * 1.1, detailFill);
             drawFilledRing3D(radius * 0.25, top - h * 1.1, 32, getShadedColor(detailFill, 0.7));
 
-            // Struts
-            ctx.strokeStyle = accentFill;
-            ctx.lineWidth = 1.5;
-            for (let i = 0; i < 3; i++) {
-                const angle = (i * Math.PI * 2) / 3;
-                const p1 = p3d(centerX + Math.cos(angle) * radius * 0.6, centerY + top - h * 0.2, centerZ + Math.sin(angle) * radius * 0.6);
-                const p2 = p3d(centerX + Math.cos(angle) * radius * 0.95, centerY + top, centerZ + Math.sin(angle) * radius * 0.95);
+            ctx.strokeStyle = '#64748b';
+            for (let i = 0; i < 8; i++) {
+                const angle = (i * Math.PI * 2) / 8;
+                const p1 = p3d(centerX + Math.cos(angle) * radius * 0.9, centerY + top - h * 0.7, centerZ + Math.sin(angle) * radius * 0.9);
+                const p2 = p3d(centerX + Math.cos(angle) * radius * 0.35, centerY + top - h * 1.0, centerZ + Math.sin(angle) * radius * 0.35);
                 ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
             }
             break;
@@ -501,23 +470,7 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
                 const r = ((d.performance.spec.A || 150) / 2000) * PPM;
                 const nominalDepth = Math.max(16 * (PPM / 1000), ((d.performance.spec.D || 55) * PPM) / 1000);
                 const geometry = getDiffuserGeometry(d.modelId, nominalDepth);
-                
-                // Diffuser outlet glow
-                const outletP = p3d(cx, mountY - geometry.outletOffset, cz);
-                const gradient = ctx.createRadialGradient(
-                    outletP.x, outletP.y, 0,
-                    outletP.x, outletP.y, r * 1.5 * outletP.s
-                );
-                gradient.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
-                gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.1)');
-                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-                
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(outletP.x, outletP.y, r * 1.5 * outletP.s, 0, Math.PI * 2);
-                ctx.fill();
-
-                drawRealisticDiffuser3D(ctx, cx, mountY, cz, Math.max(2, r), geometry.bodyDepth, d.modelId, p3d, camera.rotY, camera.rotX);
+                drawRealisticDiffuser3D(ctx, cx, mountY, cz, Math.max(2, r), geometry.bodyDepth, d.modelId, p3d, camera.rotY);
             }
         });
 
@@ -574,7 +527,7 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
             }
 
             if (p.history.length > 1) {
-                const rawAlpha = (1 - p.age/p.life) * 0.7;
+                const rawAlpha = (1 - p.age/p.life) * 0.5;
                 const alpha = Math.ceil(rawAlpha * QUANTIZE) / QUANTIZE;
                 if (alpha <= 0) continue;
                 const key = `${p.color}|${alpha}`;
@@ -583,8 +536,10 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
             }
         }
 
+        // --- Single Pass Rendering ---
         ctx.globalCompositeOperation = 'screen';
         ctx.lineCap = 'round';
+        ctx.lineWidth = 1.5; // Consistent line width
 
         for (const key in batches) {
             const [color, alphaStr] = key.split('|');
@@ -592,41 +547,9 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
             
             const group = batches[key];
             
-            // Glow pass - draw thicker, softer lines behind
-            ctx.globalAlpha = alpha * 0.6;
+            ctx.globalAlpha = alpha;
             ctx.strokeStyle = `rgb(${color})`;
-            ctx.lineWidth = 14;
-            ctx.beginPath();
-            for (let k = 0; k < group.length; k++) {
-                const p = group[k];
-                const waveVal = (Math.sin(p.age * p.waveFreq + p.wavePhase) * p.waveAmp * Math.min(p.age, 1.0)) / finalScale;
-                let wx = 0, wy = 0, wz = 0;
-                if (p.isHorizontal && !p.isSuction) wy = waveVal;
-                else if (!p.isSuction) {
-                    wx = waveVal * Math.cos(p.waveAngle); 
-                    wz = waveVal * Math.sin(p.waveAngle);
-                }
-                const cur = p3d(p.x + wx, p.y + wy, p.z + wz);
-                if (cur.s <= 0) continue;
-                ctx.moveTo(cur.x, cur.y);
-                for (let j = p.history.length - 1; j >= 0; j--) {
-                    const h = p.history[j];
-                    const hWave = (Math.sin(h.age * p.waveFreq + p.wavePhase) * p.waveAmp * Math.min(h.age, 1.0)) / finalScale;
-                    let hwx = 0, hwy = 0, hwz = 0;
-                    if (p.isHorizontal && !p.isSuction) hwy = hWave;
-                    else if (!p.isSuction) {
-                        hwx = hWave * Math.cos(p.waveAngle);
-                        hwz = hWave * Math.sin(p.waveAngle);
-                    }
-                    const prev = p3d(h.x + hwx, h.y + hwy, h.z + hwz);
-                    ctx.lineTo(prev.x, prev.y);
-                }
-            }
-            ctx.stroke();
-
-            // Core pass - sharp center line
-            ctx.globalAlpha = alpha * 1.0;
-            ctx.lineWidth = 3.5;
+            
             ctx.beginPath();
             for (let k = 0; k < group.length; k++) {
                 const p = group[k];
