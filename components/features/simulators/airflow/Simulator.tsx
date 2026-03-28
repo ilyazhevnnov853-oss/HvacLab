@@ -49,7 +49,7 @@ const Simulator = ({ onBack, onHome }: any) => {
     // --- STATE ---
     const [params, setParams] = useLocalStorage<typeof INITIAL_PARAMS>('hvac-sim-params', INITIAL_PARAMS);
 
-    const [viewMode, setViewMode] = useState<'front' | 'right' | 'top' | '3d'>('front');
+    const [viewMode, setViewMode] = useState<'front' | 'right' | 'top' | '3d'>('top');
     const [isPowerOn, setIsPowerOn] = useState(true);
     const [isPlaying, setIsPlaying] = useState(true);
     const [showGrid, setShowGrid] = useState(true);
@@ -61,6 +61,13 @@ const Simulator = ({ onBack, onHome }: any) => {
 
     // Objects
     const [placedDiffusers, setPlacedDiffusers] = useLocalStorage<PlacedDiffuser[]>('hvac-sim-diffusers', []);
+    
+    useEffect(() => {
+        if (placedDiffusers.length === 0 && viewMode !== 'top') {
+            setViewMode('top');
+        }
+    }, [placedDiffusers.length, viewMode]);
+
     const [selectedDiffuserIds, setSelectedDiffuserIds] = useState<string[]>([]);
     const [probes, setProbes] = useLocalStorage<Probe[]>('hvac-sim-probes', []);
     const [sliceX, setSliceX] = useLocalStorage<number>('hvac-sim-slicex', INITIAL_PARAMS.roomWidth / 2);
@@ -578,16 +585,19 @@ const Simulator = ({ onBack, onHome }: any) => {
                                 { id: 'right', label: 'Справа', icon: <Layers size={18} strokeWidth={2} className="rotate-90" /> },
                                 { id: 'top', label: 'План', icon: <Maximize size={18} strokeWidth={2} /> },
                                 { id: '3d', label: '3D Вид', icon: <Box size={18} strokeWidth={2} /> },
-                            ].map(view => (
+                            ].map(view => {
+                                const isDisabled = placedDiffusers.length === 0 && view.id !== 'top';
+                                return (
                                 <button 
                                     key={view.id}
-                                    onClick={() => setViewMode(view.id as any)}
-                                    className={`w-[68px] h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${viewMode === view.id ? 'bg-[#2563eb] text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5'}`}
+                                    onClick={() => !isDisabled && setViewMode(view.id as any)}
+                                    disabled={isDisabled}
+                                    className={`w-[68px] h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${isDisabled ? 'opacity-30 cursor-not-allowed' : ''} ${viewMode === view.id ? 'bg-[#2563eb] text-white shadow-[0_0_20px_rgba(37,99,235,0.3)]' : (!isDisabled ? 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5' : 'text-slate-500 dark:text-slate-400')}`}
                                 >
                                     {view.icon}
                                     <span className={`text-[9px] font-bold uppercase tracking-wider ${viewMode === view.id ? 'text-white' : ''}`}>{view.label}</span>
                                 </button>
-                            ))}
+                            )})}
                         </div>
 
                         {/* Tools */}

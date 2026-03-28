@@ -53,7 +53,7 @@ interface DiffuserCanvasProps {
 }
 
 const DiffuserCanvas: React.FC<DiffuserCanvasProps> = (props) => {
-    const hasDiffusers = props.placedDiffusers && props.placedDiffusers.length > 0;
+    const hasDiffusers = (props.placedDiffusers && props.placedDiffusers.length > 0) || props.activeTool === 'stamp';
 
     const EmptyStateOverlay = () => (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
