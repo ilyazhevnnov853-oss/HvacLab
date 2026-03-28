@@ -162,7 +162,7 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string } | null>(null);
     
     // Drag Target Type
-    const dragTargetRef = useRef<{ type: 'diffuser' | 'probe' | 'slice-x' | 'slice-y' | 'slice-x-thickness' | 'slice-y-thickness', id?: string } | null>(null);
+    const dragTargetRef = useRef<{ type: 'diffuser' | 'probe' | 'slice-x' | 'slice-y' | 'slice-x-thickness' | 'slice-y-thickness' | 'slice-x-handle' | 'slice-y-handle', id?: string } | null>(null);
 
     // Sync Props
     useEffect(() => {
@@ -429,6 +429,24 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             ctx.lineWidth = 1;
             ctx.stroke();
 
+            // Ручка для оси X
+            const handleX_x = sliceXPx + thicknessXPx / 2;
+            const handleX_y = originY + (state.roomLength * ppm) / 2;
+            
+            ctx.beginPath();
+            ctx.arc(handleX_x, handleX_y, 6, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(250, 204, 21, 0.9)';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('↔', handleX_x, handleX_y);
+
             // 2. Рисуем полосу для оси Y (Горизонтальная полоса, показывающая глубину по X)
             ctx.fillStyle = 'rgba(59, 130, 246, 0.15)'; 
             ctx.fillRect(originX, sliceYPx - thicknessYPx / 2, state.roomWidth * ppm, thicknessYPx);
@@ -452,6 +470,24 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
             ctx.lineWidth = 1;
             ctx.stroke();
+
+            // Ручка для оси Y
+            const handleY_x = originX + (state.roomWidth * ppm) / 2;
+            const handleY_y = sliceYPx + thicknessYPx / 2;
+            
+            ctx.beginPath();
+            ctx.arc(handleY_x, handleY_y, 6, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(59, 130, 246, 0.9)';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('↕', handleY_x, handleY_y);
 
             ctx.restore();
         }
@@ -552,6 +588,36 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             const thicknessPx = (props.sliceThickness || 1.5) * ppm;
             const halfThicknessPx = thicknessPx / 2;
             
+            const handleX_x = sliceXPx + halfThicknessPx;
+            const handleX_y = originY + (props.roomLength * ppm) / 2;
+            const handleY_x = originX + (props.roomWidth * ppm) / 2;
+            const handleY_y = sliceYPx + halfThicknessPx;
+
+            const HANDLE_SIZE = 20;
+            const halfHandle = HANDLE_SIZE / 2;
+
+            if (
+                mouseX >= handleX_x - halfHandle && mouseX <= handleX_x + halfHandle &&
+                mouseY >= handleX_y - halfHandle && mouseY <= handleX_y + halfHandle &&
+                props.onUpdateSliceThickness
+            ) {
+                setIsDragging(true);
+                dragTargetRef.current = { type: 'slice-x-handle' };
+                setDragOffset({ x: mouseX - handleX_x, y: 0, initialThickness: props.sliceThickness || 1.5 });
+                return;
+            }
+
+            if (
+                mouseX >= handleY_x - halfHandle && mouseX <= handleY_x + halfHandle &&
+                mouseY >= handleY_y - halfHandle && mouseY <= handleY_y + halfHandle &&
+                props.onUpdateSliceThickness
+            ) {
+                setIsDragging(true);
+                dragTargetRef.current = { type: 'slice-y-handle' };
+                setDragOffset({ x: 0, y: mouseY - handleY_y, initialThickness: props.sliceThickness || 1.5 });
+                return;
+            }
+
             const distToSliceX = Math.abs(mouseX - sliceXPx);
             const distToSliceY = Math.abs(mouseY - sliceYPx);
 
@@ -689,10 +755,42 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
     };
 
     const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
-        if (!isDragging || !dragTargetRef.current) return;
-        
         const { x: mouseX, y: mouseY } = getMousePos(e);
         const { ppm, originX, originY } = getTopLayout(props.width, props.height, props.roomWidth, props.roomLength);
+
+        if (!isDragging) {
+            if (props.isSliceMode && canvasRef.current) {
+                const sliceXPx = originX + (props.sliceX || 0) * ppm;
+                const sliceYPx = originY + (props.sliceY || 0) * ppm;
+                const halfThicknessPx = ((props.sliceThickness || 1.5) * ppm) / 2;
+                
+                const handleX_x = sliceXPx + halfThicknessPx;
+                const handleX_y = originY + (props.roomLength * ppm) / 2;
+                const handleY_x = originX + (props.roomWidth * ppm) / 2;
+                const handleY_y = sliceYPx + halfThicknessPx;
+
+                const HANDLE_SIZE = 20;
+                const halfHandle = HANDLE_SIZE / 2;
+
+                if (
+                    mouseX >= handleX_x - halfHandle && mouseX <= handleX_x + halfHandle &&
+                    mouseY >= handleX_y - halfHandle && mouseY <= handleX_y + halfHandle
+                ) {
+                    canvasRef.current.style.cursor = 'ew-resize';
+                } else if (
+                    mouseX >= handleY_x - halfHandle && mouseX <= handleY_x + halfHandle &&
+                    mouseY >= handleY_y - halfHandle && mouseY <= handleY_y + halfHandle
+                ) {
+                    canvasRef.current.style.cursor = 'ns-resize';
+                } else {
+                    canvasRef.current.style.cursor = '';
+                }
+            }
+            return;
+        }
+
+        if (!dragTargetRef.current) return;
+        
         const rw = props.roomWidth;
         const rl = props.roomLength;
 
@@ -726,7 +824,7 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             return;
         }
 
-        if (dragTargetRef.current.type === 'slice-x-thickness' && props.onUpdateSliceThickness) {
+        if ((dragTargetRef.current.type === 'slice-x-thickness' || dragTargetRef.current.type === 'slice-x-handle') && props.onUpdateSliceThickness) {
             const centralXPx = originX + (props.sliceX || 0) * ppm;
             let newThickness = Math.abs(mouseX - centralXPx) * 2 / ppm;
             newThickness = Math.max(0.2, newThickness);
@@ -734,7 +832,7 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             return;
         }
 
-        if (dragTargetRef.current.type === 'slice-y-thickness' && props.onUpdateSliceThickness) {
+        if ((dragTargetRef.current.type === 'slice-y-thickness' || dragTargetRef.current.type === 'slice-y-handle') && props.onUpdateSliceThickness) {
             const centralYPx = originY + (props.sliceY || 0) * ppm;
             let newThickness = Math.abs(mouseY - centralYPx) * 2 / ppm;
             newThickness = Math.max(0.2, newThickness);
