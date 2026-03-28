@@ -72,6 +72,7 @@ const Simulator = ({ onBack, onHome }: any) => {
     const [probes, setProbes] = useLocalStorage<Probe[]>('hvac-sim-probes', []);
     const [sliceX, setSliceX] = useLocalStorage<number>('hvac-sim-slicex', INITIAL_PARAMS.roomWidth / 2);
     const [sliceY, setSliceY] = useLocalStorage<number>('hvac-sim-slicey', INITIAL_PARAMS.roomLength / 2);
+    const [sliceThickness, setSliceThickness] = useLocalStorage<number>('hvac-sim-slicethickness', 1.5);
     const [isSliceMode, setIsSliceMode] = useLocalStorage<boolean>('hvac-sim-slicemode', false);
 
     // UI State
@@ -556,7 +557,9 @@ const Simulator = ({ onBack, onHome }: any) => {
                         onAddDiffuserAt={addDiffuserAt}
                         sliceX={sliceX}
                         sliceY={sliceY}
+                        sliceThickness={sliceThickness}
                         onUpdateSlice={handleUpdateSlice}
+                        onUpdateSliceThickness={setSliceThickness}
                         isSliceMode={isSliceMode}
                         probes={probes}
                         onAddProbe={addProbeAtScreenClick}

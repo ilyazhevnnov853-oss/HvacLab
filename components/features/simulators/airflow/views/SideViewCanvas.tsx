@@ -105,8 +105,8 @@ const getDepthPos = (viewType: 'front' | 'right', diffuser: Pick<PlacedDiffuser,
     viewType === 'front' ? diffuser.y : diffuser.x;
 
 const getSliceOpacity = (distance: number, thickness: number) => {
-    const fadeStart = thickness;
-    const fadeEnd = thickness * 1.33;
+    const fadeStart = thickness / 2;
+    const fadeEnd = (thickness / 2) + 0.5;
     
     if (distance <= fadeStart) return 1;
     if (distance >= fadeEnd) return 0;
@@ -188,7 +188,8 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
 
         const sliceDiffusers = (state.placedDiffusers || []).filter(d => {
             const depthPos = getDepthPos(state.viewType, d);
-            return Math.abs(depthPos - state.sliceDepth) <= (state.sliceThickness || 1.5) && isRenderableDiffuser(d);
+            const fadeEnd = ((state.sliceThickness || 1.5) / 2) + 0.5;
+            return Math.abs(depthPos - state.sliceDepth) <= fadeEnd && isRenderableDiffuser(d);
         });
 
         if (sliceDiffusers.length > 0) {
@@ -586,7 +587,8 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         // 1. SPAWN
         const sliceDiffusers = (state.placedDiffusers || []).filter(d => {
             const depthPos = getDepthPos(state.viewType, d);
-            return Math.abs(depthPos - state.sliceDepth) <= (state.sliceThickness || 1.5) && isRenderableDiffuser(d);
+            const fadeEnd = ((state.sliceThickness || 1.5) / 2) + 0.5;
+            return Math.abs(depthPos - state.sliceDepth) <= fadeEnd && isRenderableDiffuser(d);
         });
         if (isPowerOn && isPlaying && sliceDiffusers.length > 0) {
             const diffusersCount = sliceDiffusers.length;
