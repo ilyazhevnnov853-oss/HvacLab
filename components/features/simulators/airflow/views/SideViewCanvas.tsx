@@ -11,10 +11,6 @@ const CONSTANTS = {
   SPAWN_RATE_MULTIPLIER: 0
 };
 
-const SLICE_PARTICLE_DISTANCE = 1.5;
-const SLICE_FADE_START = 1.5;
-const SLICE_FADE_END = 2.0;
-
 // --- TYPES ---
 interface Particle {
     active: boolean;
@@ -55,6 +51,7 @@ interface SideViewCanvasProps {
   placedDiffusers?: PlacedDiffuser[];
   viewType: 'front' | 'right';
   sliceDepth: number;
+  sliceThickness?: number;
   isSliceMode?: boolean;
   activeTool?: ToolMode;
   probes?: Probe[];
@@ -107,12 +104,15 @@ const getProjectedPos = (viewType: 'front' | 'right', diffuser: Pick<PlacedDiffu
 const getDepthPos = (viewType: 'front' | 'right', diffuser: Pick<PlacedDiffuser, 'x' | 'y'>) =>
     viewType === 'front' ? diffuser.y : diffuser.x;
 
-const getSliceOpacity = (distance: number) => {
-    if (distance <= SLICE_FADE_START) return 1;
-    if (distance >= SLICE_FADE_END) return 0.25;
+const getSliceOpacity = (distance: number, thickness: number) => {
+    const fadeStart = thickness;
+    const fadeEnd = thickness * 1.33;
+    
+    if (distance <= fadeStart) return 1;
+    if (distance >= fadeEnd) return 0;
 
-    const t = (distance - SLICE_FADE_START) / (SLICE_FADE_END - SLICE_FADE_START);
-    return 1 - t * 0.75;
+    const t = (distance - fadeStart) / (fadeEnd - fadeStart);
+    return 1 - t;
 };
 
 const isRenderableDiffuser = (diffuser: PlacedDiffuser) =>
@@ -188,7 +188,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
 
         const sliceDiffusers = (state.placedDiffusers || []).filter(d => {
             const depthPos = getDepthPos(state.viewType, d);
-            return Math.abs(depthPos - state.sliceDepth) <= SLICE_PARTICLE_DISTANCE && isRenderableDiffuser(d);
+            return Math.abs(depthPos - state.sliceDepth) <= (state.sliceThickness || 1.5) && isRenderableDiffuser(d);
         });
 
         if (sliceDiffusers.length > 0) {
@@ -461,7 +461,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 const distanceToSlice = Math.abs(getDepthPos(state.viewType, d) - state.sliceDepth);
 
                 ctx.save();
-                ctx.globalAlpha = getSliceOpacity(distanceToSlice);
+                ctx.globalAlpha = getSliceOpacity(distanceToSlice, state.sliceThickness || 1.5);
                 drawDiffuserSideProfile(ctx, screenX, ppm, offsetY, state, d.performance, d.modelId);
                 ctx.restore();
             });
@@ -472,9 +472,19 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         if (!state.probes) return;
 
         state.probes.forEach(p => {
+            const distanceToSlice = state.viewType === 'front' 
+                ? Math.abs(p.y - state.sliceDepth) 
+                : Math.abs(p.x - state.sliceDepth);
+            
+            const opacity = getSliceOpacity(distanceToSlice, state.sliceThickness || 1.5);
+            if (opacity <= 0) return;
+
             const pos = state.viewType === 'front' ? p.x : p.y;
             const px = offsetX + pos * ppm;
             const py = offsetY + (state.roomHeight - p.z) * ppm; // Vertical height Z
+            
+            ctx.save();
+            ctx.globalAlpha = opacity;
             
             ctx.beginPath();
             ctx.arc(px, py, 6, 0, Math.PI * 2);
@@ -489,6 +499,8 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
             ctx.font = '10px Inter';
             const depthLabel = state.viewType === 'front' ? `y: ${p.y.toFixed(1)}m` : `x: ${p.x.toFixed(1)}m`;
             ctx.fillText(`z: ${p.z.toFixed(1)}m | ${depthLabel}`, px + 10, py);
+            
+            ctx.restore();
         });
     }
 
@@ -574,7 +586,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         // 1. SPAWN
         const sliceDiffusers = (state.placedDiffusers || []).filter(d => {
             const depthPos = getDepthPos(state.viewType, d);
-            return Math.abs(depthPos - state.sliceDepth) <= SLICE_PARTICLE_DISTANCE && isRenderableDiffuser(d);
+            return Math.abs(depthPos - state.sliceDepth) <= (state.sliceThickness || 1.5) && isRenderableDiffuser(d);
         });
         if (isPowerOn && isPlaying && sliceDiffusers.length > 0) {
             const diffusersCount = sliceDiffusers.length;

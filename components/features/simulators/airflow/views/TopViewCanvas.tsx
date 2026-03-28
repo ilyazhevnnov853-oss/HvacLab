@@ -635,13 +635,33 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         const rw = props.roomWidth;
         const rl = props.roomLength;
 
+        const SNAP_RADIUS = 0.4;
+
         if (dragTargetRef.current.type === 'slice-x') {
-            props.onUpdateSlice && props.onUpdateSlice('x', Math.max(0, Math.min(rw, (mouseX - dragOffset.x - originX) / ppm)));
+            let newSliceX = Math.max(0, Math.min(rw, (mouseX - dragOffset.x - originX) / ppm));
+            if (props.placedDiffusers) {
+                for (const d of props.placedDiffusers) {
+                    if (Math.abs(d.x - newSliceX) < SNAP_RADIUS) {
+                        newSliceX = d.x;
+                        break;
+                    }
+                }
+            }
+            props.onUpdateSlice && props.onUpdateSlice('x', newSliceX);
             return;
         }
 
         if (dragTargetRef.current.type === 'slice-y') {
-            props.onUpdateSlice && props.onUpdateSlice('y', Math.max(0, Math.min(rl, (mouseY - dragOffset.y - originY) / ppm)));
+            let newSliceY = Math.max(0, Math.min(rl, (mouseY - dragOffset.y - originY) / ppm));
+            if (props.placedDiffusers) {
+                for (const d of props.placedDiffusers) {
+                    if (Math.abs(d.y - newSliceY) < SNAP_RADIUS) {
+                        newSliceY = d.y;
+                        break;
+                    }
+                }
+            }
+            props.onUpdateSlice && props.onUpdateSlice('y', newSliceY);
             return;
         }
 
