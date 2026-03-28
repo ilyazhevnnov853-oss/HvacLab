@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { PerformanceResult, PlacedDiffuser, Probe, ToolMode } from '../../../../../types';
+import { PerformanceResult, PlacedDiffuser, Probe, ToolMode, SliceState } from '../../../../../types';
 import { getDiffuserFlowType } from '../../../../../constants';
 import { getDiffuserGeometry, getVerticalJetProfile } from '../utils/diffuserJetProfile';
 
@@ -50,9 +50,7 @@ interface SideViewCanvasProps {
   workZoneHeight: number;
   placedDiffusers?: PlacedDiffuser[];
   viewType: 'front' | 'right';
-  sliceDepth: number;
-  sliceThickness?: number;
-  isSliceMode?: boolean;
+  slice?: SliceState;
   activeTool?: ToolMode;
   probes?: Probe[];
   onAddProbe?: (x: number, y: number) => void;
@@ -104,23 +102,58 @@ const getProjectedPos = (viewType: 'front' | 'right', diffuser: Pick<PlacedDiffu
 const getDepthPos = (viewType: 'front' | 'right', diffuser: Pick<PlacedDiffuser, 'x' | 'y'>) =>
     viewType === 'front' ? diffuser.y : diffuser.x;
 
-const getSliceOpacity = (distance: number, thickness: number) => {
-    const fadeStart = thickness / 2;
-    const fadeEnd = (thickness / 2) + 0.5;
-    
-    if (distance <= fadeStart) return 1;
-    if (distance >= fadeEnd) return 0;
+const getEffectiveViewType = (state: SideViewCanvasProps): 'front' | 'right' => {
+    if (state.slice?.isActive) {
+        return state.slice.axis === 'y' ? 'front' : 'right';
+    }
+    return state.viewType;
+};
 
-    const t = (distance - fadeStart) / (fadeEnd - fadeStart);
-    return 1 - t;
+const getSliceOpacity = (dPos: number, state: SideViewCanvasProps) => {
+    if (!state.slice?.isActive) return 1.0;
+    
+    const { position, depth, direction } = state.slice;
+    const start = position;
+    const end = position + depth * direction;
+    const min = Math.min(start, end);
+    const max = Math.max(start, end);
+    
+    if (dPos >= min && dPos <= max) return 1.0;
+    
+    const distToBox = dPos < min ? min - dPos : dPos - max;
+    if (distToBox <= 0.5) {
+        return 1.0 - (distToBox / 0.5);
+    }
+    return 0.0;
+};
+
+const getSliceDiffusers = (state: SideViewCanvasProps) => {
+    return (state.placedDiffusers || []).filter(d => {
+        if (!isRenderableDiffuser(d)) return false;
+        if (!state.slice?.isActive) return true;
+        
+        const { axis, position, depth, direction } = state.slice;
+        const dPos = axis === 'y' ? d.y : d.x;
+        
+        const start = position;
+        const end = position + depth * direction;
+        const min = Math.min(start, end);
+        const max = Math.max(start, end);
+        
+        const fadeEnd = max + 0.5;
+        const fadeStart = min - 0.5;
+        
+        return dPos >= fadeStart && dPos <= fadeEnd;
+    });
 };
 
 const isRenderableDiffuser = (diffuser: PlacedDiffuser) =>
     !diffuser.performance?.error && !!diffuser.performance?.spec?.A;
 
 const buildSideFlowResetKey = (state: SideViewCanvasProps) => JSON.stringify({
-    viewType: state.viewType,
-    room: [state.roomWidth, state.roomLength, state.roomHeight, state.sliceDepth]
+    viewType: getEffectiveViewType(state),
+    room: [state.roomWidth, state.roomLength, state.roomHeight],
+    slice: state.slice
 });
 
 const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
@@ -156,7 +189,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
     // Sync Props
     useEffect(() => {
         const nextFlowResetKey = buildSideFlowResetKey(props);
-        const shouldResetParticles = simulationRef.current.viewType !== props.viewType || flowResetKeyRef.current !== nextFlowResetKey;
+        const shouldResetParticles = getEffectiveViewType(simulationRef.current) !== getEffectiveViewType(props) || flowResetKeyRef.current !== nextFlowResetKey;
 
         if (shouldResetParticles) {
             particlePool.current.forEach(p => p.active = false);
@@ -186,16 +219,12 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
             temperature: number
         };
 
-        const sliceDiffusers = (state.placedDiffusers || []).filter(d => {
-            const depthPos = getDepthPos(state.viewType, d);
-            const fadeEnd = ((state.sliceThickness || 1.5) / 2) + 0.5;
-            return Math.abs(depthPos - state.sliceDepth) <= fadeEnd && isRenderableDiffuser(d);
-        });
+        const sliceDiffusers = getSliceDiffusers(state);
 
         if (sliceDiffusers.length > 0) {
             const idx = Math.floor(Math.random() * sliceDiffusers.length);
             const d = sliceDiffusers[idx];
-            const pos = getProjectedPos(state.viewType, d);
+            const pos = getProjectedPos(getEffectiveViewType(state), d);
             activeDiffuser = {
                 x: offsetX + pos * ppm,
                 performance: d.performance,
@@ -241,7 +270,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
 
         if (flowType === 'suction') {
             isSuction = true;
-            const roomDim = state.viewType === 'front' ? state.roomWidth : state.roomLength;
+            const roomDim = getEffectiveViewType(state) === 'front' ? state.roomWidth : state.roomLength;
             startX = offsetX + Math.random() * roomDim * ppm;
             const spawnY = offsetY + Math.random() * state.roomHeight * ppm;
             const targetX = centerX;
@@ -458,11 +487,11 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
     const drawAllDiffusers = (ctx: CanvasRenderingContext2D, ppm: number, offsetX: number, offsetY: number, state: SideViewCanvasProps) => {
         if (state.placedDiffusers && state.placedDiffusers.length > 0) {
             state.placedDiffusers.forEach(d => {
-                const screenX = offsetX + getProjectedPos(state.viewType, d) * ppm;
-                const distanceToSlice = Math.abs(getDepthPos(state.viewType, d) - state.sliceDepth);
+                const screenX = offsetX + getProjectedPos(getEffectiveViewType(state), d) * ppm;
+                const dPos = getDepthPos(getEffectiveViewType(state), d);
 
                 ctx.save();
-                ctx.globalAlpha = getSliceOpacity(distanceToSlice, state.sliceThickness || 1.5);
+                ctx.globalAlpha = getSliceOpacity(dPos, state);
                 drawDiffuserSideProfile(ctx, screenX, ppm, offsetY, state, d.performance, d.modelId);
                 ctx.restore();
             });
@@ -473,14 +502,12 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         if (!state.probes) return;
 
         state.probes.forEach(p => {
-            const distanceToSlice = state.viewType === 'front' 
-                ? Math.abs(p.y - state.sliceDepth) 
-                : Math.abs(p.x - state.sliceDepth);
+            const dPos = getEffectiveViewType(state) === 'front' ? p.y : p.x;
             
-            const opacity = getSliceOpacity(distanceToSlice, state.sliceThickness || 1.5);
+            const opacity = getSliceOpacity(dPos, state);
             if (opacity <= 0) return;
 
-            const pos = state.viewType === 'front' ? p.x : p.y;
+            const pos = getEffectiveViewType(state) === 'front' ? p.x : p.y;
             const px = offsetX + pos * ppm;
             const py = offsetY + (state.roomHeight - p.z) * ppm; // Vertical height Z
             
@@ -498,7 +525,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
             // Height label
             ctx.fillStyle = '#fff';
             ctx.font = '10px Inter';
-            const depthLabel = state.viewType === 'front' ? `y: ${p.y.toFixed(1)}m` : `x: ${p.x.toFixed(1)}m`;
+            const depthLabel = getEffectiveViewType(state) === 'front' ? `y: ${p.y.toFixed(1)}m` : `x: ${p.x.toFixed(1)}m`;
             ctx.fillText(`z: ${p.z.toFixed(1)}m | ${depthLabel}`, px + 10, py);
             
             ctx.restore();
@@ -506,7 +533,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
     }
 
     const drawSideViewGrid = (ctx: CanvasRenderingContext2D, w: number, h: number, ppm: number, offsetX: number, offsetY: number, state: SideViewCanvasProps) => {
-        const roomDim = state.viewType === 'front' ? state.roomWidth : state.roomLength;
+        const roomDim = getEffectiveViewType(state) === 'front' ? state.roomWidth : state.roomLength;
         const roomPixW = roomDim * ppm;
         const roomPixH = state.roomHeight * ppm;
 
@@ -563,7 +590,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         const mountedHeight = Math.max(0, Math.min(state.diffuserHeight, state.roomHeight));
         
         const dt = CONSTANTS.BASE_TIME_STEP;
-        const roomDim = state.viewType === 'front' ? state.roomWidth : state.roomLength;
+        const roomDim = getEffectiveViewType(state) === 'front' ? state.roomWidth : state.roomLength;
         const { ppm, offsetX, offsetY } = getSideLayout(width, height, roomHeight, roomDim);
 
         if (!isPowerOn) {
@@ -585,11 +612,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         const pool = particlePool.current;
         
         // 1. SPAWN
-        const sliceDiffusers = (state.placedDiffusers || []).filter(d => {
-            const depthPos = getDepthPos(state.viewType, d);
-            const fadeEnd = ((state.sliceThickness || 1.5) / 2) + 0.5;
-            return Math.abs(depthPos - state.sliceDepth) <= fadeEnd && isRenderableDiffuser(d);
-        });
+        const sliceDiffusers = getSliceDiffusers(state);
         if (isPowerOn && isPlaying && sliceDiffusers.length > 0) {
             const diffusersCount = sliceDiffusers.length;
             const spawnRate = CONSTANTS.SPAWN_RATE_BASE * diffusersCount;
@@ -741,14 +764,14 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         if (props.activeTool !== 'select' && props.activeTool !== 'probe') return;
 
         const { x: mouseX, y: mouseY } = getMousePos(e);
-        const roomDim = props.viewType === 'front' ? props.roomWidth : props.roomLength;
+        const roomDim = getEffectiveViewType(props) === 'front' ? props.roomWidth : props.roomLength;
         const { ppm, offsetX, offsetY } = getSideLayout(props.width, props.height, props.roomHeight, roomDim);
 
         // Check Probes
         const probes = props.probes || [];
         for (let i = probes.length - 1; i >= 0; i--) {
             const p = probes[i];
-            const pos = props.viewType === 'front' ? p.x : p.y;
+            const pos = getEffectiveViewType(props) === 'front' ? p.x : p.y;
             const px = offsetX + pos * ppm;
             const py = offsetY + (props.roomHeight - p.z) * ppm;
             
@@ -775,7 +798,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
     const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
         if (!isDragging || !dragTargetRef.current) return;
         const { x: mouseX, y: mouseY } = getMousePos(e);
-        const roomDim = props.viewType === 'front' ? props.roomWidth : props.roomLength;
+        const roomDim = getEffectiveViewType(props) === 'front' ? props.roomWidth : props.roomLength;
         const { ppm, offsetX, offsetY } = getSideLayout(props.width, props.height, props.roomHeight, roomDim);
 
         // Map mouse to X and Z
@@ -790,7 +813,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         newZ = Math.max(0, Math.min(props.roomHeight, newZ));
 
         if (dragTargetRef.current.type === 'probe' && props.onUpdateProbePos) {
-            if (props.viewType === 'front') {
+            if (getEffectiveViewType(props) === 'front') {
                 props.onUpdateProbePos(dragTargetRef.current.id, { x: newPos, z: newZ });
             } else {
                 props.onUpdateProbePos(dragTargetRef.current.id, { y: newPos, z: newZ });

@@ -86,6 +86,14 @@ export interface PlacedDiffuser {
   particleLimit?: number;
 }
 
+export interface SliceState {
+  isActive: boolean;
+  axis: 'x' | 'y'; // x = сечение вдоль оси Y (смотрит по X), y = сечение вдоль оси X (смотрит по Y)
+  position: number; // Координата оси сечения в метрах
+  depth: number; // Глубина видимости в метрах (толщина среза)
+  direction: 1 | -1; // 1 = смотрит вправо/вниз, -1 = смотрит влево/вверх
+}
+
 export interface Probe {
   id: string;
   x: number; // Position X (meters)

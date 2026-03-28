@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { PerformanceResult, PlacedDiffuser, Probe, ToolMode, GridPoint } from '../../../../../types';
+import { PerformanceResult, PlacedDiffuser, Probe, ToolMode, GridPoint, SliceState } from '../../../../../types';
 import { Trash2, Move, Copy, X } from 'lucide-react';
 import { calculateProbeData } from '../../../../../hooks/useSimulation';
 import { DIFFUSER_CATALOG } from '../../../../../constants';
@@ -30,12 +30,8 @@ interface TopViewCanvasProps {
   setActiveTool?: (mode: ToolMode) => void;
   placementMode?: 'single' | 'multi';
   onAddDiffuserAt?: (x: number, y: number) => void;
-  sliceX?: number;
-  sliceY?: number;
-  sliceThickness?: number;
-  onUpdateSlice?: (axis: 'x' | 'y', val: number) => void;
-  onUpdateSliceThickness?: (thickness: number) => void;
-  isSliceMode?: boolean;
+  slice?: SliceState;
+  onUpdateSlice?: (slice: SliceState) => void;
   // Probe Props
   probes?: Probe[];
   onAddProbe?: (x: number, y: number) => void;
@@ -162,7 +158,7 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string } | null>(null);
     
     // Drag Target Type
-    const dragTargetRef = useRef<{ type: 'diffuser' | 'probe' | 'slice-x' | 'slice-y' | 'slice-x-thickness' | 'slice-y-thickness' | 'slice-x-handle' | 'slice-y-handle', id?: string } | null>(null);
+    const dragTargetRef = useRef<{ type: 'diffuser' | 'probe' | 'slice-move' | 'slice-depth', id?: string } | null>(null);
 
     // Sync Props
     useEffect(() => {
@@ -395,99 +391,93 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             drawRealisticDiffuser2D(ctx, cx, cy, dSize / 2, d.modelId);
         });
 
-        if (state.isSliceMode) {
-            const sliceX = Math.max(0, Math.min(state.roomWidth, state.sliceX || 0));
-            const sliceY = Math.max(0, Math.min(state.roomLength, state.sliceY || 0));
-            const sliceXPx = originX + sliceX * ppm;
-            const sliceYPx = originY + sliceY * ppm;
-            const thicknessXPx = (state.sliceThickness || 1.5) * ppm;
-            const thicknessYPx = (state.sliceThickness || 1.5) * ppm;
-
+        if (state.slice?.isActive) {
+            const { axis, position, depth, direction } = state.slice;
+            const posPx = (axis === 'x' ? originX : originY) + position * ppm;
+            const depthPx = depth * ppm;
+            
             ctx.save();
             
-            // 1. Рисуем полосу для оси X (Вертикальная полоса, показывающая глубину по Y)
-            ctx.fillStyle = 'rgba(250, 204, 21, 0.15)'; 
-            ctx.fillRect(sliceXPx - thicknessXPx / 2, originY, thicknessXPx, state.roomLength * ppm);
+            if (axis === 'y') {
+                // Сечение вдоль оси X (смотрит по Y)
+                const startY = posPx;
+                const endY = posPx + depthPx * direction;
+                
+                // Зона глубины
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
+                ctx.fillRect(originX, Math.min(startY, endY), state.roomWidth * ppm, depthPx);
 
-            // Центральная ось (пунктир)
-            ctx.beginPath();
-            ctx.setLineDash([5, 5]);
-            ctx.moveTo(sliceXPx, originY);
-            ctx.lineTo(sliceXPx, originY + state.roomLength * ppm);
-            ctx.strokeStyle = 'rgba(250, 204, 21, 0.8)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
+                // Линия сечения
+                ctx.beginPath();
+                ctx.moveTo(originX, startY);
+                ctx.lineTo(originX + state.roomWidth * ppm, startY);
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 2;
+                ctx.stroke();
 
-            // Границы области (сплошные линии)
-            ctx.setLineDash([]);
-            ctx.beginPath();
-            ctx.moveTo(sliceXPx - thicknessXPx / 2, originY);
-            ctx.lineTo(sliceXPx - thicknessXPx / 2, originY + state.roomLength * ppm);
-            ctx.moveTo(sliceXPx + thicknessXPx / 2, originY);
-            ctx.lineTo(sliceXPx + thicknessXPx / 2, originY + state.roomLength * ppm);
-            ctx.strokeStyle = 'rgba(250, 204, 21, 0.4)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
+                // Линия границы глубины
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]);
+                ctx.moveTo(originX, endY);
+                ctx.lineTo(originX + state.roomWidth * ppm, endY);
+                ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.setLineDash([]);
 
-            // Ручка для оси X
-            const handleX_x = sliceXPx + thicknessXPx / 2;
-            const handleX_y = originY + (state.roomLength * ppm) / 2;
-            
-            ctx.beginPath();
-            ctx.arc(handleX_x, handleX_y, 6, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(250, 204, 21, 0.9)';
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            
-            ctx.fillStyle = '#fff';
-            ctx.font = '10px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('↔', handleX_x, handleX_y);
+                // Маркеры направления (стрелки)
+                const drawArrow = (x: number, y: number, dir: number) => {
+                    ctx.beginPath();
+                    ctx.moveTo(x - 6, y);
+                    ctx.lineTo(x + 6, y);
+                    ctx.lineTo(x, y + 8 * dir);
+                    ctx.closePath();
+                    ctx.fillStyle = '#3b82f6';
+                    ctx.fill();
+                };
+                drawArrow(originX + 10, startY, direction);
+                drawArrow(originX + state.roomWidth * ppm - 10, startY, direction);
 
-            // 2. Рисуем полосу для оси Y (Горизонтальная полоса, показывающая глубину по X)
-            ctx.fillStyle = 'rgba(59, 130, 246, 0.15)'; 
-            ctx.fillRect(originX, sliceYPx - thicknessYPx / 2, state.roomWidth * ppm, thicknessYPx);
+            } else {
+                // Сечение вдоль оси Y (смотрит по X)
+                const startX = posPx;
+                const endX = posPx + depthPx * direction;
+                
+                // Зона глубины
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
+                ctx.fillRect(Math.min(startX, endX), originY, depthPx, state.roomLength * ppm);
 
-            // Центральная ось (пунктир)
-            ctx.beginPath();
-            ctx.setLineDash([5, 5]);
-            ctx.moveTo(originX, sliceYPx);
-            ctx.lineTo(originX + state.roomWidth * ppm, sliceYPx);
-            ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
+                // Линия сечения
+                ctx.beginPath();
+                ctx.moveTo(startX, originY);
+                ctx.lineTo(startX, originY + state.roomLength * ppm);
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 2;
+                ctx.stroke();
 
-            // Границы области (сплошные линии)
-            ctx.setLineDash([]);
-            ctx.beginPath();
-            ctx.moveTo(originX, sliceYPx - thicknessYPx / 2);
-            ctx.lineTo(originX + state.roomWidth * ppm, sliceYPx - thicknessYPx / 2);
-            ctx.moveTo(originX, sliceYPx + thicknessYPx / 2);
-            ctx.lineTo(originX + state.roomWidth * ppm, sliceYPx + thicknessYPx / 2);
-            ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
+                // Линия границы глубины
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]);
+                ctx.moveTo(endX, originY);
+                ctx.lineTo(endX, originY + state.roomLength * ppm);
+                ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.setLineDash([]);
 
-            // Ручка для оси Y
-            const handleY_x = originX + (state.roomWidth * ppm) / 2;
-            const handleY_y = sliceYPx + thicknessYPx / 2;
-            
-            ctx.beginPath();
-            ctx.arc(handleY_x, handleY_y, 6, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(59, 130, 246, 0.9)';
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            
-            ctx.fillStyle = '#fff';
-            ctx.font = '10px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('↕', handleY_x, handleY_y);
+                // Маркеры направления (стрелки)
+                const drawArrow = (x: number, y: number, dir: number) => {
+                    ctx.beginPath();
+                    ctx.moveTo(x, y - 6);
+                    ctx.lineTo(x, y + 6);
+                    ctx.lineTo(x + 8 * dir, y);
+                    ctx.closePath();
+                    ctx.fillStyle = '#3b82f6';
+                    ctx.fill();
+                };
+                drawArrow(startX, originY + 10, direction);
+                drawArrow(startX, originY + state.roomLength * ppm - 10, direction);
+            }
 
             ctx.restore();
         }
@@ -582,69 +572,68 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         const { x: mouseX, y: mouseY } = getMousePos(e);
         const { ppm, originX, originY } = getTopLayout(props.width, props.height, props.roomWidth, props.roomLength);
 
-        if (props.isSliceMode && props.onUpdateSlice) {
-            const sliceXPx = originX + (props.sliceX || 0) * ppm;
-            const sliceYPx = originY + (props.sliceY || 0) * ppm;
-            const thicknessPx = (props.sliceThickness || 1.5) * ppm;
-            const halfThicknessPx = thicknessPx / 2;
+        if (props.slice?.isActive && props.onUpdateSlice) {
+            const { axis, position, depth, direction } = props.slice;
+            const posPx = (axis === 'x' ? originX : originY) + position * ppm;
+            const depthPx = depth * ppm;
             
-            const handleX_x = sliceXPx + halfThicknessPx;
-            const handleX_y = originY + (props.roomLength * ppm) / 2;
-            const handleY_x = originX + (props.roomWidth * ppm) / 2;
-            const handleY_y = sliceYPx + halfThicknessPx;
-
-            const HANDLE_SIZE = 20;
-            const halfHandle = HANDLE_SIZE / 2;
-
-            if (
-                mouseX >= handleX_x - halfHandle && mouseX <= handleX_x + halfHandle &&
-                mouseY >= handleX_y - halfHandle && mouseY <= handleX_y + halfHandle &&
-                props.onUpdateSliceThickness
-            ) {
-                setIsDragging(true);
-                dragTargetRef.current = { type: 'slice-x-handle' };
-                setDragOffset({ x: mouseX - handleX_x, y: 0, initialThickness: props.sliceThickness || 1.5 });
-                return;
-            }
-
-            if (
-                mouseX >= handleY_x - halfHandle && mouseX <= handleY_x + halfHandle &&
-                mouseY >= handleY_y - halfHandle && mouseY <= handleY_y + halfHandle &&
-                props.onUpdateSliceThickness
-            ) {
-                setIsDragging(true);
-                dragTargetRef.current = { type: 'slice-y-handle' };
-                setDragOffset({ x: 0, y: mouseY - handleY_y, initialThickness: props.sliceThickness || 1.5 });
-                return;
-            }
-
-            const distToSliceX = Math.abs(mouseX - sliceXPx);
-            const distToSliceY = Math.abs(mouseY - sliceYPx);
-
-            const distToSliceXEdge = Math.abs(distToSliceX - halfThicknessPx);
-            const distToSliceYEdge = Math.abs(distToSliceY - halfThicknessPx);
-
+            const SLICE_HIT_RADIUS = 10;
             const EDGE_HIT_RADIUS = 10;
 
-            if (distToSliceXEdge <= EDGE_HIT_RADIUS && props.onUpdateSliceThickness) {
-                setIsDragging(true);
-                dragTargetRef.current = { type: 'slice-x-thickness' };
-                setDragOffset({ x: mouseX - sliceXPx, y: 0, initialThickness: props.sliceThickness || 1.5 });
-                return;
-            }
+            if (axis === 'y') {
+                const startY = posPx;
+                const endY = posPx + depthPx * direction;
+                
+                // Check click on direction arrows
+                const arrowX1 = originX + 10;
+                const arrowX2 = originX + props.roomWidth * ppm - 10;
+                if (Math.abs(mouseY - startY) <= 15 && (Math.abs(mouseX - arrowX1) <= 15 || Math.abs(mouseX - arrowX2) <= 15)) {
+                    props.onUpdateSlice({ ...props.slice, direction: direction === 1 ? -1 : 1 });
+                    return;
+                }
 
-            if (distToSliceYEdge <= EDGE_HIT_RADIUS && props.onUpdateSliceThickness) {
-                setIsDragging(true);
-                dragTargetRef.current = { type: 'slice-y-thickness' };
-                setDragOffset({ x: 0, y: mouseY - sliceYPx, initialThickness: props.sliceThickness || 1.5 });
-                return;
-            }
+                // Check depth edge
+                if (Math.abs(mouseY - endY) <= EDGE_HIT_RADIUS) {
+                    setIsDragging(true);
+                    dragTargetRef.current = { type: 'slice-depth' };
+                    setDragOffset({ x: 0, y: mouseY - endY, initialThickness: depth });
+                    return;
+                }
 
-            if (distToSliceX <= SLICE_HIT_RADIUS || distToSliceY <= SLICE_HIT_RADIUS) {
-                setIsDragging(true);
-                dragTargetRef.current = distToSliceX <= distToSliceY ? { type: 'slice-x' } : { type: 'slice-y' };
-                setDragOffset({ x: mouseX - sliceXPx, y: mouseY - sliceYPx, initialThickness: 0 });
-                return;
+                // Check slice line
+                if (Math.abs(mouseY - startY) <= SLICE_HIT_RADIUS) {
+                    setIsDragging(true);
+                    dragTargetRef.current = { type: 'slice-move' };
+                    setDragOffset({ x: 0, y: mouseY - startY, initialThickness: 0 });
+                    return;
+                }
+            } else {
+                const startX = posPx;
+                const endX = posPx + depthPx * direction;
+
+                // Check click on direction arrows
+                const arrowY1 = originY + 10;
+                const arrowY2 = originY + props.roomLength * ppm - 10;
+                if (Math.abs(mouseX - startX) <= 15 && (Math.abs(mouseY - arrowY1) <= 15 || Math.abs(mouseY - arrowY2) <= 15)) {
+                    props.onUpdateSlice({ ...props.slice, direction: direction === 1 ? -1 : 1 });
+                    return;
+                }
+
+                // Check depth edge
+                if (Math.abs(mouseX - endX) <= EDGE_HIT_RADIUS) {
+                    setIsDragging(true);
+                    dragTargetRef.current = { type: 'slice-depth' };
+                    setDragOffset({ x: mouseX - endX, y: 0, initialThickness: depth });
+                    return;
+                }
+
+                // Check slice line
+                if (Math.abs(mouseX - startX) <= SLICE_HIT_RADIUS) {
+                    setIsDragging(true);
+                    dragTargetRef.current = { type: 'slice-move' };
+                    setDragOffset({ x: mouseX - startX, y: 0, initialThickness: 0 });
+                    return;
+                }
             }
         }
 
@@ -759,32 +748,47 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
         const { ppm, originX, originY } = getTopLayout(props.width, props.height, props.roomWidth, props.roomLength);
 
         if (!isDragging) {
-            if (props.isSliceMode && canvasRef.current) {
-                const sliceXPx = originX + (props.sliceX || 0) * ppm;
-                const sliceYPx = originY + (props.sliceY || 0) * ppm;
-                const halfThicknessPx = ((props.sliceThickness || 1.5) * ppm) / 2;
+            if (props.slice?.isActive && canvasRef.current) {
+                const { axis, position, depth, direction } = props.slice;
+                const posPx = (axis === 'x' ? originX : originY) + position * ppm;
+                const depthPx = depth * ppm;
                 
-                const handleX_x = sliceXPx + halfThicknessPx;
-                const handleX_y = originY + (props.roomLength * ppm) / 2;
-                const handleY_x = originX + (props.roomWidth * ppm) / 2;
-                const handleY_y = sliceYPx + halfThicknessPx;
+                const SLICE_HIT_RADIUS = 10;
+                const EDGE_HIT_RADIUS = 10;
 
-                const HANDLE_SIZE = 20;
-                const halfHandle = HANDLE_SIZE / 2;
+                let cursor = '';
 
-                if (
-                    mouseX >= handleX_x - halfHandle && mouseX <= handleX_x + halfHandle &&
-                    mouseY >= handleX_y - halfHandle && mouseY <= handleX_y + halfHandle
-                ) {
-                    canvasRef.current.style.cursor = 'ew-resize';
-                } else if (
-                    mouseX >= handleY_x - halfHandle && mouseX <= handleY_x + halfHandle &&
-                    mouseY >= handleY_y - halfHandle && mouseY <= handleY_y + halfHandle
-                ) {
-                    canvasRef.current.style.cursor = 'ns-resize';
+                if (axis === 'y') {
+                    const startY = posPx;
+                    const endY = posPx + depthPx * direction;
+                    
+                    const arrowX1 = originX + 10;
+                    const arrowX2 = originX + props.roomWidth * ppm - 10;
+                    
+                    if (Math.abs(mouseY - startY) <= 15 && (Math.abs(mouseX - arrowX1) <= 15 || Math.abs(mouseX - arrowX2) <= 15)) {
+                        cursor = 'pointer';
+                    } else if (Math.abs(mouseY - endY) <= EDGE_HIT_RADIUS) {
+                        cursor = 'ns-resize';
+                    } else if (Math.abs(mouseY - startY) <= SLICE_HIT_RADIUS) {
+                        cursor = 'ns-resize';
+                    }
                 } else {
-                    canvasRef.current.style.cursor = '';
+                    const startX = posPx;
+                    const endX = posPx + depthPx * direction;
+                    
+                    const arrowY1 = originY + 10;
+                    const arrowY2 = originY + props.roomLength * ppm - 10;
+                    
+                    if (Math.abs(mouseX - startX) <= 15 && (Math.abs(mouseY - arrowY1) <= 15 || Math.abs(mouseY - arrowY2) <= 15)) {
+                        cursor = 'pointer';
+                    } else if (Math.abs(mouseX - endX) <= EDGE_HIT_RADIUS) {
+                        cursor = 'ew-resize';
+                    } else if (Math.abs(mouseX - startX) <= SLICE_HIT_RADIUS) {
+                        cursor = 'ew-resize';
+                    }
                 }
+                
+                canvasRef.current.style.cursor = cursor;
             }
             return;
         }
@@ -796,47 +800,50 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
 
         const SNAP_RADIUS = 0.4;
 
-        if (dragTargetRef.current.type === 'slice-x') {
-            let newSliceX = Math.max(0, Math.min(rw, (mouseX - dragOffset.x - originX) / ppm));
-            if (props.placedDiffusers) {
-                for (const d of props.placedDiffusers) {
-                    if (Math.abs(d.x - newSliceX) < SNAP_RADIUS) {
-                        newSliceX = d.x;
-                        break;
+        if (dragTargetRef.current.type === 'slice-move' && props.slice && props.onUpdateSlice) {
+            const { axis } = props.slice;
+            let newPos = 0;
+            
+            if (axis === 'y') {
+                newPos = Math.max(0, Math.min(rl, (mouseY - dragOffset.y - originY) / ppm));
+                if (props.placedDiffusers) {
+                    for (const d of props.placedDiffusers) {
+                        if (Math.abs(d.y - newPos) < SNAP_RADIUS) {
+                            newPos = d.y;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                newPos = Math.max(0, Math.min(rw, (mouseX - dragOffset.x - originX) / ppm));
+                if (props.placedDiffusers) {
+                    for (const d of props.placedDiffusers) {
+                        if (Math.abs(d.x - newPos) < SNAP_RADIUS) {
+                            newPos = d.x;
+                            break;
+                        }
                     }
                 }
             }
-            props.onUpdateSlice && props.onUpdateSlice('x', newSliceX);
+            
+            props.onUpdateSlice({ ...props.slice, position: newPos });
             return;
         }
 
-        if (dragTargetRef.current.type === 'slice-y') {
-            let newSliceY = Math.max(0, Math.min(rl, (mouseY - dragOffset.y - originY) / ppm));
-            if (props.placedDiffusers) {
-                for (const d of props.placedDiffusers) {
-                    if (Math.abs(d.y - newSliceY) < SNAP_RADIUS) {
-                        newSliceY = d.y;
-                        break;
-                    }
-                }
+        if (dragTargetRef.current.type === 'slice-depth' && props.slice && props.onUpdateSlice) {
+            const { axis, position, direction } = props.slice;
+            let newDepth = 0;
+            
+            if (axis === 'y') {
+                const newEndY = (mouseY - dragOffset.y - originY) / ppm;
+                newDepth = (newEndY - position) * direction;
+            } else {
+                const newEndX = (mouseX - dragOffset.x - originX) / ppm;
+                newDepth = (newEndX - position) * direction;
             }
-            props.onUpdateSlice && props.onUpdateSlice('y', newSliceY);
-            return;
-        }
-
-        if ((dragTargetRef.current.type === 'slice-x-thickness' || dragTargetRef.current.type === 'slice-x-handle') && props.onUpdateSliceThickness) {
-            const centralXPx = originX + (props.sliceX || 0) * ppm;
-            let newThickness = Math.abs(mouseX - centralXPx) * 2 / ppm;
-            newThickness = Math.max(0.2, newThickness);
-            props.onUpdateSliceThickness(newThickness);
-            return;
-        }
-
-        if ((dragTargetRef.current.type === 'slice-y-thickness' || dragTargetRef.current.type === 'slice-y-handle') && props.onUpdateSliceThickness) {
-            const centralYPx = originY + (props.sliceY || 0) * ppm;
-            let newThickness = Math.abs(mouseY - centralYPx) * 2 / ppm;
-            newThickness = Math.max(0.2, newThickness);
-            props.onUpdateSliceThickness(newThickness);
+            
+            newDepth = Math.max(0.2, newDepth); // Minimum depth
+            props.onUpdateSlice({ ...props.slice, depth: newDepth });
             return;
         }
 

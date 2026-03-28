@@ -6,7 +6,7 @@ import { SimulatorRightPanel } from './SimulatorRightPanel';
 import DiffuserCanvas from './DiffuserCanvas';
 import SimulatorHelpOverlay from './SimulatorHelpOverlay';
 import { useScientificSimulation, calculateScientificPerformanceResult, calculateSimulationField, analyzeField } from '../../../../hooks/useSimulation';
-import { PlacedDiffuser, Probe, ToolMode } from '../../../../types';
+import { PlacedDiffuser, Probe, ToolMode, SliceState } from '../../../../types';
 import { GlassButton } from '../../../ui/Shared';
 import { DIFFUSER_CATALOG, getDiffuserFlowType, getDiffuserPerformanceFlowType } from '../../../../constants';
 import { useLocalStorage } from '../../../../hooks/useLocalStorage';
@@ -70,10 +70,13 @@ const Simulator = ({ onBack, onHome }: any) => {
 
     const [selectedDiffuserIds, setSelectedDiffuserIds] = useState<string[]>([]);
     const [probes, setProbes] = useLocalStorage<Probe[]>('hvac-sim-probes', []);
-    const [sliceX, setSliceX] = useLocalStorage<number>('hvac-sim-slicex', INITIAL_PARAMS.roomWidth / 2);
-    const [sliceY, setSliceY] = useLocalStorage<number>('hvac-sim-slicey', INITIAL_PARAMS.roomLength / 2);
-    const [sliceThickness, setSliceThickness] = useLocalStorage<number>('hvac-sim-slicethickness', 1.5);
-    const [isSliceMode, setIsSliceMode] = useLocalStorage<boolean>('hvac-sim-slicemode', false);
+    const [slice, setSlice] = useLocalStorage<SliceState>('hvac-sim-slice', {
+        isActive: false,
+        axis: 'y',
+        position: INITIAL_PARAMS.roomLength / 2,
+        depth: 1.5,
+        direction: 1
+    });
 
     // UI State
     const [openSection, setOpenSection] = useState<string | null>('distributor');
@@ -219,8 +222,10 @@ const Simulator = ({ onBack, onHome }: any) => {
             y: Math.min(Math.max(p.y, 0.1), params.roomLength - 0.1)
         })));
 
-        setSliceX(prev => Math.min(Math.max(prev, 0), params.roomWidth));
-        setSliceY(prev => Math.min(Math.max(prev, 0), params.roomLength));
+        setSlice(prev => ({
+            ...prev,
+            position: Math.min(Math.max(prev.position, 0), prev.axis === 'x' ? params.roomWidth : params.roomLength)
+        }));
     }, [params.roomWidth, params.roomLength]);
 
     // Удаление выделенных объектов клавишей Delete / Backspace
@@ -290,13 +295,8 @@ const Simulator = ({ onBack, onHome }: any) => {
         }
     };
 
-    const handleUpdateSlice = (axis: 'x' | 'y', value: number) => {
-        if (axis === 'x') {
-            setSliceX(Math.max(0, Math.min(params.roomWidth, value)));
-            return;
-        }
-
-        setSliceY(Math.max(0, Math.min(params.roomLength, value)));
+    const handleUpdateSlice = (newSlice: SliceState) => {
+        setSlice(newSlice);
     };
 
     const addDiffuserAt = (x: number, y: number) => {
@@ -555,12 +555,8 @@ const Simulator = ({ onBack, onHome }: any) => {
                         setActiveTool={setActiveTool}
                         placementMode={placementMode}
                         onAddDiffuserAt={addDiffuserAt}
-                        sliceX={sliceX}
-                        sliceY={sliceY}
-                        sliceThickness={sliceThickness}
+                        slice={slice}
                         onUpdateSlice={handleUpdateSlice}
-                        onUpdateSliceThickness={setSliceThickness}
-                        isSliceMode={isSliceMode}
                         probes={probes}
                         onAddProbe={addProbeAtScreenClick}
                         onRemoveProbe={removeProbe}
@@ -641,9 +637,9 @@ const Simulator = ({ onBack, onHome }: any) => {
                                     <span className="text-[9px] font-bold uppercase tracking-wider">Привязка</span>
                                 </button>
                                 <button 
-                                    onClick={() => setIsSliceMode(!isSliceMode)} 
+                                    onClick={() => setSlice(prev => ({ ...prev, isActive: !prev.isActive }))} 
                                     disabled={viewMode !== 'top'}
-                                    className={`w-[68px] h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${viewMode !== 'top' ? 'opacity-30 cursor-not-allowed' : ''} ${isSliceMode && viewMode === 'top' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
+                                    className={`w-[68px] h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${viewMode !== 'top' ? 'opacity-30 cursor-not-allowed' : ''} ${slice.isActive && viewMode === 'top' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
                                 >
                                     <SplitSquareHorizontal size={18} />
                                     <span className="text-[9px] font-bold uppercase tracking-wider">Срез</span>

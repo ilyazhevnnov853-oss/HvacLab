@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { PerformanceResult, PlacedDiffuser, Probe, ToolMode, GridPoint } from '../../../../types';
+import { PerformanceResult, PlacedDiffuser, Probe, ToolMode, GridPoint, SliceState } from '../../../../types';
 import SideViewCanvas from './views/SideViewCanvas';
 import TopViewCanvas from './views/TopViewCanvas';
 import ThreeDViewCanvas from './views/ThreeDViewCanvas';
@@ -41,12 +41,8 @@ interface DiffuserCanvasProps {
   setActiveTool?: (mode: ToolMode) => void;
   placementMode?: 'single' | 'multi';
   onAddDiffuserAt?: (x: number, y: number) => void;
-  sliceX?: number;
-  sliceY?: number;
-  sliceThickness?: number;
-  onUpdateSlice?: (axis: 'x' | 'y', val: number) => void;
-  onUpdateSliceThickness?: (thickness: number) => void;
-  isSliceMode?: boolean;
+  slice?: SliceState;
+  onUpdateSlice?: (slice: SliceState) => void;
   // Probe Props
   probes?: Probe[];
   onAddProbe?: (x: number, y: number) => void;
@@ -103,12 +99,8 @@ const DiffuserCanvas: React.FC<DiffuserCanvasProps> = (props) => {
                 setActiveTool={props.setActiveTool}
                 placementMode={props.placementMode}
                 onAddDiffuserAt={props.onAddDiffuserAt}
-                sliceX={props.sliceX}
-                sliceY={props.sliceY}
-                sliceThickness={props.sliceThickness}
+                slice={props.slice}
                 onUpdateSlice={props.onUpdateSlice}
-                onUpdateSliceThickness={props.onUpdateSliceThickness}
-                isSliceMode={props.isSliceMode}
                 // Pass Probe props
                 probes={props.probes}
                 onAddProbe={props.onAddProbe}
@@ -162,9 +154,7 @@ const DiffuserCanvas: React.FC<DiffuserCanvasProps> = (props) => {
                 workZoneHeight={props.workZoneHeight}
                 placedDiffusers={props.placedDiffusers}
                 viewType={props.viewMode === 'right' ? 'right' : 'front'}
-                sliceDepth={props.viewMode === 'right' ? (props.sliceX || 0) : (props.sliceY || 0)}
-                sliceThickness={props.sliceThickness}
-                isSliceMode={props.isSliceMode}
+                slice={props.slice}
                 // Pass Side Props
                 activeTool={props.activeTool}
                 probes={props.probes}
