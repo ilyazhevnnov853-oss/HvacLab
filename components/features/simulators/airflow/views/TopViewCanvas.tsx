@@ -398,85 +398,125 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             
             ctx.save();
             
+            // UI Constants for slice
+            const accentColor = '#3b82f6';
+            const btnRadius = 12;
+
+            const drawSliceUI = (isVertical: boolean) => {
+                const length = (isVertical ? state.roomLength : state.roomWidth) * ppm;
+                const start = isVertical ? originY : originX;
+                const end = start + length;
+                const fixedPos = posPx;
+
+                // 1. Depth Zone (Extremely transparent)
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.02)'; // Even more subtle
+                if (isVertical) {
+                    ctx.fillRect(Math.min(fixedPos, fixedPos + depthPx * direction), originY, Math.abs(depthPx), length);
+                } else {
+                    ctx.fillRect(originX, Math.min(fixedPos, fixedPos + depthPx * direction), length, Math.abs(depthPx));
+                }
+
+                // 2. Depth Boundary Line (Dashed)
+                ctx.beginPath();
+                ctx.setLineDash([3, 3]);
+                ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)';
+                ctx.lineWidth = 1;
+                const boundaryPos = fixedPos + depthPx * direction;
+                if (isVertical) {
+                    ctx.moveTo(boundaryPos, start);
+                    ctx.lineTo(boundaryPos, end);
+                } else {
+                    ctx.moveTo(start, boundaryPos);
+                    ctx.lineTo(end, boundaryPos);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // 3. Main Slice Line
+                ctx.beginPath();
+                ctx.strokeStyle = accentColor;
+                ctx.lineWidth = 2;
+                if (isVertical) {
+                    ctx.moveTo(fixedPos, start);
+                    ctx.lineTo(fixedPos, end);
+                } else {
+                    ctx.moveTo(start, fixedPos);
+                    ctx.lineTo(end, fixedPos);
+                }
+                ctx.stroke();
+
+                // 4. Buttons at ends
+                const drawButton = (bx: number, by: number, type: 'flip' | 'rotate') => {
+                    // Button Circle
+                    ctx.beginPath();
+                    ctx.arc(bx, by, btnRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = '#fff';
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = 'rgba(0,0,0,0.12)';
+                    ctx.fill();
+                    ctx.strokeStyle = accentColor;
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+
+                    // Icon
+                    ctx.save();
+                    ctx.translate(bx, by);
+                    ctx.strokeStyle = accentColor;
+                    ctx.fillStyle = accentColor;
+                    ctx.lineWidth = 1.5;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+
+                    if (type === 'flip') {
+                        // Arrow icon
+                        const arrowDir = direction;
+                        if (isVertical) {
+                            ctx.rotate(arrowDir === 1 ? 0 : Math.PI);
+                        } else {
+                            ctx.rotate(arrowDir === 1 ? Math.PI / 2 : -Math.PI / 2);
+                        }
+                        ctx.beginPath();
+                        ctx.moveTo(-3, -2);
+                        ctx.lineTo(3, -2);
+                        ctx.lineTo(0, 3);
+                        ctx.closePath();
+                        ctx.fill();
+                    } else {
+                        // Rotate icon (more elegant)
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 4, 0, Math.PI * 1.6);
+                        ctx.stroke();
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(2, -5);
+                        ctx.lineTo(5, -3);
+                        ctx.lineTo(2, -1);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                };
+
+                const margin = 40;
+                const spacing = 35;
+                if (isVertical) {
+                    drawButton(fixedPos, start + margin, 'flip');
+                    drawButton(fixedPos, start + margin + spacing, 'rotate');
+                    drawButton(fixedPos, end - margin, 'flip');
+                    drawButton(fixedPos, end - margin - spacing, 'rotate');
+                } else {
+                    drawButton(start + margin, fixedPos, 'flip');
+                    drawButton(start + margin + spacing, fixedPos, 'rotate');
+                    drawButton(end - margin, fixedPos, 'flip');
+                    drawButton(end - margin - spacing, fixedPos, 'rotate');
+                }
+            };
+
             if (axis === 'y') {
-                // Сечение вдоль оси X (смотрит по Y)
-                const startY = posPx;
-                const endY = posPx + depthPx * direction;
-                
-                // Зона глубины
-                ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
-                ctx.fillRect(originX, Math.min(startY, endY), state.roomWidth * ppm, depthPx);
-
-                // Линия сечения
-                ctx.beginPath();
-                ctx.moveTo(originX, startY);
-                ctx.lineTo(originX + state.roomWidth * ppm, startY);
-                ctx.strokeStyle = '#3b82f6';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-
-                // Линия границы глубины
-                ctx.beginPath();
-                ctx.setLineDash([5, 5]);
-                ctx.moveTo(originX, endY);
-                ctx.lineTo(originX + state.roomWidth * ppm, endY);
-                ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-                ctx.setLineDash([]);
-
-                // Маркеры направления (стрелки)
-                const drawArrow = (x: number, y: number, dir: number) => {
-                    ctx.beginPath();
-                    ctx.moveTo(x - 6, y);
-                    ctx.lineTo(x + 6, y);
-                    ctx.lineTo(x, y + 8 * dir);
-                    ctx.closePath();
-                    ctx.fillStyle = '#3b82f6';
-                    ctx.fill();
-                };
-                drawArrow(originX + 10, startY, direction);
-                drawArrow(originX + state.roomWidth * ppm - 10, startY, direction);
-
+                drawSliceUI(false);
             } else {
-                // Сечение вдоль оси Y (смотрит по X)
-                const startX = posPx;
-                const endX = posPx + depthPx * direction;
-                
-                // Зона глубины
-                ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
-                ctx.fillRect(Math.min(startX, endX), originY, depthPx, state.roomLength * ppm);
-
-                // Линия сечения
-                ctx.beginPath();
-                ctx.moveTo(startX, originY);
-                ctx.lineTo(startX, originY + state.roomLength * ppm);
-                ctx.strokeStyle = '#3b82f6';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-
-                // Линия границы глубины
-                ctx.beginPath();
-                ctx.setLineDash([5, 5]);
-                ctx.moveTo(endX, originY);
-                ctx.lineTo(endX, originY + state.roomLength * ppm);
-                ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-                ctx.setLineDash([]);
-
-                // Маркеры направления (стрелки)
-                const drawArrow = (x: number, y: number, dir: number) => {
-                    ctx.beginPath();
-                    ctx.moveTo(x, y - 6);
-                    ctx.lineTo(x, y + 6);
-                    ctx.lineTo(x + 8 * dir, y);
-                    ctx.closePath();
-                    ctx.fillStyle = '#3b82f6';
-                    ctx.fill();
-                };
-                drawArrow(startX, originY + 10, direction);
-                drawArrow(startX, originY + state.roomLength * ppm - 10, direction);
+                drawSliceUI(true);
             }
 
             ctx.restore();
@@ -583,12 +623,26 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             if (axis === 'y') {
                 const startY = posPx;
                 const endY = posPx + depthPx * direction;
+                const margin = 40;
+                const spacing = 35;
                 
-                // Check click on direction arrows
-                const arrowX1 = originX + 10;
-                const arrowX2 = originX + props.roomWidth * ppm - 10;
+                // Check click on direction arrows (flip)
+                const arrowX1 = originX + margin;
+                const arrowX2 = originX + props.roomWidth * ppm - margin;
                 if (Math.abs(mouseY - startY) <= 15 && (Math.abs(mouseX - arrowX1) <= 15 || Math.abs(mouseX - arrowX2) <= 15)) {
                     props.onUpdateSlice({ ...props.slice, direction: direction === 1 ? -1 : 1 });
+                    return;
+                }
+
+                // Check click on rotation icons
+                const rotX1 = originX + margin + spacing;
+                const rotX2 = originX + props.roomWidth * ppm - margin - spacing;
+                if (Math.abs(mouseY - startY) <= 15 && (Math.abs(mouseX - rotX1) <= 15 || Math.abs(mouseX - rotX2) <= 15)) {
+                    props.onUpdateSlice({ 
+                        ...props.slice, 
+                        axis: 'x',
+                        position: props.roomWidth / 2
+                    });
                     return;
                 }
 
@@ -610,12 +664,26 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             } else {
                 const startX = posPx;
                 const endX = posPx + depthPx * direction;
+                const margin = 40;
+                const spacing = 35;
 
-                // Check click on direction arrows
-                const arrowY1 = originY + 10;
-                const arrowY2 = originY + props.roomLength * ppm - 10;
+                // Check click on direction arrows (flip)
+                const arrowY1 = originY + margin;
+                const arrowY2 = originY + props.roomLength * ppm - margin;
                 if (Math.abs(mouseX - startX) <= 15 && (Math.abs(mouseY - arrowY1) <= 15 || Math.abs(mouseY - arrowY2) <= 15)) {
                     props.onUpdateSlice({ ...props.slice, direction: direction === 1 ? -1 : 1 });
+                    return;
+                }
+
+                // Check click on rotation icons
+                const rotY1 = originY + margin + spacing;
+                const rotY2 = originY + props.roomLength * ppm - margin - spacing;
+                if (Math.abs(mouseX - startX) <= 15 && (Math.abs(mouseY - rotY1) <= 15 || Math.abs(mouseY - rotY2) <= 15)) {
+                    props.onUpdateSlice({ 
+                        ...props.slice, 
+                        axis: 'y',
+                        position: props.roomLength / 2
+                    });
                     return;
                 }
 
@@ -761,11 +829,20 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
                 if (axis === 'y') {
                     const startY = posPx;
                     const endY = posPx + depthPx * direction;
+                    const margin = 40;
+                    const spacing = 35;
                     
-                    const arrowX1 = originX + 10;
-                    const arrowX2 = originX + props.roomWidth * ppm - 10;
+                    const arrowX1 = originX + margin;
+                    const arrowX2 = originX + props.roomWidth * ppm - margin;
+                    const rotX1 = originX + margin + spacing;
+                    const rotX2 = originX + props.roomWidth * ppm - margin - spacing;
                     
-                    if (Math.abs(mouseY - startY) <= 15 && (Math.abs(mouseX - arrowX1) <= 15 || Math.abs(mouseX - arrowX2) <= 15)) {
+                    if (Math.abs(mouseY - startY) <= 15 && (
+                        Math.abs(mouseX - arrowX1) <= 15 || 
+                        Math.abs(mouseX - arrowX2) <= 15 ||
+                        Math.abs(mouseX - rotX1) <= 15 ||
+                        Math.abs(mouseX - rotX2) <= 15
+                    )) {
                         cursor = 'pointer';
                     } else if (Math.abs(mouseY - endY) <= EDGE_HIT_RADIUS) {
                         cursor = 'ns-resize';
@@ -775,11 +852,20 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
                 } else {
                     const startX = posPx;
                     const endX = posPx + depthPx * direction;
+                    const margin = 40;
+                    const spacing = 35;
                     
-                    const arrowY1 = originY + 10;
-                    const arrowY2 = originY + props.roomLength * ppm - 10;
+                    const arrowY1 = originY + margin;
+                    const arrowY2 = originY + props.roomLength * ppm - margin;
+                    const rotY1 = originY + margin + spacing;
+                    const rotY2 = originY + props.roomLength * ppm - margin - spacing;
                     
-                    if (Math.abs(mouseX - startX) <= 15 && (Math.abs(mouseY - arrowY1) <= 15 || Math.abs(mouseY - arrowY2) <= 15)) {
+                    if (Math.abs(mouseX - startX) <= 15 && (
+                        Math.abs(mouseY - arrowY1) <= 15 || 
+                        Math.abs(mouseY - arrowY2) <= 15 ||
+                        Math.abs(mouseY - rotY1) <= 15 ||
+                        Math.abs(mouseY - rotY2) <= 15
+                    )) {
                         cursor = 'pointer';
                     } else if (Math.abs(mouseX - endX) <= EDGE_HIT_RADIUS) {
                         cursor = 'ew-resize';
