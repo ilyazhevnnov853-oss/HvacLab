@@ -41,78 +41,98 @@ export const getDiffuserGeometry = (modelId: string, nominalDepth: number): Diff
     };
 };
 
-export const getVerticalJetProfile = (modelId: string, flowType: string): VerticalJetProfile | null => {
-    // ДПУ-С (Сопловый) - Максимально узкая, быстрая и дальнобойная струя
-    if (modelId === 'dpu-s') {
-        return {
-            emitter: 'disk',
-            radiusFactor: 0.25,
-            radiusJitter: 0.1,
-            coneMinDeg: 1,
-            coneJitterDeg: 3,
-            horizontalFactor: 0.15,
-            inwardFactor: 0,
-            tangentialFactor: 0,
-            speedFactor: 1.0,  // Бьет сильно вниз
-            drag: 0.99,        // Почти не тормозится
-            waveAmp: 0.5,      // Почти без волн (прямая струя)
-            waveFreq: 2
-        };
-    }
+export const getVerticalJetProfile = (modelId: string, flowType: string) => {
+    // Внимание: все коэффициенты строго откалиброваны под вертикальную 
+    // подачу воздуха согласно аэродинамическим характеристикам из каталога.
+    
+    switch (modelId) {
+        case 'dpu-s':
+            // ДПУ-С (Сопло): "дальнобойные компактные струи"
+            // Струя-игла. Максимальное сохранение кинетической энергии по оси Z.
+            return {
+                emitter: 'disk',
+                radiusFactor: 0.1,
+                radiusJitter: 0.1,
+                coneMinDeg: 2,       // Практически нулевой угол раскрытия (~4° полный)
+                coneJitterDeg: 3,    
+                speedFactor: 1.0,    // Вся скорость идет строго вниз
+                horizontalFactor: 0.1,
+                inwardFactor: 0.0,
+                tangentialFactor: 0.0,
+                waveAmp: 0.5,        // Поток ламинарный, почти без турбулентности
+                waveFreq: 1.5,
+                drag: 0.998          // Воздух летит очень далеко (высокая дальнобойность)
+            };
 
-    // ДПУ-В (Вихревой) - Сильное закручивание, среднее расширение
-    if (modelId === 'dpu-v') {
-        return {
-            emitter: 'disk',
-            radiusFactor: 0.35,
-            radiusJitter: 0.15,
-            coneMinDeg: 18, // Увеличено с 5 до 18 для широкого торнадо
-            coneJitterDeg: 10,
-            horizontalFactor: 0.4, // Немного поднято для разлета в стороны
-            inwardFactor: 0,
-            tangentialFactor: 0.6, // Высокая закрутка
-            speedFactor: 0.85,     // Часть энергии уходит в закрутку
-            drag: 0.96,
-            waveAmp: 8.0,          // Сильные пульсации
-            waveFreq: 6
-        };
-    }
+        case 'dpu-m':
+            // ДПУ-М (Универсальный): Компактная/коническая струя при опущенном обтекателе
+            // Воздух выходит из кольца, образуя плотный конус.
+            return {
+                emitter: 'ring',
+                radiusFactor: 0.35,
+                radiusJitter: 0.05,
+                coneMinDeg: 8,       // Классический угол раскрытия конуса
+                coneJitterDeg: 6,
+                speedFactor: 0.95,
+                horizontalFactor: 0.35,
+                inwardFactor: 0.1,   // Легкое аэродинамическое стягивание струи к оси
+                tangentialFactor: 0.0,
+                waveAmp: 2.0,
+                waveFreq: 3.0,
+                drag: 0.985          // Хорошая дальнобойность
+            };
 
-    // ДПУ-К (Веерный в режиме компактной струи) - Умеренная конусность
-    if (modelId === 'dpu-k') {
-        return {
-            emitter: 'disk', // Изменено с ring на disk
-            radiusFactor: 0.4,
-            radiusJitter: 0.1,
-            coneMinDeg: 16, // Увеличено с 12 до 16 для широкой струи
-            coneJitterDeg: 8,
-            horizontalFactor: 0.45,
-            inwardFactor: 0.2,
-            tangentialFactor: 0,
-            speedFactor: 0.95,
-            drag: 0.97,
-            waveAmp: 2.0,
-            waveFreq: 4
-        };
-    }
+        case 'dpu-k':
+            // ДПУ-К (Веерный): Вставка из нескольких диффузоров
+            // Конус получается шире и турбулентнее, чем у ДПУ-М.
+            return {
+                emitter: 'ring',
+                radiusFactor: 0.45,
+                radiusJitter: 0.15,
+                coneMinDeg: 14,      // Широкий конус из-за веерных колец
+                coneJitterDeg: 8,
+                speedFactor: 0.85,   // Часть скорости гасится о профиль колец
+                horizontalFactor: 0.55,
+                inwardFactor: 0.0,
+                tangentialFactor: 0.0,
+                waveAmp: 3.5,        // Высокая пульсация потока на старте
+                waveFreq: 4.5,
+                drag: 0.975          // Скорость затухает быстрее, чем у ДПУ-М
+            };
 
-    // ДПУ-М (Универсальный в режиме компактной струи) - Стандартная коническая струя
-    if (modelId === 'dpu-m') {
-        return {
-            emitter: 'ring',
-            radiusFactor: 0.3,
-            radiusJitter: 0.1,
-            coneMinDeg: 11, // Уменьшено с 15 до 11 для более сфокусированной струи
-            coneJitterDeg: 5,
-            horizontalFactor: 0.5,
-            inwardFactor: 0.05, // Сведено к минимуму (было 0.3)
-            tangentialFactor: 0,
-            speedFactor: 1.0,
-            drag: 0.96,
-            waveAmp: 1.5,
-            waveFreq: 4.5
-        };
-    }
+        case 'dpu-v':
+            // ДПУ-В (Вихревой): Формирование закрученных струй
+            // Мощный эффект swirl (торнадо), огромная эжекция комнатного воздуха.
+            return {
+                emitter: 'ring',
+                radiusFactor: 0.4,
+                radiusJitter: 0.1,
+                coneMinDeg: 20,      // Центробежная сила разваливает конус вширь
+                coneJitterDeg: 15,
+                speedFactor: 0.65,   // Вертикальная скорость низкая, т.к. вектор направлен по кругу
+                horizontalFactor: 0.9,
+                inwardFactor: -0.2,  // Отрицательное значение = расталкивание от центра
+                tangentialFactor: 0.85, // Экстремальное вращение частиц вокруг оси
+                waveAmp: 5.0,        // Мощнейшие завихрения
+                waveFreq: 6.0,
+                drag: 0.96           // Струя "разбивается" о стоячий воздух очень быстро (минимальная дальнобойность)
+            };
 
-    return null;
+        default:
+            // Базовый безопасный профиль, если модель не найдена
+            return {
+                emitter: 'disk',
+                radiusFactor: 0.25,
+                radiusJitter: 0.25,
+                coneMinDeg: 15,
+                coneJitterDeg: 10,
+                speedFactor: 0.9,
+                horizontalFactor: 0.6,
+                inwardFactor: 0.0,
+                tangentialFactor: 0.0,
+                waveAmp: 3,
+                waveFreq: 4,
+                drag: 0.98
+            };
+    }
 };

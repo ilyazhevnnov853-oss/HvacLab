@@ -39,23 +39,35 @@ export interface ThreeDViewCanvasProps {
   workZoneHeight: number;
   viewMode?: '3d';
   placedDiffusers?: PlacedDiffuser[];
+  selectedDiffuserIds?: string[];
+  onSelectDiffuser?: (id: string | null, multi?: boolean) => void;
+  activeTool?: string;
   probes?: Probe[];
+  onAddProbe?: (x: number, y: number) => void;
+  onUpdateProbePos?: (id: string, pos: {x?: number, y?: number, z?: number}) => void;
 }
 
 export const project = (x: number, y: number, z: number, width: number, height: number, rotX: number, rotY: number, scale: number, panX: number, panY: number) => {
-    const cx = Math.cos(rotY);
-    const sx = Math.sin(rotY);
+    // 1. Вращение по Y
+    const cx = Math.cos(rotY), sx = Math.sin(rotY);
     const x1 = x * cx - z * sx;
     const z1 = x * sx + z * cx;
 
-    const cy = Math.cos(rotX);
-    const sy = Math.sin(rotX);
+    // 2. Вращение по X
+    const cy = Math.cos(rotX), sy = Math.sin(rotX);
     const y2 = y * cy - z1 * sy;
+    const z2 = y * sy + z1 * cy; // НАМ НУЖЕН Z ДЛЯ ПЕРСПЕКТИВЫ
 
-    const px = x1 * scale + width / 2 + panX;
-    const py = y2 * scale + height / 2 + panY;
+    // 3. Перспективное искажение (Focal Length)
+    const focalLength = 1500; // Настраиваемая константа
+    const distance = focalLength + z2 * scale; // Отодвигаем камеру
+    const pScale = distance > 0 ? focalLength / distance : 0; 
     
-    return { x: px, y: py, s: 1 };
+    // 4. Финальные экранные координаты
+    const px = x1 * scale * pScale + width / 2 + panX;
+    const py = y2 * scale * pScale + height / 2 + panY;
+    
+    return { x: px, y: py, s: pScale };
 };
 
 const getGlowColor = (t: number) => {

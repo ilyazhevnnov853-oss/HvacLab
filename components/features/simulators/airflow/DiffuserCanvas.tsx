@@ -130,8 +130,13 @@ const DiffuserCanvas: React.FC<DiffuserCanvasProps> = (props) => {
                 workZoneHeight={props.workZoneHeight}
                 viewMode="3d"
                 placedDiffusers={props.placedDiffusers}
+                selectedDiffuserIds={props.selectedDiffuserIds}
+                onSelectDiffuser={props.onSelectDiffuser}
+                activeTool={props.activeTool}
                 // Pass 3D Props
                 probes={props.probes}
+                onAddProbe={props.onAddProbe}
+                onUpdateProbePos={props.onUpdateProbePos}
             />
         );
     } else {
@@ -153,6 +158,9 @@ const DiffuserCanvas: React.FC<DiffuserCanvasProps> = (props) => {
                 diffuserHeight={props.diffuserHeight}
                 workZoneHeight={props.workZoneHeight}
                 placedDiffusers={props.placedDiffusers}
+                selectedDiffuserIds={props.selectedDiffuserIds}
+                onSelectDiffuser={props.onSelectDiffuser}
+                onUpdateDiffuserPos={props.onUpdateDiffuserPos}
                 viewType={props.viewMode === 'right' ? 'right' : 'front'}
                 slice={props.slice}
                 // Pass Side Props

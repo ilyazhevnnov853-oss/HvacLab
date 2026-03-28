@@ -30,9 +30,9 @@ const ViewCube: React.FC<ViewCubeProps> = ({ rotX, rotY, setCamera }) => {
                     transform: `rotateX(${rX}deg) rotateY(${rY}deg)`
                 }}
             >
-                <div className={faceStyle} style={{ transform: `translateZ(${offset}px)` }} onClick={snap(0, 0)}>ПЕРЕД</div>
+                <div className={faceStyle} style={{ transform: `translateZ(${offset}px)` }} onClick={snap(0, 0)}>РАЗРЕЗ</div>
                 <div className={faceStyle} style={{ transform: `rotateY(180deg) translateZ(${offset}px)` }} onClick={snap(0, Math.PI)}>ТЫЛ</div>
-                <div className={faceStyle} style={{ transform: `rotateY(90deg) translateZ(${offset}px)` }} onClick={snap(0, -Math.PI/2)}>ПРАВО</div>
+                <div className={faceStyle} style={{ transform: `rotateY(90deg) translateZ(${offset}px)` }} onClick={snap(0, -Math.PI/2)}>РАЗРЕЗ</div>
                 <div className={faceStyle} style={{ transform: `rotateY(-90deg) translateZ(${offset}px)` }} onClick={snap(0, Math.PI/2)}>ЛЕВО</div>
                 <div className={faceStyle} style={{ transform: `rotateX(90deg) translateZ(${offset}px)` }} onClick={snap(Math.PI/2, 0)}>ВЕРХ</div>
                 <div className={faceStyle} style={{ transform: `rotateX(-90deg) translateZ(${offset}px)` }} onClick={snap(-Math.PI/2, 0)}>НИЗ</div>

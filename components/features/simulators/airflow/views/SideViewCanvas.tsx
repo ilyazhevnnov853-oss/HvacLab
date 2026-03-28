@@ -49,6 +49,9 @@ interface SideViewCanvasProps {
   diffuserHeight: number; 
   workZoneHeight: number;
   placedDiffusers?: PlacedDiffuser[];
+  selectedDiffuserIds?: string[];
+  onSelectDiffuser?: (id: string | null, multi?: boolean) => void;
+  onUpdateDiffuserPos?: (id: string, x: number, y: number) => void;
   viewType: 'front' | 'right';
   slice?: SliceState;
   activeTool?: ToolMode;
@@ -166,7 +169,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
     // Interaction State
     const [isDragging, setIsDragging] = useState(false);
     const [dragOffset, setDragOffset] = useState({ x: 0, z: 0 });
-    const dragTargetRef = useRef<{ type: 'probe', id: string } | null>(null);
+    const dragTargetRef = useRef<{ type: 'probe' | 'diffuser', id: string } | null>(null);
 
     // Init Pool
     useEffect(() => {
@@ -337,6 +340,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
     ) => {
         const perf = overridePerf || state.physics;
         const modelId = overrideModelId || state.modelId;
+        const isSelected = state.selectedDiffuserIds?.includes(state.placedDiffusers?.find(d => d.performance === perf)?.id || '');
         const spec = perf.spec;
         if (!spec || !spec.A) return;
 
@@ -348,15 +352,21 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         const mountedHeight = Math.max(0, Math.min(state.diffuserHeight, state.roomHeight));
         const yPos = offsetY + (state.roomHeight - mountedHeight) * ppm;
         const lip = Math.max(2, 6 * scale);
-        const bodyFill = '#d9e1ea';
-        const detailFill = '#bcc8d6';
-        const accentFill = '#8d9daf';
+        const bodyFill = isSelected ? '#3b82f6' : '#d9e1ea';
+        const detailFill = isSelected ? '#60a5fa' : '#bcc8d6';
+        const accentFill = isSelected ? '#93c5fd' : '#8d9daf';
 
         ctx.save();
         ctx.translate(cx, yPos);
-        ctx.lineWidth = 2;
+        
+        if (isSelected) {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = 'rgba(59, 130, 246, 0.5)';
+        }
+        
+        ctx.lineWidth = isSelected ? 3 : 2;
         ctx.lineJoin = 'round';
-        ctx.strokeStyle = '#8fa0b2';
+        ctx.strokeStyle = isSelected ? '#2563eb' : '#8fa0b2';
         ctx.fillStyle = bodyFill;
 
         ctx.beginPath();
@@ -767,6 +777,36 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         const roomDim = getEffectiveViewType(props) === 'front' ? props.roomWidth : props.roomLength;
         const { ppm, offsetX, offsetY } = getSideLayout(props.width, props.height, props.roomHeight, roomDim);
 
+        // Check Diffusers
+        if (props.activeTool === 'select') {
+            const diffusers = props.placedDiffusers || [];
+            const mountedHeight = Math.max(0, Math.min(props.diffuserHeight, props.roomHeight));
+            const yPos = offsetY + (props.roomHeight - mountedHeight) * ppm;
+
+            for (let i = diffusers.length - 1; i >= 0; i--) {
+                const d = diffusers[i];
+                const pos = getProjectedPos(getEffectiveViewType(props), d);
+                const px = offsetX + pos * ppm;
+                const py = yPos;
+                
+                // Diffuser hit area
+                const spec = d.performance.spec;
+                const r = ((spec?.A || 150) / 2000) * ppm;
+                
+                if (Math.abs(mouseX - px) < Math.max(20, r) && Math.abs(mouseY - py) < 30) {
+                    setIsDragging(true);
+                    dragTargetRef.current = { type: 'diffuser', id: d.id };
+                    setDragOffset({ x: mouseX - px, z: mouseY - py });
+                    props.onSelectDiffuser && props.onSelectDiffuser(d.id, (e as React.MouseEvent).shiftKey);
+                    props.onDragStart && props.onDragStart();
+                    return;
+                }
+            }
+            
+            // If clicked empty space, deselect
+            if (props.onSelectDiffuser) props.onSelectDiffuser(null);
+        }
+
         // Check Probes
         const probes = props.probes || [];
         for (let i = probes.length - 1; i >= 0; i--) {
@@ -817,6 +857,15 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 props.onUpdateProbePos(dragTargetRef.current.id, { x: newPos, z: newZ });
             } else {
                 props.onUpdateProbePos(dragTargetRef.current.id, { y: newPos, z: newZ });
+            }
+        } else if (dragTargetRef.current.type === 'diffuser' && props.onUpdateDiffuserPos) {
+            const d = props.placedDiffusers?.find(df => df.id === dragTargetRef.current?.id);
+            if (d) {
+                if (getEffectiveViewType(props) === 'front') {
+                    props.onUpdateDiffuserPos(d.id, newPos, d.y);
+                } else {
+                    props.onUpdateDiffuserPos(d.id, d.x, newPos);
+                }
             }
         }
     };

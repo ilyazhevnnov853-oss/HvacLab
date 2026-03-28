@@ -580,8 +580,7 @@ const Simulator = ({ onBack, onHome }: any) => {
                         {/* View Modes */}
                         <div className="flex items-center gap-1 px-2">
                             {[
-                                { id: 'front', label: 'Спереди', icon: <Layers size={18} strokeWidth={2} /> },
-                                { id: 'right', label: 'Справа', icon: <Layers size={18} strokeWidth={2} className="rotate-90" /> },
+                                { id: 'front', label: 'РАЗРЕЗ', icon: <Layers size={18} strokeWidth={2} /> },
                                 { id: 'top', label: 'План', icon: <Maximize size={18} strokeWidth={2} /> },
                                 { id: '3d', label: '3D Вид', icon: <Box size={18} strokeWidth={2} /> },
                             ].map(view => {
@@ -603,16 +602,14 @@ const Simulator = ({ onBack, onHome }: any) => {
                         <div className="flex items-center gap-1 pl-2 border-l border-black/10 dark:border-white/10 overflow-hidden transition-all duration-500">
                                 <button 
                                     onClick={() => setActiveTool('select')} 
-                                    disabled={viewMode === '3d'}
-                                    className={`w-[68px] h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${viewMode === '3d' ? 'opacity-30 cursor-not-allowed' : ''} ${activeTool === 'select' && viewMode !== '3d' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
+                                    className={`w-[68px] h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${activeTool === 'select' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
                                 >
                                     <MousePointer2 size={18} />
                                     <span className="text-[9px] font-bold uppercase tracking-wider">Выбор</span>
                                 </button>
                                 <button 
                                     onClick={() => setActiveTool('probe')} 
-                                    disabled={viewMode === '3d'}
-                                    className={`w-[68px] h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${viewMode === '3d' ? 'opacity-30 cursor-not-allowed' : ''} ${activeTool === 'probe' && viewMode !== '3d' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
+                                    className={`w-[68px] h-14 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 ${activeTool === 'probe' ? 'bg-black/10 dark:bg-white/15 text-slate-800 dark:text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5'}`} 
                                 >
                                     <Thermometer size={18} />
                                     <span className="text-[9px] font-bold uppercase tracking-wider">Датчик</span>

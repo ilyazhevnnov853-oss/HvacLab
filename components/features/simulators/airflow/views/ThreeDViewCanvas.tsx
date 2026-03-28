@@ -90,7 +90,7 @@ const drawRealisticDiffuser3D = (
     const detailFill = '#cbd5e1';
     const accentFill = '#94a3b8';
 
-    ctx.lineWidth = 0.5;
+    ctx.lineWidth = 0.5 * (p3d(centerX, centerY, centerZ).s || 1);
     ctx.strokeStyle = '#94a3b8'; 
     ctx.fillStyle = bodyFill;
 
@@ -214,13 +214,33 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
     const particlesRef = useRef<Particle3D[]>([]);
     
     // Camera State
-    const [camera, setCamera] = useState({ 
-        rotX: 0.3, 
-        rotY: -0.6, 
-        panX: 0, 
-        panY: 0, 
-        zoom: 1.0 
+    const cameraRef = useRef({ 
+        rotX: 0.3, targetRotX: 0.3,
+        rotY: -0.6, targetRotY: -0.6, 
+        panX: 0, targetPanX: 0,
+        panY: 0, targetPanY: 0,
+        zoom: 1.0, targetZoom: 1.0 
     });
+    
+    // To trigger re-renders for ViewCube and other UI
+    const [, setTick] = useState(0);
+
+    const setCameraProxy = useCallback((fn: any) => {
+        const cam = cameraRef.current;
+        const next = typeof fn === 'function' ? fn({
+            rotX: cam.targetRotX,
+            rotY: cam.targetRotY,
+            panX: cam.targetPanX,
+            panY: cam.targetPanY,
+            zoom: cam.targetZoom
+        }) : fn;
+        
+        if (next.rotX !== undefined) cam.targetRotX = next.rotX;
+        if (next.rotY !== undefined) cam.targetRotY = next.rotY;
+        if (next.panX !== undefined) cam.targetPanX = next.panX;
+        if (next.panY !== undefined) cam.targetPanY = next.panY;
+        if (next.zoom !== undefined) cam.targetZoom = next.zoom;
+    }, []);
     
     const isDragging = useRef(false);
     const isPanning = useRef(false);
@@ -267,17 +287,112 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
 
     const handleWheel = useCallback((e: React.WheelEvent) => {
         e.stopPropagation();
-        const delta = -Math.sign(e.deltaY) * 0.1;
-        setCamera(prev => ({ ...prev, zoom: Math.max(0.1, Math.min(5, prev.zoom + delta)) }));
+        
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left - rect.width / 2;
+        const mouseY = e.clientY - rect.top - rect.height / 2;
+        
+        const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+        const cam = cameraRef.current;
+        
+        cam.targetZoom = Math.max(0.1, Math.min(5, cam.targetZoom * zoomFactor));
+        
+        // Adjust targetPan to keep cursor point fixed
+        cam.targetPanX = mouseX - (mouseX - cam.targetPanX) * zoomFactor;
+        cam.targetPanY = mouseY - (mouseY - cam.targetPanY) * zoomFactor;
     }, []);
 
     const handleStart = (e: React.MouseEvent | React.TouchEvent) => {
         let clientX, clientY;
         if ('touches' in e) {
             clientX = e.touches[0].clientX; clientY = e.touches[0].clientY;
-            isDragging.current = true;
         } else {
             clientX = (e as React.MouseEvent).clientX; clientY = (e as React.MouseEvent).clientY;
+        }
+        
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = clientX - rect.left;
+        const mouseY = clientY - rect.top;
+
+        const state = simulationRef.current;
+        const cam = cameraRef.current;
+        const PPM = (state.height / state.roomHeight) || 50; 
+        const rw = state.roomWidth * PPM;
+        const rl = state.roomLength * PPM;
+        const rh = state.roomHeight * PPM;
+        const maxDim = Math.max(rw, rl, rh);
+        const fitScale = (Math.min(state.width, state.height) / maxDim) * 0.65;
+        const finalScale = fitScale * cam.zoom;
+        const yOffset = -rh / 2;
+
+        const p3d = (x: number, y: number, z: number) => 
+            project(x, -(y + yOffset), z, state.width, state.height, cam.rotX, cam.rotY, finalScale, cam.panX, cam.panY);
+
+        // Check for Diffuser Selection
+        if (state.activeTool === 'select') {
+            const diffusers = state.placedDiffusers || [];
+            const mountY = Math.max(0, Math.min(state.diffuserHeight, state.roomHeight)) * PPM;
+            
+            let found = false;
+            for (let i = diffusers.length - 1; i >= 0; i--) {
+                const d = diffusers[i];
+                const cx = (d.x - state.roomWidth / 2) * PPM;
+                const cz = (d.y - state.roomLength / 2) * PPM;
+                const p = p3d(cx, mountY, cz);
+                
+                if (p.s > 0) {
+                    const dist = Math.sqrt((mouseX - p.x) ** 2 + (mouseY - p.y) ** 2);
+                    if (dist < 30 * p.s) {
+                        state.onSelectDiffuser && state.onSelectDiffuser(d.id, (e as React.MouseEvent).shiftKey);
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (!found) {
+                // Check Probes
+                const probes = state.probes || [];
+                for (let i = probes.length - 1; i >= 0; i--) {
+                    const pr = probes[i];
+                    const cx = (pr.x - state.roomWidth/2) * PPM;
+                    const cz = (pr.y - state.roomLength/2) * PPM;
+                    const cy = pr.z * PPM;
+                    const p = p3d(cx, cy, cz);
+                    
+                    if (p.s > 0) {
+                        const dist = Math.sqrt((mouseX - p.x) ** 2 + (mouseY - p.y) ** 2);
+                        if (dist < 20 * p.s) {
+                            // For now, probes don't have selection state in Simulator, 
+                            // but we could add it.
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!found && !((e as React.MouseEvent).shiftKey)) {
+                state.onSelectDiffuser && state.onSelectDiffuser(null);
+            }
+        }
+
+        // Add Probe if tool is probe
+        if (state.activeTool === 'probe') {
+            // In 3D, we'll just add it at the center of the room at 1.5m height for now
+            // as precise 3D placement without raycasting is difficult.
+            // Or we can try to place it at the clicked XZ on the floor.
+            state.onAddProbe && state.onAddProbe(state.roomWidth / 2, state.roomLength / 2);
+        }
+
+        if ('touches' in e) {
+            isDragging.current = true;
+        } else {
             if ((e as React.MouseEvent).button === 1 || (e as React.MouseEvent).shiftKey) isPanning.current = true;
             else isDragging.current = true;
         }
@@ -295,18 +410,15 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
         const dx = clientX - lastMouse.current.x;
         const dy = clientY - lastMouse.current.y;
         
+        const cam = cameraRef.current;
         if (isDragging.current) {
-            setCamera(prev => ({
-                ...prev,
-                rotY: prev.rotY + dx * 0.005,
-                rotX: Math.max(-1.5, Math.min(1.5, prev.rotX + dy * 0.005))
-            }));
+            cam.targetRotY += dx * 0.005;
+            const newRotX = cam.targetRotX + dy * 0.005;
+            // Clamp rotX to prevent flipping
+            cam.targetRotX = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, newRotX));
         } else if (isPanning.current) {
-            setCamera(prev => ({
-                ...prev,
-                panX: prev.panX + dx,
-                panY: prev.panY + dy
-            }));
+            cam.targetPanX += dx;
+            cam.targetPanY += dy;
         }
         lastMouse.current = { x: clientX, y: clientY };
     };
@@ -318,6 +430,15 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
         if (!canvas) return;
         const ctx = canvas.getContext('2d', { alpha: false });
         if (!ctx) return;
+
+        // Smooth camera interpolation (Inertia)
+        const cam = cameraRef.current;
+        const lerpFactor = 0.1;
+        cam.rotX += (cam.targetRotX - cam.rotX) * lerpFactor;
+        cam.rotY += (cam.targetRotY - cam.rotY) * lerpFactor;
+        cam.panX += (cam.targetPanX - cam.panX) * lerpFactor;
+        cam.panY += (cam.targetPanY - cam.panY) * lerpFactor;
+        cam.zoom += (cam.targetZoom - cam.zoom) * lerpFactor;
 
         const state = simulationRef.current;
         const { width, height, isPowerOn, isPlaying, roomHeight, roomWidth, roomLength, workZoneHeight, placedDiffusers, probes } = state;
@@ -339,11 +460,11 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
 
         const maxDim = Math.max(rw, rl, rh);
         const fitScale = (Math.min(width, height) / maxDim) * 0.65;
-        const finalScale = fitScale * camera.zoom;
+        const finalScale = fitScale * cam.zoom;
         const yOffset = -rh / 2;
 
         const p3d = (x: number, y: number, z: number) => 
-            project(x, -(y + yOffset), z, width, height, camera.rotX, camera.rotY, finalScale, camera.panX, camera.panY);
+            project(x, -(y + yOffset), z, width, height, cam.rotX, cam.rotY, finalScale, cam.panX, cam.panY);
 
         // --- DRAW ROOM ---
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
@@ -411,14 +532,14 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
                 const pt = p3d(cx, cy, cz);
                 if (pt.s > 0) {
                     ctx.beginPath();
-                    ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
+                    ctx.arc(pt.x, pt.y, 4 * pt.s, 0, Math.PI * 2);
                     ctx.fillStyle = '#34d399';
                     ctx.fill();
                     
                     // Text Label
                     ctx.fillStyle = '#fff';
-                    ctx.font = '10px Inter';
-                    ctx.fillText(`P: ${p.z.toFixed(1)}m`, pt.x + 8, pt.y);
+                    ctx.font = `${Math.max(6, 10 * pt.s)}px Inter`;
+                    ctx.fillText(`P: ${p.z.toFixed(1)}m`, pt.x + 8 * pt.s, pt.y);
                 }
             });
         }
@@ -434,6 +555,7 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
         }];
 
         sources.forEach(d => {
+            const isSelected = state.selectedDiffuserIds?.includes(d.id);
             const cx = (d.x - state.roomWidth / 2) * PPM;
             const cz = (d.y - state.roomLength / 2) * PPM;
             const p = p3d(cx, mountY, cz);
@@ -442,7 +564,16 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
                 const r = ((d.performance.spec.A || 150) / 2000) * PPM;
                 const nominalDepth = Math.max(16 * (PPM / 1000), ((d.performance.spec.D || 55) * PPM) / 1000);
                 const geometry = getDiffuserGeometry(d.modelId, nominalDepth);
-                drawRealisticDiffuser3D(ctx, cx, mountY, cz, Math.max(2, r), geometry.bodyDepth, d.modelId, p3d, camera.rotY);
+                
+                if (isSelected) {
+                    ctx.save();
+                    ctx.shadowBlur = 20 * p.s;
+                    ctx.shadowColor = 'rgba(59, 130, 246, 0.8)';
+                    drawRealisticDiffuser3D(ctx, cx, mountY, cz, Math.max(2, r), geometry.bodyDepth, d.modelId, p3d, cam.rotY);
+                    ctx.restore();
+                } else {
+                    drawRealisticDiffuser3D(ctx, cx, mountY, cz, Math.max(2, r), geometry.bodyDepth, d.modelId, p3d, cam.rotY);
+                }
             }
         });
 
@@ -517,6 +648,11 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
             ctx.globalAlpha = alpha;
             ctx.strokeStyle = `rgb(${color})`;
             
+            // Scale lineWidth by average perspective scale of the group
+            const firstP = group[0];
+            const pScale = firstP ? p3d(firstP.x, firstP.y, firstP.z).s : 1;
+            ctx.lineWidth = 0.8 * pScale;
+            
             ctx.beginPath();
             for (let k = 0; k < group.length; k++) {
                 const p = group[k];
@@ -546,30 +682,9 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
         ctx.globalAlpha = 1.0;
         ctx.globalCompositeOperation = 'source-over';
 
-        // Draw Probes
-        if (probes) {
-            probes.forEach(p => {
-                const cx = (p.x - roomWidth/2) * PPM;
-                const cz = (p.y - roomLength/2) * PPM;
-                const cy = p.z * PPM;
-                
-                const pt = p3d(cx, cy, cz);
-                if (pt.s > 0) {
-                    ctx.beginPath();
-                    ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
-                    ctx.fillStyle = '#34d399';
-                    ctx.fill();
-                    
-                    // Text Label
-                    ctx.fillStyle = '#fff';
-                    ctx.font = '10px Inter';
-                    ctx.fillText(`P: ${p.z.toFixed(1)}m`, pt.x + 8, pt.y);
-                }
-            });
-        }
-
+        setTick(t => t + 1);
         requestRef.current = requestAnimationFrame(animate);
-    }, [camera]);
+    }, []);
 
     useEffect(() => {
         requestRef.current = requestAnimationFrame(animate);
@@ -582,7 +697,7 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
             onMouseDown={handleStart} onMouseMove={handleMove} onMouseUp={handleEnd} onMouseLeave={handleEnd}
             onWheel={handleWheel} onTouchStart={handleStart} onTouchMove={handleMove} onTouchEnd={handleEnd}
         >
-            <ViewCube rotX={camera.rotX} rotY={camera.rotY} setCamera={setCamera} />
+            <ViewCube rotX={cameraRef.current.rotX} rotY={cameraRef.current.rotY} setCamera={setCameraProxy} />
             <canvas ref={canvasRef} width={props.width} height={props.height} className="block w-full h-full pointer-events-none" />
         </div>
     );
