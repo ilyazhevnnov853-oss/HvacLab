@@ -143,8 +143,7 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
     const flowType = explicitFlowType || state.flowType || 'vertical-conical';
 
     const nozzleW = (spec.A / 1000) * ppm;
-    const nominalDepth = Math.max(16 * (ppm / 1000), (spec.D || 55) * (ppm / 1000));
-    const geometry = getDiffuserGeometry(modelId, nominalDepth);
+    const geometry = getDiffuserGeometry(modelId, spec, ppm);
 
     const mountedHeight = Math.max(0, Math.min(diffuserHeight, roomHeight));
     const startY = mountedHeight * ppm - geometry.outletOffset;

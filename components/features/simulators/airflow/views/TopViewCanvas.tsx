@@ -378,7 +378,7 @@ const TopViewCanvas: React.FC<TopViewCanvasProps> = (props) => {
             ctx.strokeStyle = strokeStyle;
             ctx.stroke();
 
-            const dSize = ((d.performance?.spec?.A || 0) / 1000) * ppm || 20;
+            const dSize = ((d.performance?.spec?.B || d.performance?.spec?.A || 0) / 1000) * ppm || 20;
 
             if (state.selectedDiffuserIds?.includes(d.id)) {
                 ctx.fillStyle = '#3b82f6';

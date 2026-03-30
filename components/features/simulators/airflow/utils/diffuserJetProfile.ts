@@ -32,7 +32,18 @@ const DEFAULT_GEOMETRY: DiffuserGeometry = {
     horizontalOffset: 0.15
 };
 
-export const getDiffuserGeometry = (modelId: string, nominalDepth: number): DiffuserGeometry => {
+export const getDiffuserGeometry = (modelId: string, spec: any, ppm: number): DiffuserGeometry => {
+    // If we have precise physical dimensions in the spec, use them
+    if (spec && spec.bodyHeight !== undefined) {
+        return {
+            bodyDepth: spec.bodyHeight * ppm,
+            outletOffset: (spec.bodyHeight * 0.8) * ppm, // Air originates slightly above the bottom face
+            horizontalOffset: (spec.neckDiameter / 2) * ppm
+        };
+    }
+
+    // Fallback to legacy scaling logic
+    const nominalDepth = Math.max(16 * (ppm / 1000), (spec?.D || 55) * (ppm / 1000));
     const factors = MODEL_GEOMETRY_FACTORS[modelId] || DEFAULT_GEOMETRY;
     return {
         bodyDepth: nominalDepth * factors.bodyDepth,

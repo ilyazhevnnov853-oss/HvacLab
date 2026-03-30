@@ -12,10 +12,12 @@ export interface GridPoint {
 
 export interface Spec {
   f0: number;
-  A: number;
-  B: number;
-  C: number;
-  D: number;
+  A: number; // Neck diameter
+  B: number; // Face diameter
+  C: number; // Flange height (usually 16)
+  D: number; // Body/Neck height (E)
+  bodyHeight?: number; // Total height (E + 16)
+  neckDiameter?: number; // Same as A
   min: number;
   max: number;
 }
@@ -84,6 +86,8 @@ export interface PlacedDiffuser {
   temperature: number; // Supply temperature
   performance: PerformanceResult;
   particleLimit?: number;
+  bodyHeight?: number; // in meters
+  neckDiameter?: number; // in meters
 }
 
 export interface SliceState {

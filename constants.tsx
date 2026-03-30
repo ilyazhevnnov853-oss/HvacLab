@@ -47,25 +47,25 @@ const IconDpuS = ({ size = 16 }: { size?: number }) => (
 // ==========================================
 
 export const SPECS: SpecMap = {
-  // Circular
-  100: { f0: 0.007, A: 99,  B: 140, C: 16, D: 55,  min: 30,  max: 150 },
-  125: { f0: 0.011, A: 124, B: 170, C: 16, D: 55,  min: 40,  max: 250 },
-  160: { f0: 0.018, A: 159, B: 215, C: 60, D: 60,  min: 70,  max: 400 },
-  200: { f0: 0.029, A: 198, B: 258, C: 60, D: 60,  min: 120, max: 600 },
-  250: { f0: 0.046, A: 248, B: 308, C: 60, D: 65,  min: 200, max: 900 },
-  315: { f0: 0.075, A: 313, B: 390, C: 70, D: 70,  min: 300, max: 1200 },
-  400: { f0: 0.120, A: 398, B: 490, C: 80, D: 80,  min: 500, max: 2000 },
+  // Circular DPU series
+  100: { f0: 0.007, A: 99,  B: 140, C: 16, D: 55,  bodyHeight: 0.071, neckDiameter: 0.099, min: 30,  max: 150 },
+  125: { f0: 0.011, A: 124, B: 170, C: 16, D: 55,  bodyHeight: 0.071, neckDiameter: 0.124, min: 40,  max: 250 },
+  160: { f0: 0.018, A: 159, B: 215, C: 16, D: 60,  bodyHeight: 0.076, neckDiameter: 0.159, min: 70,  max: 400 },
+  200: { f0: 0.029, A: 198, B: 258, C: 16, D: 60,  bodyHeight: 0.076, neckDiameter: 0.198, min: 120, max: 600 },
+  250: { f0: 0.046, A: 248, B: 308, C: 16, D: 60,  bodyHeight: 0.076, neckDiameter: 0.248, min: 200, max: 900 },
+  315: { f0: 0.075, A: 313, B: 390, C: 16, D: 70,  bodyHeight: 0.086, neckDiameter: 0.313, min: 300, max: 1200 },
+  400: { f0: 0.120, A: 398, B: 490, C: 16, D: 80,  bodyHeight: 0.096, neckDiameter: 0.398, min: 500, max: 2000 },
   
   // Rectangular Grilles (Equivalent diameters)
-  "200x100": { f0: 0.014, A: 200, B: 100, C: 40, D: 40, min: 50, max: 300 },
-  "300x100": { f0: 0.022, A: 300, B: 100, C: 40, D: 40, min: 80, max: 450 },
-  "400x150": { f0: 0.045, A: 400, B: 150, C: 50, D: 50, min: 150, max: 800 },
-  "500x200": { f0: 0.075, A: 500, B: 200, C: 60, D: 60, min: 250, max: 1200 },
-  "600x300": { f0: 0.138, A: 600, B: 300, C: 70, D: 70, min: 500, max: 2000 },
+  "200x100": { f0: 0.014, A: 200, B: 100, C: 40, D: 40, bodyHeight: 0.080, neckDiameter: 0.150, min: 50, max: 300 },
+  "300x100": { f0: 0.022, A: 300, B: 100, C: 40, D: 40, bodyHeight: 0.080, neckDiameter: 0.200, min: 80, max: 450 },
+  "400x150": { f0: 0.045, A: 400, B: 150, C: 50, D: 50, bodyHeight: 0.100, neckDiameter: 0.300, min: 150, max: 800 },
+  "500x200": { f0: 0.075, A: 500, B: 200, C: 60, D: 60, bodyHeight: 0.120, neckDiameter: 0.400, min: 250, max: 1200 },
+  "600x300": { f0: 0.138, A: 600, B: 300, C: 70, D: 70, bodyHeight: 0.140, neckDiameter: 0.500, min: 500, max: 2000 },
 
   // Square Ceiling (4AP)
-  "450x450": { f0: 0.035, A: 450, B: 450, C: 60, D: 60, min: 200, max: 800 },
-  "600x600": { f0: 0.056, A: 595, B: 595, C: 80, D: 80, min: 350, max: 1500 },
+  "450x450": { f0: 0.035, A: 450, B: 450, C: 60, D: 60, bodyHeight: 0.120, neckDiameter: 0.450, min: 200, max: 800 },
+  "600x600": { f0: 0.056, A: 595, B: 595, C: 80, D: 80, bodyHeight: 0.160, neckDiameter: 0.600, min: 350, max: 1500 },
 };
 
 export const ENGINEERING_DATA: EngineeringData = {

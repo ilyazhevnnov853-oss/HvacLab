@@ -13,8 +13,10 @@ const drawRealisticDiffuser3D = (
     bodyDepth: number,
     modelId: string, 
     p3d: (x: number, y: number, z: number) => {x: number, y: number, s: number},
-    rotY: number
+    rotY: number,
+    neckR?: number
 ) => {
+    const nR = neckR || radius * 0.72;
     const getShadedColor = (hex: string, factor: number) => {
         const r = parseInt(hex.slice(1, 3), 16);
         const g = parseInt(hex.slice(3, 5), 16);
@@ -97,16 +99,19 @@ const drawRealisticDiffuser3D = (
     const top = -Math.max(1.5, bodyDepth * 0.1);
     const h = Math.max(bodyDepth, radius * 0.45); 
 
+    // Dark throat area
+    drawFilledRing3D(nR * 0.8, top, 32, '#1e293b');
+
     switch (modelId) {
         case 'dpu-m':
-            fillBand3D(radius * 0.95, top, radius * 0.72, top - h * 0.72, bodyFill);
+            fillBand3D(radius * 0.95, top, nR, top - h * 0.72, bodyFill);
             drawFilledRing3D(radius * 0.95, top, 40, getShadedColor(bodyFill, 0.9));
-            drawFilledRing3D(radius * 0.72, top - h * 0.72, 40, getShadedColor(bodyFill, 0.8));
+            drawFilledRing3D(nR, top - h * 0.72, 40, getShadedColor(bodyFill, 0.8));
             
             for (let i = 0; i < 8; i++) {
                 const angle = (i * Math.PI * 2) / 8;
                 const p1 = p3d(centerX + Math.cos(angle) * radius * 0.94, centerY + top, centerZ + Math.sin(angle) * radius * 0.94);
-                const p2 = p3d(centerX + Math.cos(angle) * radius * 0.58, centerY + top - h * 0.72, centerZ + Math.sin(angle) * radius * 0.58);
+                const p2 = p3d(centerX + Math.cos(angle) * nR * 0.8, centerY + top - h * 0.72, centerZ + Math.sin(angle) * nR * 0.8);
                 ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
             }
 
@@ -118,21 +123,20 @@ const drawRealisticDiffuser3D = (
             break;
             
         case 'dpu-k':
-            fillBand3D(radius * 0.95, top, radius * 0.72, top - h * 0.68, bodyFill);
+            fillBand3D(radius * 0.95, top, nR, top - h * 0.68, bodyFill);
             drawFilledRing3D(radius * 0.95, top, 40, getShadedColor(bodyFill, 0.9));
-            drawRing3D(radius * 0.72, top - h * 0.68);
             
             for (let i = 0; i < 8; i++) {
                 const angle = (i * Math.PI * 2) / 8;
                 const p1 = p3d(centerX + Math.cos(angle) * radius * 0.94, centerY + top, centerZ + Math.sin(angle) * radius * 0.94);
-                const p2 = p3d(centerX + Math.cos(angle) * radius * 0.58, centerY + top - h * 0.68, centerZ + Math.sin(angle) * radius * 0.58);
+                const p2 = p3d(centerX + Math.cos(angle) * nR * 0.8, centerY + top - h * 0.68, centerZ + Math.sin(angle) * nR * 0.8);
                 ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
             }
 
             for (let i = 1; i <= 3; i++) {
                 const cr = radius * (0.3 + i * 0.17);
                 const ch = top - h * (0.22 + i * 0.14);
-                drawRing3D(cr, ch);
+                drawFilledRing3D(cr, ch, 32, detailFill);
                 
                 for (let j = 0; j < 3; j++) {
                     const angle = (j * 120 * Math.PI) / 180 - Math.PI / 2;
@@ -148,9 +152,9 @@ const drawRealisticDiffuser3D = (
             break;
             
         case 'dpu-v':
-            fillBand3D(radius * 0.95, top, radius * 0.75, top - h * 0.62, bodyFill);
+            fillBand3D(radius * 0.95, top, nR, top - h * 0.62, bodyFill);
             drawFilledRing3D(radius * 0.95, top, 40, getShadedColor(bodyFill, 0.9));
-            drawFilledRing3D(radius * 0.75, top - h * 0.62, 40, getShadedColor(bodyFill, 0.8));
+            drawFilledRing3D(nR, top - h * 0.62, 40, getShadedColor(bodyFill, 0.8));
 
             drawFilledRing3D(radius * 0.62, top - h * 0.32, 32, accentFill);
 
@@ -165,11 +169,9 @@ const drawRealisticDiffuser3D = (
             break;
             
         case 'dpu-s':
-            // Main outer cone
-            fillBand3D(radius * 0.95, top, radius * 0.5, top - h * 0.8, bodyFill);
+            fillBand3D(radius * 0.95, top, nR, top - h * 0.8, bodyFill);
             drawFilledRing3D(radius * 0.95, top, 40, getShadedColor(bodyFill, 0.9));
             
-            // Inner nozzle cone
             fillBand3D(radius * 0.6, top - h * 0.2, radius * 0.25, top - h * 1.1, detailFill);
             drawFilledRing3D(radius * 0.25, top - h * 1.1, 32, getShadedColor(detailFill, 0.7));
 
@@ -561,18 +563,19 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
             const p = p3d(cx, mountY, cz);
             
             if (p.s > 0) {
-                const r = ((d.performance.spec.A || 150) / 2000) * PPM;
-                const nominalDepth = Math.max(16 * (PPM / 1000), ((d.performance.spec.D || 55) * PPM) / 1000);
-                const geometry = getDiffuserGeometry(d.modelId, nominalDepth);
+                const spec = d.performance.spec;
+                const r = ((spec.B || spec.A || 150) / 2000) * PPM;
+                const neckR = ((spec.A || 100) / 2000) * PPM;
+                const geometry = getDiffuserGeometry(d.modelId, spec, PPM);
                 
                 if (isSelected) {
                     ctx.save();
                     ctx.shadowBlur = 20 * p.s;
                     ctx.shadowColor = 'rgba(59, 130, 246, 0.8)';
-                    drawRealisticDiffuser3D(ctx, cx, mountY, cz, Math.max(2, r), geometry.bodyDepth, d.modelId, p3d, cam.rotY);
+                    drawRealisticDiffuser3D(ctx, cx, mountY, cz, Math.max(2, r), geometry.bodyDepth, d.modelId, p3d, cam.rotY, neckR);
                     ctx.restore();
                 } else {
-                    drawRealisticDiffuser3D(ctx, cx, mountY, cz, Math.max(2, r), geometry.bodyDepth, d.modelId, p3d, cam.rotY);
+                    drawRealisticDiffuser3D(ctx, cx, mountY, cz, Math.max(2, r), geometry.bodyDepth, d.modelId, p3d, cam.rotY, neckR);
                 }
             }
         });

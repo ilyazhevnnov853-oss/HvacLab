@@ -250,8 +250,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         const flowType = explicitFlowType || state.flowType || 'vertical-conical';
 
         const nozzleW = (spec.A / 1000) * ppm;
-        const nominalDepth = Math.max(16 * (ppm / 1000), (spec.D || 55) * (ppm / 1000));
-        const geometry = getDiffuserGeometry(modelId, nominalDepth);
+        const geometry = getDiffuserGeometry(modelId, spec, ppm);
 
         const mountedHeight = Math.max(0, Math.min(diffuserHeight, roomHeight));
         const diffuserYPos = offsetY + (roomHeight - mountedHeight) * ppm;
@@ -345,10 +344,11 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         if (!spec || !spec.A) return;
 
         const scale = ppm / 1000;
-        const wA = spec.A * scale;
-        const nominalDepth = Math.max(16 * scale, (spec.D || 55) * scale);
-        const geometry = getDiffuserGeometry(modelId, nominalDepth);
-        const r = wA / 2;
+        const faceDiameter = (spec.B || spec.A || 0) * scale;
+        const neckDiameter = (spec.A || 0) * scale;
+        const geometry = getDiffuserGeometry(modelId, spec, ppm);
+        const r = faceDiameter / 2;
+        const nR = neckDiameter / 2;
         const mountedHeight = Math.max(0, Math.min(state.diffuserHeight, state.roomHeight));
         const yPos = offsetY + (state.roomHeight - mountedHeight) * ppm;
         const lip = Math.max(2, 6 * scale);
@@ -369,21 +369,27 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         ctx.strokeStyle = isSelected ? '#2563eb' : '#8fa0b2';
         ctx.fillStyle = bodyFill;
 
-        ctx.beginPath();
-        ctx.roundRect(-r * 0.92, 0, r * 1.84, lip, lip / 2);
-        ctx.fill();
-        ctx.stroke();
-
+        // Draw the main body first
         switch (modelId) {
             case 'dpu-m': {
                 ctx.beginPath();
                 ctx.moveTo(-r * 0.95, lip);
-                ctx.quadraticCurveTo(-r * 0.95, geometry.bodyDepth * 0.34, -r * 0.72, geometry.bodyDepth * 0.72);
-                ctx.lineTo(r * 0.72, geometry.bodyDepth * 0.72);
+                ctx.quadraticCurveTo(-r * 0.95, geometry.bodyDepth * 0.34, -nR, geometry.bodyDepth * 0.72);
+                ctx.lineTo(nR, geometry.bodyDepth * 0.72);
                 ctx.quadraticCurveTo(r * 0.95, geometry.bodyDepth * 0.34, r * 0.95, lip);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
+
+                // Dark throat
+                ctx.fillStyle = '#1e293b';
+                ctx.beginPath();
+                ctx.moveTo(-nR * 0.8, geometry.bodyDepth * 0.72);
+                ctx.lineTo(nR * 0.8, geometry.bodyDepth * 0.72);
+                ctx.lineTo(nR * 0.6, geometry.bodyDepth * 0.4);
+                ctx.lineTo(-nR * 0.6, geometry.bodyDepth * 0.4);
+                ctx.closePath();
+                ctx.fill();
 
                 ctx.fillStyle = detailFill;
                 ctx.beginPath();
@@ -397,9 +403,9 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 ctx.beginPath();
                 ctx.moveTo(0, lip);
                 ctx.lineTo(0, geometry.bodyDepth * 0.93);
-                ctx.moveTo(-r * 0.72, geometry.bodyDepth * 0.72);
+                ctx.moveTo(-nR, geometry.bodyDepth * 0.72);
                 ctx.lineTo(-r * 0.56, geometry.bodyDepth * 0.62);
-                ctx.moveTo(r * 0.72, geometry.bodyDepth * 0.72);
+                ctx.moveTo(nR, geometry.bodyDepth * 0.72);
                 ctx.lineTo(r * 0.56, geometry.bodyDepth * 0.62);
                 ctx.stroke();
                 break;
@@ -407,12 +413,22 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
             case 'dpu-k': {
                 ctx.beginPath();
                 ctx.moveTo(-r * 0.95, lip);
-                ctx.quadraticCurveTo(-r * 0.95, geometry.bodyDepth * 0.34, -r * 0.72, geometry.bodyDepth * 0.68);
-                ctx.lineTo(r * 0.72, geometry.bodyDepth * 0.68);
+                ctx.quadraticCurveTo(-r * 0.95, geometry.bodyDepth * 0.34, -nR, geometry.bodyDepth * 0.68);
+                ctx.lineTo(nR, geometry.bodyDepth * 0.68);
                 ctx.quadraticCurveTo(r * 0.95, geometry.bodyDepth * 0.34, r * 0.95, lip);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
+
+                // Dark throat
+                ctx.fillStyle = '#1e293b';
+                ctx.beginPath();
+                ctx.moveTo(-nR * 0.8, geometry.bodyDepth * 0.68);
+                ctx.lineTo(nR * 0.8, geometry.bodyDepth * 0.68);
+                ctx.lineTo(nR * 0.6, geometry.bodyDepth * 0.3);
+                ctx.lineTo(-nR * 0.6, geometry.bodyDepth * 0.4);
+                ctx.closePath();
+                ctx.fill();
 
                 ctx.strokeStyle = '#6e8094';
                 [0.42, 0.56, 0.70].forEach((ratio, idx) => {
@@ -439,12 +455,22 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
             case 'dpu-v': {
                 ctx.beginPath();
                 ctx.moveTo(-r * 0.95, lip);
-                ctx.quadraticCurveTo(-r * 0.95, geometry.bodyDepth * 0.28, -r * 0.75, geometry.bodyDepth * 0.62);
-                ctx.lineTo(r * 0.75, geometry.bodyDepth * 0.62);
+                ctx.quadraticCurveTo(-r * 0.95, geometry.bodyDepth * 0.28, -nR, geometry.bodyDepth * 0.62);
+                ctx.lineTo(nR, geometry.bodyDepth * 0.62);
                 ctx.quadraticCurveTo(r * 0.95, geometry.bodyDepth * 0.28, r * 0.95, lip);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
+
+                // Dark throat
+                ctx.fillStyle = '#1e293b';
+                ctx.beginPath();
+                ctx.moveTo(-nR * 0.8, geometry.bodyDepth * 0.62);
+                ctx.lineTo(nR * 0.8, geometry.bodyDepth * 0.62);
+                ctx.lineTo(nR * 0.6, geometry.bodyDepth * 0.2);
+                ctx.lineTo(-nR * 0.6, geometry.bodyDepth * 0.2);
+                ctx.closePath();
+                ctx.fill();
 
                 ctx.fillStyle = accentFill;
                 ctx.beginPath();
@@ -465,8 +491,8 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
             case 'dpu-s': {
                 ctx.beginPath();
                 ctx.moveTo(-r * 0.92, lip);
-                ctx.quadraticCurveTo(-r * 0.9, geometry.bodyDepth * 0.48, -r * 0.4, geometry.bodyDepth);
-                ctx.lineTo(r * 0.4, geometry.bodyDepth);
+                ctx.quadraticCurveTo(-r * 0.9, geometry.bodyDepth * 0.48, -nR, geometry.bodyDepth);
+                ctx.lineTo(nR, geometry.bodyDepth);
                 ctx.quadraticCurveTo(r * 0.9, geometry.bodyDepth * 0.48, r * 0.92, lip);
                 ctx.closePath();
                 ctx.fill();
@@ -475,8 +501,8 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 ctx.fillStyle = detailFill;
                 ctx.beginPath();
                 ctx.moveTo(-r * 0.72, lip);
-                ctx.quadraticCurveTo(-r * 0.68, geometry.bodyDepth * 0.44, -r * 0.22, geometry.bodyDepth * 1.02);
-                ctx.lineTo(r * 0.22, geometry.bodyDepth * 1.02);
+                ctx.quadraticCurveTo(-r * 0.68, geometry.bodyDepth * 0.44, -nR * 0.5, geometry.bodyDepth * 1.02);
+                ctx.lineTo(nR * 0.5, geometry.bodyDepth * 1.02);
                 ctx.quadraticCurveTo(r * 0.68, geometry.bodyDepth * 0.44, r * 0.72, lip);
                 ctx.closePath();
                 ctx.fill();
@@ -490,6 +516,13 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 ctx.stroke();
                 break;
         }
+
+        // Draw the lip on top
+        ctx.fillStyle = bodyFill;
+        ctx.beginPath();
+        ctx.roundRect(-r * 0.92, 0, r * 1.84, lip, lip / 2);
+        ctx.fill();
+        ctx.stroke();
 
         ctx.restore();
     };
