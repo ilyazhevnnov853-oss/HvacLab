@@ -206,7 +206,7 @@ export const spawnParticle = (p: Particle3D, state: ThreeDViewCanvasProps, ppm: 
             waveAmp = 4; drag = 0.98;
         }
 
-        p.life = 2.0 + Math.random() * 1.5;
+        p.life = 6.0 + Math.random() * 4.0;
         p.color = getGlowColor(temp);
     }
 
@@ -240,6 +240,12 @@ export const updateParticlePhysics = (p: Particle3D, dt: number, state: ThreeDVi
     } else {
         p.vy += p.buoyancy * dt;
         
+        if (!p.isHorizontal) {
+            const turb = 2.0 * ppm * dt;
+            p.vx += (Math.random() - 0.5) * turb;
+            p.vz += (Math.random() - 0.5) * turb;
+        }
+        
         p.vx *= p.drag;
         p.vy *= p.drag;
         p.vz *= p.drag;
@@ -254,10 +260,26 @@ export const updateParticlePhysics = (p: Particle3D, dt: number, state: ThreeDVi
         p.y = ceilingY;
         p.vy = Math.min(0, p.vy * -0.05);
     }
-    if (p.y < 0) {
+    if (p.y <= 0) {
         p.y = 0;
-        p.active = false;
-        return;
+        if (!p.isHorizontal) {
+            p.isHorizontal = true;
+            const energyLoss = 0.6;
+            const impactSpeed = Math.abs(p.vy) * energyLoss;
+            p.vy = 0;
+            
+            const currentSpeed = Math.sqrt(p.vx * p.vx + p.vz * p.vz);
+            if (currentSpeed > 0.1) {
+                const angle = Math.atan2(p.vz, p.vx) + (Math.random() - 0.5) * 1.5;
+                p.vx += Math.cos(angle) * impactSpeed;
+                p.vz += Math.sin(angle) * impactSpeed;
+            } else {
+                const angle = Math.random() * Math.PI * 2;
+                p.vx += Math.cos(angle) * impactSpeed;
+                p.vz += Math.sin(angle) * impactSpeed;
+            }
+            p.drag = 0.95;
+        }
     }
     
     const halfW = (state.roomWidth * ppm) / 2;

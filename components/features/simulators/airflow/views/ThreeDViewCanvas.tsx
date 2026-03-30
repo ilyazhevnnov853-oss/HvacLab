@@ -606,7 +606,7 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
         }
 
         const batches: Record<string, Particle3D[]> = {};
-        const QUANTIZE = 10;
+        const QUANTIZE = 20;
 
         for (let i = 0; i < pool.length; i++) {
             const p = pool[i];
@@ -628,9 +628,27 @@ const ThreeDViewCanvas: React.FC<ThreeDViewCanvasProps> = (props) => {
             }
 
             if (p.history.length > 1) {
-                const rawAlpha = (1 - p.age/p.life) * 0.5;
+                const ageRatio = p.age / p.life;
+                let rawAlpha = 0;
+                
+                if (ageRatio < 0.05) {
+                    // Fade-in
+                    rawAlpha = ageRatio / 0.05;
+                } else {
+                    // Parabolic fade-out
+                    const fadeRatio = (ageRatio - 0.05) / 0.95;
+                    rawAlpha = 1.0 - Math.pow(fadeRatio, 2);
+                }
+                
+                if (p.isHorizontal) {
+                    rawAlpha *= 0.35;
+                }
+                
+                rawAlpha *= 0.7; // Overall brightness multiplier
+                
                 const alpha = Math.ceil(rawAlpha * QUANTIZE) / QUANTIZE;
                 if (alpha <= 0) continue;
+                
                 const key = `${p.color}|${alpha}`;
                 if (!batches[key]) batches[key] = [];
                 batches[key].push(p);

@@ -314,7 +314,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                 waveAmp = 4; drag = 0.98;
             }
 
-            p.life = 2.0 + Math.random() * 1.5;
+            p.life = 6.0 + Math.random() * 4.0;
             p.color = getGlowColor(diffuserTemp);
         }
 
@@ -673,7 +673,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
         // 2. PHYSICS
         const maxH = height;
         const batches: Record<string, Particle[]> = {};
-        const QUANTIZE = 10;
+        const QUANTIZE = 20;
 
         for (let i = 0; i < pool.length; i++) {
             const p = pool[i];
@@ -693,6 +693,12 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
                     if (p.y > diffY - 10) p.active = false; 
                 } else {
                     p.vy += p.buoyancy * dt;
+                    
+                    if (!p.isHorizontal) {
+                        const turb = 2.0 * ppm * dt;
+                        p.vx += (Math.random() - 0.5) * turb;
+                    }
+                    
                     p.vx *= p.drag;
                     p.vy *= p.drag;
                     p.x += p.vx * dt; p.y += p.vy * dt;
@@ -700,10 +706,22 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
 
                 // Collisions
                 // Floor
-                if (p.y > offsetY + roomHeight * ppm) {
+                if (p.y >= offsetY + roomHeight * ppm) {
                     p.y = offsetY + roomHeight * ppm;
-                    p.active = false;
-                    continue;
+                    if (!p.isHorizontal) {
+                        p.isHorizontal = true;
+                        const energyLoss = 0.6;
+                        const impactSpeed = Math.abs(p.vy) * energyLoss;
+                        p.vy = 0;
+                        
+                        const currentSpeed = Math.abs(p.vx);
+                        if (currentSpeed > 0.1) {
+                            p.vx += Math.sign(p.vx) * impactSpeed;
+                        } else {
+                            p.vx += (Math.random() > 0.5 ? 1 : -1) * impactSpeed;
+                        }
+                        p.drag = 0.95;
+                    }
                 }
                 // Ceiling
                 if (p.y < offsetY) {
@@ -731,7 +749,24 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
             }
 
             if (p.history.length > 1) {
-                const rawAlpha = (1 - p.age/p.life) * 0.5;
+                const ageRatio = p.age / p.life;
+                let rawAlpha = 0;
+                
+                if (ageRatio < 0.05) {
+                    // Fade-in
+                    rawAlpha = ageRatio / 0.05;
+                } else {
+                    // Parabolic fade-out
+                    const fadeRatio = (ageRatio - 0.05) / 0.95;
+                    rawAlpha = 1.0 - Math.pow(fadeRatio, 2);
+                }
+                
+                if (p.isHorizontal) {
+                    rawAlpha *= 0.35;
+                }
+                
+                rawAlpha *= 0.7; // Overall brightness multiplier
+                
                 const alpha = Math.ceil(rawAlpha * QUANTIZE) / QUANTIZE;
                 if (alpha <= 0) continue;
 
@@ -743,7 +778,7 @@ const SideViewCanvas: React.FC<SideViewCanvasProps> = (props) => {
 
         // 3. DRAW PARTICLES
         ctx.globalCompositeOperation = 'screen';
-        ctx.lineWidth = 1; 
+        ctx.lineWidth = 0.8; 
         ctx.lineCap = 'round';
 
         for (const key in batches) {
