@@ -75,8 +75,8 @@ const ViewCube: React.FC<ViewCubeProps> = ({ rotX, rotY, setCamera }) => {
     const dragStart = useRef({ x: 0, y: 0, rotX: 0, rotY: 0 });
     const dragHasMoved = useRef(false); // Защита от случайного клика при перетаскивании
 
-    const rX = rotX * (180 / Math.PI);
-    const rY = -rotY * (180 / Math.PI);
+    const rX = -rotX * (180 / Math.PI);
+    const rY = rotY * (180 / Math.PI);
 
     const handleMouseDown = (e: React.MouseEvent) => {
         setIsDragging(true);
@@ -102,7 +102,7 @@ const ViewCube: React.FC<ViewCubeProps> = ({ rotX, rotY, setCamera }) => {
             }
 
             const sens = 0.01;
-            let newRotY = dragStart.current.rotY - dx * sens;
+            let newRotY = dragStart.current.rotY + dx * sens;
             let newRotX = dragStart.current.rotX + dy * sens;
 
             // Блокируем камеру от переворота вверх ногами (gimbal lock prevention)
